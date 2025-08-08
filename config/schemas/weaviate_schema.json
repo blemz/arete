@@ -1,0 +1,239 @@
+{
+  "classes": [
+    {
+      "class": "Document",
+      "description": "A philosophical document or text",
+      "vectorizer": "text2vec-transformers",
+      "moduleConfig": {
+        "text2vec-transformers": {
+          "poolingStrategy": "masked_mean",
+          "vectorizeClassName": true
+        }
+      },
+      "properties": [
+        {
+          "name": "title",
+          "dataType": ["text"],
+          "description": "The title of the document",
+          "moduleConfig": {
+            "text2vec-transformers": {
+              "skip": false,
+              "vectorizePropertyName": false
+            }
+          }
+        },
+        {
+          "name": "author",
+          "dataType": ["text"],
+          "description": "The author of the document",
+          "moduleConfig": {
+            "text2vec-transformers": {
+              "skip": false,
+              "vectorizePropertyName": false
+            }
+          }
+        },
+        {
+          "name": "content",
+          "dataType": ["text"],
+          "description": "The full content of the document",
+          "moduleConfig": {
+            "text2vec-transformers": {
+              "skip": false,
+              "vectorizePropertyName": false
+            }
+          }
+        },
+        {
+          "name": "language",
+          "dataType": ["text"],
+          "description": "The language of the document (e.g., English, Greek, Latin)"
+        },
+        {
+          "name": "created_at",
+          "dataType": ["date"],
+          "description": "When the document was added to the system"
+        },
+        {
+          "name": "metadata",
+          "dataType": ["object"],
+          "description": "Additional metadata about the document"
+        },
+        {
+          "name": "neo4j_id",
+          "dataType": ["text"],
+          "description": "Reference to the corresponding Neo4j node ID"
+        }
+      ]
+    },
+    {
+      "class": "Chunk",
+      "description": "A chunk of text from a document with semantic meaning",
+      "vectorizer": "text2vec-transformers",
+      "moduleConfig": {
+        "text2vec-transformers": {
+          "poolingStrategy": "masked_mean",
+          "vectorizeClassName": true
+        }
+      },
+      "properties": [
+        {
+          "name": "text",
+          "dataType": ["text"],
+          "description": "The text content of the chunk",
+          "moduleConfig": {
+            "text2vec-transformers": {
+              "skip": false,
+              "vectorizePropertyName": false
+            }
+          }
+        },
+        {
+          "name": "document_id",
+          "dataType": ["text"],
+          "description": "The ID of the parent document"
+        },
+        {
+          "name": "position",
+          "dataType": ["int"],
+          "description": "The position of this chunk in the document"
+        },
+        {
+          "name": "start_char",
+          "dataType": ["int"],
+          "description": "Starting character position in the original document"
+        },
+        {
+          "name": "end_char",
+          "dataType": ["int"],
+          "description": "Ending character position in the original document"
+        },
+        {
+          "name": "token_count",
+          "dataType": ["int"],
+          "description": "Number of tokens in this chunk"
+        },
+        {
+          "name": "metadata",
+          "dataType": ["object"],
+          "description": "Additional metadata (e.g., Stephanus pages, chapter info)"
+        },
+        {
+          "name": "neo4j_id",
+          "dataType": ["text"],
+          "description": "Reference to the corresponding Neo4j node ID"
+        }
+      ]
+    },
+    {
+      "class": "Entity",
+      "description": "A named entity extracted from philosophical texts",
+      "vectorizer": "text2vec-transformers",
+      "moduleConfig": {
+        "text2vec-transformers": {
+          "poolingStrategy": "masked_mean",
+          "vectorizeClassName": true
+        }
+      },
+      "properties": [
+        {
+          "name": "name",
+          "dataType": ["text"],
+          "description": "The name of the entity",
+          "moduleConfig": {
+            "text2vec-transformers": {
+              "skip": false,
+              "vectorizePropertyName": false
+            }
+          }
+        },
+        {
+          "name": "type",
+          "dataType": ["text"],
+          "description": "The type of entity (Person, Concept, Place, etc.)"
+        },
+        {
+          "name": "description",
+          "dataType": ["text"],
+          "description": "A description of the entity",
+          "moduleConfig": {
+            "text2vec-transformers": {
+              "skip": false,
+              "vectorizePropertyName": false
+            }
+          }
+        },
+        {
+          "name": "properties",
+          "dataType": ["object"],
+          "description": "Additional properties of the entity"
+        },
+        {
+          "name": "confidence",
+          "dataType": ["number"],
+          "description": "Confidence score for entity extraction (0.0 to 1.0)"
+        },
+        {
+          "name": "neo4j_id",
+          "dataType": ["text"],
+          "description": "Reference to the corresponding Neo4j node ID"
+        }
+      ]
+    },
+    {
+      "class": "Concept",
+      "description": "A philosophical concept or idea",
+      "vectorizer": "text2vec-transformers",
+      "moduleConfig": {
+        "text2vec-transformers": {
+          "poolingStrategy": "masked_mean",
+          "vectorizeClassName": true
+        }
+      },
+      "properties": [
+        {
+          "name": "name",
+          "dataType": ["text"],
+          "description": "The name of the concept",
+          "moduleConfig": {
+            "text2vec-transformers": {
+              "skip": false,
+              "vectorizePropertyName": false
+            }
+          }
+        },
+        {
+          "name": "definition",
+          "dataType": ["text"],
+          "description": "Definition or explanation of the concept",
+          "moduleConfig": {
+            "text2vec-transformers": {
+              "skip": false,
+              "vectorizePropertyName": false
+            }
+          }
+        },
+        {
+          "name": "category",
+          "dataType": ["text"],
+          "description": "Category of the concept (Ethics, Metaphysics, Logic, etc.)"
+        },
+        {
+          "name": "synonyms",
+          "dataType": ["text[]"],
+          "description": "Alternative names or synonyms for the concept"
+        },
+        {
+          "name": "related_concepts",
+          "dataType": ["text[]"],
+          "description": "Names of related concepts"
+        },
+        {
+          "name": "neo4j_id",
+          "dataType": ["text"],
+          "description": "Reference to the corresponding Neo4j node ID"
+        }
+      ]
+    }
+  ]
+}
