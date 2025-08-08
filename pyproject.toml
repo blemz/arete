@@ -26,22 +26,79 @@ classifiers = [
 ]
 keywords = ["philosophy", "education", "graph-rag", "ai-tutor", "knowledge-graph"]
 dependencies = [
+    # Core Graph-RAG Dependencies
     "neo4j>=5.15.0",
+    "py2neo>=2021.2.4",
     "weaviate-client>=4.4.1",
+    
+    # LLM and RAG Framework
     "langchain>=0.1.6",
-    "streamlit>=1.31.0",
+    "langchain-community>=0.3.2",
     "sentence-transformers>=2.3.1",
-    "ollama>=0.1.7",
+    "ollama>=0.5.0",
+    
+    # Core Web Interface
+    "streamlit>=1.31.0",
+    
+    # Environment Management
     "pydantic>=2.5.3",
+    "pydantic-settings>=2.4.0",
     "python-dotenv>=1.0.0",
+    
+    # Core Utilities
     "loguru>=0.7.2",
+    "requests>=2.31.0",
+    "click>=8.1.7",
+    "pyyaml>=6.0.1",
 ]
 
 [project.optional-dependencies]
+web = [
+    "gradio>=4.15.0",
+    "fastapi>=0.109.0",
+    "uvicorn>=0.27.0",
+    "httpx>=0.26.0",
+    "aiohttp>=3.9.3",
+]
+ml = [
+    "langchain-experimental>=0.0.51",
+    "langchain-google-genai>=2.1.9",
+    "langchain-anthropic>=0.3.18",
+    "llama-index>=0.9.48",
+    "transformers>=4.37.2",
+    "torch>=2.1.2",
+    "spacy>=3.7.2",
+    "datasets>=2.16.1",
+]
+document = [
+    "pymupdf4llm>=0.0.5",
+    "marker-pdf>=0.2.1",
+    "beautifulsoup4>=4.12.3",
+    "lxml>=5.1.0",
+]
+vector = [
+    "faiss-cpu>=1.7.4",
+    "chromadb>=0.4.22",
+]
+data = [
+    "pandas>=2.2.0",
+    "numpy>=1.26.3",
+    "scipy>=1.12.0",
+    "tqdm>=4.66.1",
+]
+database = [
+    "sqlalchemy>=2.0.25",
+    "alembic>=1.13.1",
+]
+monitoring = [
+    "rich>=13.7.0",
+]
 dev = [
     "pytest>=7.4.4",
     "pytest-cov>=4.1.0",
     "pytest-asyncio>=0.23.5",
+    "pytest-mock>=3.12.0",
+    "pytest-xdist>=3.5.0",
     "black>=24.1.1",
     "flake8>=7.0.0",
     "isort>=5.13.2",
@@ -52,6 +109,9 @@ docs = [
     "sphinx>=7.1.0",
     "sphinx-rtd-theme>=1.3.0",
     "myst-parser>=2.0.0",
+]
+all = [
+    "arete[web,ml,document,vector,data,database,monitoring,dev,docs]",
 ]
 
 [project.urls]
