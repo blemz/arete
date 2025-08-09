@@ -27,7 +27,9 @@ arete/
 │   ├── CLAUDE.md            # Source code memory & conventions
 │   ├── config.py ✅         # Configuration management (COMPLETED)
 │   ├── models/              # Data models (IN PROGRESS)
-│   │   └── CLAUDE.md        # Models memory & patterns
+│   │   ├── CLAUDE.md        # Models memory & patterns
+│   │   ├── base.py ✅        # Base model classes (COMPLETED)
+│   │   └── document.py ✅    # Document model (COMPLETED)
 │   ├── graph/               # Neo4j operations (PENDING)
 │   │   └── CLAUDE.md        # Graph operations memory
 │   ├── rag/                 # RAG system (PENDING)
@@ -38,7 +40,8 @@ arete/
 │       └── CLAUDE.md        # UI memory & patterns
 ├── tests/                   # Test suite
 │   ├── CLAUDE.md            # Testing memory & conventions
-│   └── test_config.py ✅    # Config tests (COMPLETED)
+│   ├── test_config.py ✅    # Config tests (COMPLETED)
+│   └── test_models.py ✅    # Model tests (COMPLETED)
 ├── config/                  # Configuration files
 │   ├── CLAUDE.md            # Configuration memory
 │   ├── development.env ✅    # Dev environment config
@@ -54,11 +57,12 @@ arete/
 
 ## Current Development Status
 
-### Phase 1: Foundation and Infrastructure (15% Complete)
+### Phase 1: Foundation and Infrastructure (25% Complete)
 - ✅ **Docker Configuration**: All services configured and tested
 - ✅ **Database Schemas**: Neo4j and Weaviate schemas created
 - ✅ **Configuration System**: Pydantic-based config with full test coverage
-- 🔄 **Core Data Models**: Document model tests in progress
+- ✅ **Document Model Tests**: Comprehensive test suite implemented (640+ lines)
+- 🔄 **Document Model Implementation**: Model completed with full validation
 - ⏳ **Database Connections**: Next priority
 
 ### Technology Stack Decisions
@@ -69,8 +73,10 @@ arete/
 - **Redis**: Caching layer (planned)
 
 **LLM Infrastructure:**
-- **Ollama**: Local LLM inference server with GPU support
-- **OpenHermes-2.5**: Primary model for philosophical reasoning
+- **Multi-Provider Support**: Ollama (local), OpenRouter, Google Gemini, Anthropic Claude
+- **Ollama**: Local LLM inference server with GPU support (OpenHermes-2.5)
+- **Cloud APIs**: Secure API key management via environment variables
+- **Intelligent Routing**: Cost-aware provider selection and consensus validation
 - **sentence-transformers**: Embeddings for semantic similarity
 
 **Backend Framework:**
@@ -88,7 +94,7 @@ arete/
 
 ### Configuration Management (COMPLETED)
 ```python
-# Pattern: Pydantic Settings with validation
+# Pattern: Pydantic Settings with validation and API key support
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -98,6 +104,16 @@ class Settings(BaseSettings):
     # Database configs with validation
     neo4j_uri: str = Field(default="bolt://localhost:7687")
     neo4j_password: str = Field(repr=False)  # Security: hidden in repr
+    
+    # LLM Provider API Keys (all secure, hidden in repr)
+    openrouter_api_key: Optional[str] = Field(None, repr=False)
+    gemini_api_key: Optional[str] = Field(None, repr=False) 
+    anthropic_api_key: Optional[str] = Field(None, repr=False)
+    
+    # Provider configuration
+    default_llm_provider: str = Field(default="ollama")
+    enable_provider_failover: bool = Field(default=True)
+    max_cost_per_query: float = Field(default=0.10, ge=0.0)
     
     # Custom validation
     @field_validator("chunk_overlap")
@@ -170,6 +186,11 @@ pip install -e ".[dev,all]"
 # Start database services
 docker-compose up -d neo4j weaviate ollama
 
+# Configure LLM providers (optional - add to .env file)
+export OPENROUTER_API_KEY="your_openrouter_key"
+export GEMINI_API_KEY="your_gemini_key"
+export ANTHROPIC_API_KEY="your_anthropic_key"
+
 # Run tests with coverage
 pytest tests/ -v --cov=src/arete --cov-report=html
 
@@ -213,11 +234,11 @@ python scripts/backup_databases.py
 
 ## Next Priority Tasks
 
-1. **Complete Document Model**: Finish tests and implementation
-2. **Entity Model**: Create with full relationship support
-3. **Database Connections**: Neo4j and Weaviate clients
-4. **Text Processing**: PDF and TEI-XML parsers
-5. **RAG Pipeline**: Hybrid retrieval system
+1. **Entity Model**: Create with full relationship support and validation
+2. **Database Connections**: Neo4j and Weaviate client implementations 
+3. **Chunk and Citation Models**: Complete the core data model suite
+4. **Text Processing Pipeline**: PDF and TEI-XML document processors
+5. **RAG System Foundation**: Begin hybrid retrieval implementation
 
 ## Contact & Resources
 
@@ -229,6 +250,6 @@ python scripts/backup_databases.py
 
 ---
 
-**Last Updated**: 2025-08-08  
-**Phase**: 1 (Foundation) - 15% Complete  
-**Next Milestone**: Complete data models with 95% test coverage
+**Last Updated**: 2025-08-09  
+**Phase**: 1 (Foundation) - 25% Complete  
+**Next Milestone**: Complete Entity model and database connections

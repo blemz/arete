@@ -25,8 +25,8 @@ config/
 
 ## Environment Configuration Files
 
-### development.env ✅ (COMPLETED)
-**Purpose**: Local development environment settings
+### development.env ✅ (COMPLETED - Enhanced with Multi-Provider Support)
+**Purpose**: Local development environment settings with LLM provider support
 **Usage**: Loaded automatically when `ENV=development`
 
 ```env
@@ -35,7 +35,20 @@ NEO4J_URI=bolt://localhost:7687
 NEO4J_USERNAME=neo4j
 NEO4J_PASSWORD=password
 WEAVIATE_URL=http://localhost:8080
+
+# LLM Provider Configuration
 OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=openhermes2.5-mistral
+
+# Cloud Provider API Keys (Optional)
+# OPENROUTER_API_KEY=your_openrouter_api_key_here
+# GEMINI_API_KEY=your_google_gemini_api_key_here  
+# ANTHROPIC_API_KEY=your_anthropic_claude_api_key_here
+
+# Provider Management
+DEFAULT_LLM_PROVIDER=ollama
+ENABLE_PROVIDER_FAILOVER=true
+MAX_COST_PER_QUERY=0.10
 
 # Debug settings
 LOG_LEVEL=DEBUG
@@ -47,8 +60,8 @@ CHUNK_SIZE=1000
 CHUNK_OVERLAP=200
 ```
 
-### production.env ✅ (COMPLETED)
-**Purpose**: Production deployment settings
+### production.env ✅ (COMPLETED - Enhanced with Multi-Provider Support)
+**Purpose**: Production deployment settings with cloud provider integration
 **Usage**: Loaded in production containers
 
 ```env
@@ -57,16 +70,31 @@ NEO4J_URI=bolt://neo4j:7687
 NEO4J_USERNAME=neo4j  
 NEO4J_PASSWORD=password
 WEAVIATE_URL=http://weaviate:8080
+
+# LLM Provider Configuration
 OLLAMA_BASE_URL=http://ollama:11434
+OLLAMA_MODEL=openhermes2.5-mistral
+
+# Cloud Provider API Keys (via Docker secrets/env)
+# OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+# GEMINI_API_KEY=${GEMINI_API_KEY}
+# ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+
+# Provider Management (Production settings)
+DEFAULT_LLM_PROVIDER=ollama
+ENABLE_PROVIDER_FAILOVER=true
+MAX_COST_PER_QUERY=0.05
 
 # Production logging
 LOG_LEVEL=INFO
 DEBUG=false
 
-# Production RAG settings
+# Production RAG settings (Higher concurrency)
 MAX_CONTEXT_TOKENS=5000
 CHUNK_SIZE=1000
 CHUNK_OVERLAP=200
+MAX_CONCURRENT_REQUESTS=50
+RESPONSE_TIMEOUT=60
 ```
 
 ### Key Configuration Principles

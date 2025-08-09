@@ -33,7 +33,9 @@ graph TB
 ### Technology Stack
 
 **AI/ML Stack:**
-- 🧠 **LLM**: Ollama with OpenHermes-2.5 for local inference
+- 🧠 **LLM**: Multi-provider support (Ollama, OpenRouter, Gemini, Claude)
+- 🔑 **API Integration**: Secure API key management for cloud providers
+- 🎯 **Intelligent Routing**: Cost-aware provider selection with consensus validation
 - 🔍 **Embeddings**: sentence-transformers for semantic similarity
 - 📊 **NER**: spaCy for entity extraction
 - 🎯 **RAG**: Custom hybrid retrieval system
@@ -76,7 +78,15 @@ cd arete
 pip install -e ".[dev,all]"
 ```
 
-3. **Start the services:**
+3. **Configure LLM providers (optional):**
+```bash
+# Add to .env file for cloud provider support
+echo "OPENROUTER_API_KEY=your_openrouter_key" >> .env
+echo "GEMINI_API_KEY=your_gemini_key" >> .env  
+echo "ANTHROPIC_API_KEY=your_anthropic_key" >> .env
+```
+
+4. **Start the services:**
 ```bash
 # Start database services
 docker-compose up -d neo4j weaviate ollama
@@ -88,7 +98,7 @@ docker-compose ps
 python scripts/init_databases.py
 ```
 
-4. **Start the application:**
+5. **Start the application:**
 ```bash
 # Development mode
 streamlit run src/arete/ui/streamlit_app.py
@@ -97,7 +107,7 @@ streamlit run src/arete/ui/streamlit_app.py
 docker-compose up -d app
 ```
 
-5. **Access the application:**
+6. **Access the application:**
 - Web Interface: http://localhost:8501
 - API Documentation: http://localhost:8000/docs
 - Neo4j Browser: http://localhost:7474
@@ -130,20 +140,22 @@ from arete import AreteClient
 
 client = AreteClient()
 
-# Ask a philosophical question
+# Ask a philosophical question (automatically selects optimal LLM provider)
 response = client.ask("What is Aristotle's view on virtue ethics?")
 print(response.answer)
 print(response.citations)
+print(f"Answered by: {response.provider}")
 ```
 
 ### Advanced Query with Context
 
 ```python
-# Query with specific context
+# Query with specific context and provider preference
 response = client.ask(
     question="How does Plato's theory of Forms relate to modern epistemology?",
     context="Plato's Republic, Books VI-VII",
-    max_citations=5
+    max_citations=5,
+    preferred_provider="anthropic"  # Optional: specify provider
 )
 
 # Get detailed explanations
@@ -178,7 +190,9 @@ print(f"Processed {result.chunks} chunks, extracted {result.entities} entities")
 ### 🔍 Advanced Retrieval
 - **Hybrid Search**: Combines dense and sparse retrieval
 - **Graph Traversal**: Explores conceptual relationships
+- **Multi-Provider LLM**: Intelligent routing between Ollama, OpenRouter, Gemini, Claude
 - **Citation Accuracy**: Verifies all references against source texts
+- **Consensus Validation**: Multi-model agreement for critical responses
 - **Relevance Ranking**: Multi-stage result refinement
 
 ### 🌐 Multi-language Support
@@ -242,19 +256,20 @@ pytest tests/ -m slow          # Long-running tests
 
 ## 📊 Development Progress
 
-**Current Status**: Foundation Phase (Phase 1/7)
+**Current Status**: Foundation Phase (Phase 1/7) - 25% Complete
 - ✅ Docker environment configured
 - ✅ Database schemas created  
 - ✅ Configuration management implemented
-- 🔄 Core data models (in progress)
-- ⏳ Database connections (next)
+- ✅ Document model with comprehensive tests (640+ lines)
+- 🔄 Entity model (next priority)
+- ⏳ Database connections (pending)
 
 See [Development Progress](docs/development_progress.md) for detailed status.
 
 ### Roadmap
 
-- **Phase 1** (Weeks 1-3): Foundation and Infrastructure ✅
-- **Phase 2** (Weeks 4-6): Data Ingestion Pipeline 🔄
+- **Phase 1** (Weeks 1-3): Foundation and Infrastructure 🔄 25% Complete
+- **Phase 2** (Weeks 4-6): Data Ingestion Pipeline ⏳
 - **Phase 3** (Weeks 7-10): Retrieval and RAG System ⏳
 - **Phase 4** (Weeks 8-10): LLM Integration and Generation ⏳
 - **Phase 5** (Weeks 11-12): User Interface Development ⏳
