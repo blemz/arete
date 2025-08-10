@@ -161,7 +161,7 @@ class TestNeo4jClient:
         from arete.database.client import Neo4jClient
         
         with patch('neo4j.AsyncGraphDatabase.driver') as mock_driver_factory:
-            mock_driver = MagicMock()
+            mock_driver = AsyncMock()  # FIX: Use AsyncMock for awaitable methods
             mock_driver_factory.return_value = mock_driver
             
             client = Neo4jClient()
@@ -170,7 +170,7 @@ class TestNeo4jClient:
             
             assert client.driver is None
             assert client.is_connected is False
-            mock_driver.close.assert_called_once()
+            mock_driver.close.assert_awaited_once()  # FIX: Use assert_awaited_once for AsyncMock
             
     def test_sync_close_connection(self):
         """Test sync connection closing."""
@@ -208,14 +208,14 @@ class TestNeo4jClient:
         from arete.database.client import Neo4jClient
         
         with patch('neo4j.AsyncGraphDatabase.driver') as mock_driver_factory:
-            mock_driver = MagicMock()
+            mock_driver = AsyncMock()  # FIX: Use AsyncMock for awaitable methods
             mock_driver_factory.return_value = mock_driver
             
             async with Neo4jClient() as client:
                 assert client.is_connected is True
                 assert client.driver == mock_driver
                 
-            mock_driver.close.assert_called_once()
+            mock_driver.close.assert_awaited_once()  # FIX: Use assert_awaited_once for AsyncMock
 
 
 class TestHealthCheck:
@@ -571,17 +571,20 @@ class TestModelIntegration:
         """Test sync document saving to Neo4j."""
         from arete.database.client import Neo4jClient
         
+        # FIX: Use the proper Neo4j mocking pattern from guidance
         with patch('neo4j.GraphDatabase.driver') as mock_driver_factory:
-            mock_driver = Mock()
-            mock_session = Mock()
-            mock_result = Mock()
-            mock_record = MagicMock()
+            mock_driver = MagicMock()  # Need MagicMock for context manager support
+            mock_session = Mock()  
             doc_data = {"id": str(sample_document.id)}
-            mock_record.__getitem__.return_value = doc_data
-            mock_record.data.return_value = {"d": doc_data}
             
-            mock_result.single = AsyncMock(return_value=mock_record)
-            mock_session.run = AsyncMock(return_value=mock_result)
+            # FIX: Configure the mock chain correctly for Neo4j client pattern:
+            # session.run() -> result.single() -> record["d"] -> doc_data
+            mock_result = Mock()
+            mock_record = {"d": doc_data}  # Use real dict for record
+            mock_result.single.return_value = mock_record
+            mock_session.run.return_value = mock_result
+            
+            # FIX: Properly configure context manager for sync operations
             mock_driver.session.return_value.__enter__.return_value = mock_session
             mock_driver_factory.return_value = mock_driver
             
@@ -590,6 +593,7 @@ class TestModelIntegration:
             
             result = client.save_document(sample_document)
             
+            # The save_document method should return the document data
             assert result["id"] == str(sample_document.id)
             # Verify the Cypher query was executed
             mock_session.run.assert_called_once()
@@ -640,8 +644,8 @@ class TestModelIntegration:
             mock_record.__getitem__.return_value = entity_data
             mock_record.data.return_value = {"e": entity_data}
             
-            mock_result.single = AsyncMock(return_value=mock_record)
-            mock_session.run = AsyncMock(return_value=mock_result)
+            mock_result.single.return_value = mock_record
+            mock_session.run.return_value = mock_result
             mock_driver.session.return_value.__enter__.return_value = mock_session
             mock_driver_factory.return_value = mock_driver
             
@@ -704,8 +708,8 @@ class TestModelIntegration:
             doc_data = sample_document.to_neo4j_dict()
             mock_record.__getitem__.return_value = doc_data
             mock_record.data.return_value = {"d": doc_data}
-            mock_result.single = AsyncMock(return_value=mock_record)
-            mock_session.run = AsyncMock(return_value=mock_result)
+            mock_result.single.return_value = mock_record
+            mock_session.run.return_value = mock_result
             mock_driver.session.return_value.__enter__.return_value = mock_session
             mock_driver_factory.return_value = mock_driver
             
@@ -761,8 +765,8 @@ class TestModelIntegration:
             entity_data = sample_entity.to_neo4j_dict()
             mock_record.__getitem__.return_value = entity_data
             mock_record.data.return_value = {"e": entity_data}
-            mock_result.single = AsyncMock(return_value=mock_record)
-            mock_session.run = AsyncMock(return_value=mock_result)
+            mock_result.single.return_value = mock_record
+            mock_session.run.return_value = mock_result
             mock_driver.session.return_value.__enter__.return_value = mock_session
             mock_driver_factory.return_value = mock_driver
             
@@ -808,9 +812,9 @@ class TestModelIntegration:
             mock_driver = Mock()
             mock_session = Mock()
             mock_result = Mock()
-            mock_result.single = AsyncMock(return_value=None)  # Entity not found
+            mock_result.single.return_value = None  # Entity not found
             
-            mock_session.run = AsyncMock(return_value=mock_result)
+            mock_session.run.return_value = mock_result
             mock_driver.session.return_value.__enter__.return_value = mock_session
             mock_driver_factory.return_value = mock_driver
             
@@ -879,7 +883,7 @@ class TestModelIntegration:
             
             created_records = [{"id": str(entity.id)} for entity in entities]
             mock_result.data.return_value = created_records
-            mock_session.run = AsyncMock(return_value=mock_result)
+            mock_session.run.return_value = mock_result
             mock_driver.session.return_value.__enter__.return_value = mock_session
             mock_driver_factory.return_value = mock_driver
             
@@ -1285,18 +1289,8 @@ class TestTransactions:
             mock_tx.run.assert_called_once()
 
             
-@pytest.fixture
-def sample_document():
-    """Fixture providing sample document data for testing."""
-    return {
-        "title": "Republic",
-        "author": "Plato",
-        "content": "Justice is the excellence of the soul and governs the harmony of all virtues.",
-        "language": "English",
-        "source": "Perseus Digital Library",
-        "translator": "Benjamin Jowett",
-        "publication_year": -380
-    }
+# FIX: Removed conflicting global sample_document fixture that returned dict instead of Document object
+# The class-level fixture in TestModelIntegration properly returns a Document instance
 
 
 # Integration test markers for real database testing
