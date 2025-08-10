@@ -1,4 +1,17 @@
-# Documentation Directory - Claude Memory
+# Memory System Migration Complete
+
+Documentation strategy and standards have been migrated to the hybrid memory system.
+
+See `../.memory/` for:
+- Development workflows and documentation patterns
+- Architecture decisions and technical documentation
+- Project context and memory management
+
+## Current Documentation Files:
+- `development_progress.md` ✅ - Development status and progress tracking
+- `README.md` ✅ - Project overview and quick start guide
+
+# Original Documentation Directory Information
 
 ## Purpose & Organization
 

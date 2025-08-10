@@ -1,64 +1,28 @@
-# Configuration Directory - Claude Memory
+# Memory System Migration Complete
 
-## Purpose & Structure
+Configuration management information has been migrated to the hybrid memory system.
 
-This directory contains all configuration files, schemas, and environment-specific settings for the Arete Graph-RAG system.
+## Configuration Information Now Located At:
 
-```
-config/
-├── CLAUDE.md                    # This file - configuration memory
-├── development.env ✅           # Development environment variables
-├── production.env ✅            # Production environment variables  
-├── testing.env                  # Test environment variables (PLANNED)
-├── schemas/                     # Database schema definitions
-│   ├── neo4j_schema.cypher ✅   # Neo4j constraints and indexes
-│   └── weaviate_schema.json ✅  # Weaviate class definitions
-├── prompts/                     # LLM prompt templates (PLANNED)
-│   ├── philosophy_tutor.txt     # Main tutoring prompts
-│   ├── citation_generation.txt  # Citation-specific prompts
-│   └── validation_prompts.txt   # Response validation prompts
-└── data/                        # Configuration data (PLANNED)
-    ├── entity_types.yaml        # Philosophical entity classifications
-    ├── concept_hierarchy.yaml   # Concept relationship definitions
-    └── citation_formats.yaml    # Citation format specifications
-```
+- **Configuration Patterns**: `../.memory/architecture/patterns.md`
+- **Configuration Learnings**: `../.memory/development/learnings.md` → [MemoryID: 20250810-MM19]
+- **Multi-Provider Setup**: `../.memory/architecture/decisions.md` → [MemoryID: 20250810-MM01]
 
-## Environment Configuration Files
+## Quick Reference - Current Config Files:
+- `development.env` - Local development with multi-provider LLM support
+- `production.env` - Production deployment settings
+- `schemas/neo4j_schema.cypher` - Graph database schema
+- `schemas/weaviate_schema.json` - Vector database schema
 
-### development.env ✅ (COMPLETED - Enhanced with Multi-Provider Support)
-**Purpose**: Local development environment settings with LLM provider support
-**Usage**: Loaded automatically when `ENV=development`
 
-```env
-# Database connections for local Docker containers
-NEO4J_URI=bolt://localhost:7687
-NEO4J_USERNAME=neo4j
-NEO4J_PASSWORD=password
-WEAVIATE_URL=http://localhost:8080
+For detailed configuration documentation including:
+- Environment-specific setup patterns
+- Multi-provider LLM configuration
+- Database schema design decisions
+- Security considerations and validation
 
-# LLM Provider Configuration
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=openhermes2.5-mistral
+Refer to the hybrid memory system at `../.memory/`.
 
-# Cloud Provider API Keys (Optional)
-# OPENROUTER_API_KEY=your_openrouter_api_key_here
-# GEMINI_API_KEY=your_google_gemini_api_key_here  
-# ANTHROPIC_API_KEY=your_anthropic_claude_api_key_here
-
-# Provider Management
-DEFAULT_LLM_PROVIDER=ollama
-ENABLE_PROVIDER_FAILOVER=true
-MAX_COST_PER_QUERY=0.10
-
-# Debug settings
-LOG_LEVEL=DEBUG
-DEBUG=true
-
-# RAG configuration optimized for development
-MAX_CONTEXT_TOKENS=5000
-CHUNK_SIZE=1000
-CHUNK_OVERLAP=200
-```
 
 ### production.env ✅ (COMPLETED - Enhanced with Multi-Provider Support)
 **Purpose**: Production deployment settings with cloud provider integration
