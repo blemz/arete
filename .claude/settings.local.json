@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest teststest_databasetest_neo4j_client.py::TestNeo4jClient::test_client_initialization_with_default_config -v)",
+      "Bash(python -m pytest tests/test_database/test_neo4j_client.py -v)"
+    ],
+    "deny": []
+  }
+}
