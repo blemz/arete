@@ -571,6 +571,419 @@ def test_graph_algorithms():
 
 ---
 
+## [MemoryID: 20250812-MM41] Text Processing and Chunking Patterns
+**Type**: code_pattern  
+**Priority**: 1  
+**Tags**: text-processing, chunking-strategies, pdf-extraction, factory-pattern, dual-database
+
+### Pattern Description
+Established patterns for text processing infrastructure supporting the Graph-RAG system with multiple chunking strategies, comprehensive metadata handling, and dual database serialization.
+
+### Chunk Model Pattern
+```python
+from enum import Enum
+from pydantic import Field, field_validator, model_validator
+from typing import Optional, List, Dict, Any
+from uuid import UUID
+
+class ChunkType(str, Enum):
+    PARAGRAPH = "paragraph"
+    SENTENCE = "sentence" 
+    SEMANTIC = "semantic"
+    SLIDING_WINDOW = "sliding_window"
+
+class Chunk(AreteBaseModel):
+    """Text chunk with dual database integration."""
+    
+    # Core chunk data
+    content: str = Field(..., min_length=1, description="Chunk text content")
+    chunk_type: ChunkType = Field(..., description="Chunking strategy used")
+    start_position: int = Field(..., ge=0, description="Start position in source")
+    end_position: int = Field(..., ge=0, description="End position in source")
+    
+    # Document relationship
+    document_id: str = Field(..., description="Source document ID")
+    chunk_index: int = Field(..., ge=0, description="Sequential chunk number")
+    
+    # Optional metadata
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional chunk metadata")
+    overlap_with: Optional[List[str]] = Field(None, description="IDs of overlapping chunks")
+    
+    # Validation
+    @field_validator('end_position')
+    @classmethod
+    def validate_position_order(cls, v, info):
+        if 'start_position' in info.data and v <= info.data['start_position']:
+            raise ValueError("end_position must be greater than start_position")
+        return v
+    
+    @model_validator(mode='after')
+    def validate_content_consistency(self):
+        if len(self.content) != (self.end_position - self.start_position):
+            raise ValueError("Content length must match position difference")
+        return self
+    
+    # Database serialization
+    def to_neo4j_dict(self) -> Dict[str, Any]:
+        """Serialize for Neo4j graph storage."""
+        data = super().to_neo4j_dict()
+        data.update({
+            'chunk_type': self.chunk_type.value,
+            'word_count': len(self.content.split()),
+            'character_count': len(self.content)
+        })
+        return data
+    
+    def to_weaviate_dict(self) -> Dict[str, Any]:
+        """Serialize for Weaviate vector storage."""
+        data = super().to_weaviate_dict()
+        data.update({
+            'vectorizable_text': self.get_vectorizable_text(),
+            'chunk_metadata': self.metadata or {}
+        })
+        return data
+    
+    def get_vectorizable_text(self) -> str:
+        """Generate text optimized for vector embedding."""
+        return self.content.strip()
+    
+    # Business logic methods
+    def has_overlap_with(self, other_chunk: 'Chunk') -> bool:
+        """Check if this chunk overlaps with another chunk."""
+        return not (self.end_position <= other_chunk.start_position or 
+                   other_chunk.end_position <= self.start_position)
+```
+
+### Chunking Strategy Factory Pattern
+```python
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any
+import re
+
+class BaseChunker(ABC):
+    """Base class for all chunking strategies."""
+    
+    def __init__(self, max_tokens: int = 512, overlap_tokens: int = 50, **kwargs):
+        self.max_tokens = max_tokens
+        self.overlap_tokens = overlap_tokens
+        self.config = kwargs
+    
+    @abstractmethod
+    def chunk_text(self, text: str, document_id: str) -> List[Chunk]:
+        """Chunk text according to strategy."""
+        pass
+    
+    def _create_chunk(self, content: str, start: int, end: int, 
+                     chunk_index: int, document_id: str, 
+                     chunk_type: ChunkType) -> Chunk:
+        """Helper to create chunk with standard metadata."""
+        return Chunk(
+            content=content,
+            chunk_type=chunk_type,
+            start_position=start,
+            end_position=end,
+            document_id=document_id,
+            chunk_index=chunk_index,
+            metadata={
+                'strategy_config': self.config,
+                'word_count': len(content.split()),
+                'character_count': len(content)
+            }
+        )
+
+class SlidingWindowChunker(BaseChunker):
+    """Fixed-size sliding window chunking."""
+    
+    def chunk_text(self, text: str, document_id: str) -> List[Chunk]:
+        chunks = []
+        words = text.split()
+        
+        for i in range(0, len(words), self.max_tokens - self.overlap_tokens):
+            chunk_words = words[i:i + self.max_tokens]
+            chunk_content = ' '.join(chunk_words)
+            
+            # Calculate positions in original text
+            start_pos = text.find(chunk_words[0]) if chunk_words else i
+            end_pos = start_pos + len(chunk_content)
+            
+            chunk = self._create_chunk(
+                content=chunk_content,
+                start=start_pos,
+                end=end_pos,
+                chunk_index=len(chunks),
+                document_id=document_id,
+                chunk_type=ChunkType.SLIDING_WINDOW
+            )
+            chunks.append(chunk)
+        
+        return chunks
+
+class SentenceChunker(BaseChunker):
+    """Sentence-boundary aware chunking."""
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.sentence_pattern = re.compile(r'[.!?]+\s+')
+    
+    def chunk_text(self, text: str, document_id: str) -> List[Chunk]:
+        sentences = self.sentence_pattern.split(text)
+        chunks = []
+        current_chunk = ""
+        current_start = 0
+        
+        for sentence in sentences:
+            if len((current_chunk + sentence).split()) > self.max_tokens:
+                if current_chunk:  # Save current chunk
+                    chunk = self._create_chunk(
+                        content=current_chunk.strip(),
+                        start=current_start,
+                        end=current_start + len(current_chunk),
+                        chunk_index=len(chunks),
+                        document_id=document_id,
+                        chunk_type=ChunkType.SENTENCE
+                    )
+                    chunks.append(chunk)
+                
+                # Start new chunk
+                current_start = text.find(sentence, current_start + len(current_chunk))
+                current_chunk = sentence
+            else:
+                current_chunk += " " + sentence if current_chunk else sentence
+        
+        # Handle remaining content
+        if current_chunk.strip():
+            chunk = self._create_chunk(
+                content=current_chunk.strip(),
+                start=current_start,
+                end=current_start + len(current_chunk),
+                chunk_index=len(chunks),
+                document_id=document_id,
+                chunk_type=ChunkType.SENTENCE
+            )
+            chunks.append(chunk)
+        
+        return chunks
+
+class ChunkingStrategy:
+    """Factory for chunking strategy selection."""
+    
+    _strategies = {
+        'sliding_window': SlidingWindowChunker,
+        'sentence': SentenceChunker,
+        'paragraph': ParagraphChunker,  # Implementation similar to sentence
+        'semantic': SemanticChunker,    # Advanced semantic boundary detection
+    }
+    
+    @classmethod
+    def get_chunker(cls, strategy: str, **kwargs) -> BaseChunker:
+        """Get chunker instance for specified strategy."""
+        if strategy not in cls._strategies:
+            raise ValueError(f"Unknown chunking strategy: {strategy}")
+        
+        return cls._strategies[strategy](**kwargs)
+    
+    @classmethod
+    def list_strategies(cls) -> List[str]:
+        """Get list of available chunking strategies."""
+        return list(cls._strategies.keys())
+```
+
+### PDF Extraction Pattern
+```python
+from pathlib import Path
+from datetime import datetime
+from typing import Tuple, Optional
+import re
+
+class PDFMetadata(AreteBaseModel):
+    """PDF document metadata with validation."""
+    
+    title: Optional[str] = Field(None, max_length=500)
+    author: Optional[str] = Field(None, max_length=200) 
+    subject: Optional[str] = Field(None, max_length=500)
+    creator: Optional[str] = Field(None, max_length=200)
+    creation_date: Optional[datetime] = None
+    modification_date: Optional[datetime] = None
+    page_count: Optional[int] = Field(None, ge=1)
+    file_size_bytes: Optional[int] = Field(None, ge=0)
+    
+    # Normalized fields
+    @field_validator('title', 'author', 'subject', 'creator')
+    @classmethod
+    def normalize_string_fields(cls, v: Optional[str]) -> Optional[str]:
+        """Normalize string metadata fields."""
+        if v is None:
+            return None
+        return re.sub(r'\s+', ' ', v.strip()) if v.strip() else None
+
+class PDFExtractor:
+    """PDF text extraction with metadata handling."""
+    
+    def extract_text_and_metadata(self, file_path: str) -> Tuple[str, PDFMetadata]:
+        """Extract text and metadata from PDF file."""
+        if not Path(file_path).exists():
+            raise FileNotFoundError(f"PDF file not found: {file_path}")
+        
+        if not self.validate_pdf_format(file_path):
+            raise ValueError(f"Invalid PDF format: {file_path}")
+        
+        # Mock implementation - replace with actual PDF library
+        raw_text = self._extract_raw_text(file_path)
+        metadata = self._extract_metadata(file_path)
+        
+        cleaned_text = self.clean_extracted_text(raw_text)
+        
+        return cleaned_text, metadata
+    
+    def clean_extracted_text(self, raw_text: str) -> str:
+        """Clean and normalize extracted text."""
+        # Remove excessive whitespace
+        text = re.sub(r'\s+', ' ', raw_text)
+        
+        # Normalize line breaks for paragraphs
+        text = re.sub(r'\n\s*\n', '\n\n', text)
+        
+        # Remove common PDF artifacts
+        text = re.sub(r'\f', '', text)  # Form feed characters
+        text = re.sub(r'[^\x20-\x7E\n\t]', '', text)  # Non-printable chars
+        
+        return text.strip()
+    
+    def validate_pdf_format(self, file_path: str) -> bool:
+        """Validate PDF file format and accessibility."""
+        try:
+            # Basic file validation
+            if not file_path.lower().endswith('.pdf'):
+                return False
+            
+            # Check file signature (magic bytes)
+            with open(file_path, 'rb') as f:
+                header = f.read(8)
+                if not header.startswith(b'%PDF-'):
+                    return False
+            
+            return True
+        except Exception:
+            return False
+    
+    def _extract_raw_text(self, file_path: str) -> str:
+        """Extract raw text - placeholder for PDF library integration."""
+        # Placeholder - implement with PyPDF2, pdfplumber, or pymupdf
+        return "Sample extracted text content"
+    
+    def _extract_metadata(self, file_path: str) -> PDFMetadata:
+        """Extract metadata - placeholder for PDF library integration."""
+        # Placeholder - implement with PDF library metadata extraction
+        return PDFMetadata(
+            title="Sample Document",
+            page_count=10,
+            file_size_bytes=Path(file_path).stat().st_size
+        )
+```
+
+### Text Processing Pipeline Integration
+```python
+class TextProcessingPipeline:
+    """Coordinated text processing workflow."""
+    
+    def __init__(self):
+        self.pdf_extractor = PDFExtractor()
+        self.tei_parser = TEIXMLExtractor()  # For classical texts
+    
+    def process_document(self, file_path: str, chunking_strategy: str = 'semantic', 
+                        **chunking_kwargs) -> 'ProcessingResult':
+        """End-to-end document processing."""
+        
+        # 1. Detect document type and extract content
+        if file_path.lower().endswith('.pdf'):
+            text, metadata = self.pdf_extractor.extract_text_and_metadata(file_path)
+        elif file_path.lower().endswith('.xml'):
+            text, metadata = self.tei_parser.extract_text_and_metadata(file_path)
+        else:
+            raise ValueError(f"Unsupported file type: {file_path}")
+        
+        # 2. Apply chunking strategy
+        chunker = ChunkingStrategy.get_chunker(chunking_strategy, **chunking_kwargs)
+        document_id = str(uuid4())
+        chunks = chunker.chunk_text(text, document_id)
+        
+        # 3. Generate overlap information
+        self._detect_chunk_overlaps(chunks)
+        
+        return ProcessingResult(
+            document_id=document_id,
+            original_text=text,
+            metadata=metadata,
+            chunks=chunks,
+            processing_stats={
+                'chunk_count': len(chunks),
+                'total_characters': len(text),
+                'chunking_strategy': chunking_strategy,
+                'average_chunk_size': sum(len(c.content) for c in chunks) / len(chunks)
+            }
+        )
+    
+    def _detect_chunk_overlaps(self, chunks: List[Chunk]) -> None:
+        """Detect and record chunk overlaps."""
+        for i, chunk1 in enumerate(chunks):
+            overlaps = []
+            for j, chunk2 in enumerate(chunks):
+                if i != j and chunk1.has_overlap_with(chunk2):
+                    overlaps.append(str(chunk2.id))
+            if overlaps:
+                chunk1.overlap_with = overlaps
+
+@dataclass
+class ProcessingResult:
+    """Result of text processing pipeline."""
+    document_id: str
+    original_text: str
+    metadata: Any  # PDFMetadata or TEIMetadata
+    chunks: List[Chunk]
+    processing_stats: Dict[str, Any]
+```
+
+### Usage Patterns
+```python
+# Strategy selection for different document types
+philosophical_chunker = ChunkingStrategy.get_chunker(
+    'semantic',
+    max_tokens=512,
+    overlap_tokens=50,
+    respect_sentence_boundaries=True,
+    preserve_paragraph_structure=True
+)
+
+# Processing workflow
+pipeline = TextProcessingPipeline()
+result = pipeline.process_document(
+    'path/to/republic.pdf',
+    chunking_strategy='semantic',
+    max_tokens=512,
+    overlap_tokens=50
+)
+
+# Database preparation
+for chunk in result.chunks:
+    neo4j_data = chunk.to_neo4j_dict()  # For graph storage
+    weaviate_data = chunk.to_weaviate_dict()  # For vector storage
+```
+
+### Application Areas
+- Classical philosophical text processing (Perseus Digital Library, GRETIL)
+- Modern philosophical paper analysis
+- Multi-format document ingestion (PDF, TEI-XML)
+- Retrieval-Augmented Generation chunk preparation
+- Knowledge graph construction with text grounding
+
+### Performance Considerations
+- **Memory Efficiency**: Stream processing for large documents
+- **Chunk Size Optimization**: Balance between context preservation and embedding efficiency
+- **Overlap Strategy**: Configurable overlap prevents context loss at boundaries
+- **Batch Processing**: Support for processing document collections
+
+---
+
 ## Pattern Dependencies
 
 ### Core Foundation Patterns
@@ -592,7 +1005,8 @@ def test_graph_algorithms():
 ### Implementation Priority
 1. **Base patterns**: TDD, Contract Testing, Pydantic, Database Client  
 2. **Infrastructure patterns**: Query building, error handling, focused testing
-3. **Advanced patterns**: Repository, Service Layer with contract-based validation
+3. **Text Processing patterns**: Chunking strategies, PDF extraction, dual database serialization
+4. **Advanced patterns**: Repository, Service Layer with contract-based validation
 
 **Last Updated**: 2025-08-12  
 **Review Schedule**: Monthly for pattern consistency, as-needed for new patterns
