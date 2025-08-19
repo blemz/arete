@@ -227,6 +227,14 @@
 - **Pattern Reuse**: Established patterns documented and easily accessible
 - **Continuous Learning**: Bug patterns and solutions captured for future prevention
 
+### Development Routines
+- **start-day**: every-time I type 'start-day' you should understand it as a shortcut to this development routine:
+  - read @CLAUDE.md, @README.md, @planning\TODO.md, @planning/* and @.memory/* to understand the repo and its currently development phase
+  - make a small and direct sumary of repo, implementend features and next steps
+- **end-day**: every-time I type 'end-day' you should understand it as a shortcut to this development routine:
+  - read and update @CLAUDE.md, @README.md, @planning\TODO.md, @planning/* and @.memory/* whit lattest developments
+  - git commit
+
 ---
 
 **Last Updated**: 2025-08-12  

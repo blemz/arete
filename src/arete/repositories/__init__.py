@@ -18,6 +18,7 @@ from .base import (
     ValidationError,
 )
 from .document import DocumentRepository
+from .entity import EntityRepository
 
 __all__ = [
     # Base classes and exceptions
@@ -30,4 +31,5 @@ __all__ = [
     "ValidationError",
     # Repository implementations
     "DocumentRepository",
+    "EntityRepository",
 ]

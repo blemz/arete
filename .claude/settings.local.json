@@ -2,7 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(python -m pytest teststest_databasetest_neo4j_client.py::TestNeo4jClient::test_client_initialization_with_default_config -v)",
-      "Bash(python -m pytest tests/test_database/test_neo4j_client.py -v)"
+      "Bash(python -m pytest tests/test_database/test_neo4j_client.py -v)",
+      "Bash(find:*)",
+      "Bash(python -m pytest tests/test_entity.py -v)",
+      "Bash(python -m pytest tests/test_entity.py::TestEntityType::test_entity_type_case_insensitive -v)",
+      "Bash(python -m pytest tests/test_entity.py::TestEntity::test_entity_neo4j_serialization -v)",
+      "Bash(python -m pytest tests/test_entity.py --tb=short)",
+      "Bash(python -m pytest tests/test_entity.py::TestEntity::test_entity_creation_with_minimal_data -v)",
+      "Bash(python -m pytest tests/test_repositories/test_entity_repository.py -v)",
+      "Bash(python -m pytest tests/test_repositories/test_entity_repository.py::TestEntityRepositorySearchOperations::test_get_by_type_queries_neo4j -v -s)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs"
     ],
     "deny": []
   }
