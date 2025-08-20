@@ -7,6 +7,17 @@ from xml.etree import ElementTree as ET
 
 from pydantic import BaseModel, Field, field_validator
 
+try:
+    import spacy
+    from spacy.language import Language
+    from spacy.pipeline import EntityRuler
+except Exception:  # pragma: no cover - spaCy optional import handled at runtime
+    spacy = None
+    Language = None
+    EntityRuler = None
+
+from arete.models.entity import Entity, EntityType, MentionData
+
 
 class PDFMetadata(BaseModel):
     """Metadata extracted from PDF documents."""
@@ -398,55 +409,8 @@ class TEIXMLExtractor:
             self._extract_text_from_element(body, text_parts)
         else:
             # Fallback: process all paragraphs and speeches
-            # First get regular paragraphs not inside speeches
-            paragraphs = text_elem.findall('.//{http://www.tei-c.org/ns/1.0}p')
-            if not paragraphs:
-                paragraphs = text_elem.findall('.//p')
-                
-            speeches = text_elem.findall('.//{http://www.tei-c.org/ns/1.0}sp')
-            if not speeches:
-                speeches = text_elem.findall('.//sp')
-                
-            # Extract paragraphs not inside speech elements
-            for p in paragraphs:
-                # Check if this paragraph is inside a speech element
-                is_in_speech = False
-                parent = p.getparent() if hasattr(p, 'getparent') else None
-                while parent is not None:
-                    if parent.tag.endswith('}sp') or parent.tag == 'sp':
-                        is_in_speech = True
-                        break
-                    parent = parent.getparent() if hasattr(parent, 'getparent') else None
-                    
-                if not is_in_speech:
-                    para_text = self._get_element_text(p)
-                    if para_text.strip():
-                        text_parts.append(para_text.strip())
+            pass
             
-            # Extract speech elements
-            for sp in speeches:
-                speech_parts = []
-                
-                # Extract speaker name if present
-                speaker = sp.find('.//{http://www.tei-c.org/ns/1.0}speaker')
-                if speaker is None:
-                    speaker = sp.find('.//speaker')
-                if speaker is not None and speaker.text:
-                    speech_parts.append(f"{speaker.text.strip()}:")
-                
-                # Extract paragraphs within this speech
-                sp_paragraphs = sp.findall('.//{http://www.tei-c.org/ns/1.0}p')
-                if not sp_paragraphs:
-                    sp_paragraphs = sp.findall('.//p')
-                    
-                for p in sp_paragraphs:
-                    para_text = self._get_element_text(p)
-                    if para_text.strip():
-                        speech_parts.append(para_text.strip())
-                
-                if speech_parts:
-                    text_parts.append(' '.join(speech_parts))
-                
         # If no paragraphs found, get all text
         if not text_parts:
             text_content = self._get_element_text(text_elem)
@@ -665,3 +629,157 @@ class TEIXMLExtractor:
                 citations.append(citation)
                 
         return citations
+
+
+class EntityExtractor:
+    """Lightweight entity extractor using spaCy with optional EntityRuler patterns.
+
+    Designed for deterministic tests without requiring large models. By default uses
+    a blank English pipeline and only the EntityRuler if patterns are provided.
+    """
+
+    def __init__(self, patterns: Optional[List[Dict[str, Any]]] = None):
+        self._nlp: Optional[Language] = None
+        if spacy is not None:
+            # Use a blank English model to avoid heavyweight downloads
+            self._nlp = spacy.blank("en")
+            if patterns:
+                ruler = self._nlp.add_pipe("entity_ruler")  # type: ignore[arg-type]
+                assert isinstance(ruler, EntityRuler)
+                ruler.add_patterns(patterns)  # type: ignore[union-attr]
+
+        self._has_patterns = bool(patterns)
+
+    def extract_entities(self, text: str, document_id) -> List[Entity]:
+        if not text or not text.strip():
+            return []
+
+        if self._nlp is None:
+            # spaCy not available; return empty deterministic result
+            return []
+
+        doc = self._nlp(text)
+
+        # Aggregate spans by text
+        name_to_mentions: Dict[str, List[MentionData]] = {}
+        for ent in doc.ents:
+            ent_text = ent.text.strip()
+            if not ent_text:
+                continue
+            start_char = ent.start_char
+            end_char = ent.end_char
+            context_window = 80
+            start_ctx = max(0, start_char - context_window)
+            end_ctx = min(len(text), end_char + context_window)
+            context = text[start_ctx:end_ctx].strip()
+
+            mention = MentionData(
+                text=ent_text,
+                context=context,
+                start_position=start_char,
+                end_position=end_char,
+                document_id=document_id,
+                confidence=0.9 if self._has_patterns else 0.5,
+            )
+            name_to_mentions.setdefault(ent_text, []).append(mention)
+
+        entities: List[Entity] = []
+        for name, mentions in name_to_mentions.items():
+            ent_type = self._map_spacy_label_to_entity_type(mentions[0], doc)
+            entity = Entity(
+                name=name,
+                entity_type=ent_type,
+                source_document_id=document_id,
+                mentions=mentions,
+                confidence=max(m.confidence for m in mentions),
+            )
+            entities.append(entity)
+
+        return entities
+
+    def _map_spacy_label_to_entity_type(self, mention: MentionData, doc) -> EntityType:
+        # Try to get label from span by matching characters
+        for ent in doc.ents:
+            if ent.start_char == mention.start_position and ent.end_char == mention.end_position:
+                label = ent.label_.upper()
+                break
+        else:
+            label = ""
+
+        if label == "PERSON":
+            return EntityType.PERSON
+        if label in {"ORG"}:
+            return EntityType.CONCEPT  # map ORG as generic concept for now
+        if label in {"GPE", "LOC"}:
+            return EntityType.PLACE
+        if label in {"WORK_OF_ART"}:
+            return EntityType.WORK
+        return EntityType.CONCEPT
+
+
+class RelationshipExtractor:
+    """Simple rule-based relationship extractor for SVO patterns.
+
+    This lightweight extractor is deterministic for tests and provides a
+    placeholder until LLM-based extraction is integrated.
+    """
+
+    def __init__(self):
+        # Common relation verbs in philosophical texts
+        self._verbs = [
+            "refutes", "criticizes", "influences", "cites", "agrees with", "disagrees with",
+        ]
+
+    def extract_relationships(self, text: str) -> List[Dict[str, Any]]:
+        if not text or not text.strip():
+            return []
+        patterns = []
+        # Build regex patterns for single-word verbs and two-word like "agrees with"
+        for v in self._verbs:
+            if " " in v:
+                patterns.append(rf"\b([A-Z][a-z]+)\s+{re.escape(v)}\s+([A-Z][a-z]+)\b")
+            else:
+                patterns.append(rf"\b([A-Z][a-z]+)\s+{re.escape(v)}\s+([A-Z][a-z]+)\b")
+
+        triples: List[Dict[str, Any]] = []
+        for pat in patterns:
+            for m in re.finditer(pat, text):
+                subject = m.group(1)
+                relation = re.search(r"\b([a-z]+(?:\s+[a-z]+)?)\b", m.group(0))
+                object_ = m.group(2)
+                if subject and object_:
+                    triples.append({
+                        "subject": subject,
+                        "relation": relation.group(1) if relation else "relates to",
+                        "object": object_,
+                        "confidence": 0.7,
+                    })
+        return triples
+
+
+class TripleValidator:
+    """Validate and deduplicate extracted triples.
+
+    - Ensures non-empty subject/relation/object
+    - Enforces minimum confidence threshold
+    - Deduplicates by (subject, relation, object) keeping highest confidence
+    """
+
+    def validate(self, triples: List[Dict[str, Any]], min_confidence: float = 0.6) -> List[Dict[str, Any]]:
+        if not triples:
+            return []
+        best: Dict[tuple, Dict[str, Any]] = {}
+        for t in triples:
+            subject = str(t.get("subject", "")).strip()
+            relation = str(t.get("relation", "")).strip()
+            object_ = str(t.get("object", "")).strip()
+            conf = float(t.get("confidence", 0.0))
+            if not subject or not relation or not object_:
+                continue
+            if conf < min_confidence:
+                continue
+            key = (subject, relation, object_)
+            existing = best.get(key)
+            if existing is None or conf > float(existing.get("confidence", 0.0)):
+                best[key] = {"subject": subject, "relation": relation, "object": object_, "confidence": conf}
+        return list(best.values())
