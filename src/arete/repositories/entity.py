@@ -11,6 +11,7 @@ enhanced search capabilities and philosophical relationship modeling.
 import logging
 from typing import List, Optional, Dict, Any, Union
 from uuid import UUID
+import uuid
 
 from arete.repositories.base import (
     GraphRepository,
@@ -612,3 +613,266 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
         except Exception as e:
             logger.error(f"Failed to perform hybrid entity search: {str(e)}")
             raise RepositoryError(f"Failed to perform hybrid search: {str(e)}")
+    
+    # Knowledge Graph Methods
+    
+    async def create_relationship(
+        self,
+        source_entity_id: Union[UUID, str],
+        target_entity_id: Union[UUID, str],
+        relationship_type: str,
+        confidence: float = 0.5,
+        source: Optional[str] = None,
+        evidence: Optional[str] = None,
+        properties: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Create a relationship between two entities in Neo4j.
+        
+        Args:
+            source_entity_id: ID of the source entity
+            target_entity_id: ID of the target entity
+            relationship_type: Type of relationship (e.g., INFLUENCES, CRITIQUES)
+            confidence: Confidence score for the relationship (0.0-1.0)
+            source: Source of the relationship information
+            evidence: Text evidence supporting the relationship
+            properties: Additional relationship properties
+            
+        Returns:
+            True if relationship was created, False otherwise
+            
+        Raises:
+            RepositoryError: For database errors
+        """
+        try:
+            # Ensure both entities exist
+            source_exists = await self.exists(source_entity_id)
+            target_exists = await self.exists(target_entity_id)
+            
+            if not source_exists or not target_exists:
+                raise EntityNotFoundError(f"One or both entities not found: {source_entity_id}, {target_entity_id}")
+            
+            # Build relationship properties
+            rel_properties = {
+                "confidence": confidence,
+                "created_at": "datetime()",
+                "updated_at": "datetime()"
+            }
+            
+            if source:
+                rel_properties["source"] = source
+            if evidence:
+                rel_properties["evidence"] = evidence
+            if properties:
+                rel_properties.update(properties)
+            
+            # Create relationship query
+            query = f"""
+                MATCH (source:Entity {{id: $source_id}})
+                MATCH (target:Entity {{id: $target_id}})
+                CREATE (source)-[r:`{relationship_type}`]->(target)
+                SET r += $properties
+                RETURN r
+            """
+            
+            results = await self._neo4j_client.query(query, {
+                "source_id": str(source_entity_id),
+                "target_id": str(target_entity_id),
+                "properties": rel_properties
+            })
+            
+            success = len(results) > 0
+            if success:
+                logger.info(f"Created relationship: {source_entity_id} -{relationship_type}-> {target_entity_id}")
+            
+            return success
+            
+        except Exception as e:
+            error_msg = str(e)
+            if "not found" in error_msg.lower():
+                raise EntityNotFoundError(f"Entity not found: {error_msg}")
+            else:
+                logger.error(f"Failed to create relationship: {error_msg}")
+                raise RepositoryError(f"Failed to create relationship: {error_msg}")
+    
+    async def get_relationships(
+        self,
+        entity_id: Union[UUID, str],
+        relationship_type: Optional[str] = None,
+        direction: str = "BOTH"
+    ) -> List[Dict[str, Any]]:
+        """
+        Get relationships for an entity with detailed information.
+        
+        Args:
+            entity_id: The entity ID
+            relationship_type: Optional relationship type filter
+            direction: Relationship direction ("OUTGOING", "INCOMING", "BOTH")
+            
+        Returns:
+            List of relationship dictionaries with source, target, and properties
+            
+        Raises:
+            RepositoryError: For database errors
+        """
+        try:
+            # Build relationship pattern based on direction and type
+            if relationship_type:
+                if direction == "OUTGOING":
+                    relationship_pattern = f"-[r:`{relationship_type}`]->"
+                elif direction == "INCOMING":
+                    relationship_pattern = f"<-[r:`{relationship_type}`]-"
+                else:  # BOTH
+                    relationship_pattern = f"-[r:`{relationship_type}`]-"
+            else:
+                if direction == "OUTGOING":
+                    relationship_pattern = "-[r]->"
+                elif direction == "INCOMING":
+                    relationship_pattern = "<-[r]-"
+                else:  # BOTH
+                    relationship_pattern = "-[r]-"
+            
+            query = f"""
+                MATCH (source:Entity {{id: $entity_id}})
+                {relationship_pattern}(target:Entity)
+                RETURN source, r, target, type(r) as relationship_type
+            """
+            
+            results = await self._neo4j_client.query(query, {"entity_id": str(entity_id)})
+            
+            relationships = []
+            for result in results:
+                rel_data = {
+                    "source": Entity(**result["source"]),
+                    "target": Entity(**result["target"]),
+                    "relationship_type": result["relationship_type"],
+                    "properties": dict(result["r"])
+                }
+                relationships.append(rel_data)
+            
+            return relationships
+            
+        except Exception as e:
+            logger.error(f"Failed to get relationships for {entity_id}: {str(e)}")
+            raise RepositoryError(f"Failed to get relationships: {str(e)}")
+    
+    async def batch_create_triples(
+        self,
+        triples: List[Dict[str, Any]],
+        entity_name_to_id: Dict[str, UUID]
+    ) -> int:
+        """
+        Batch create relationships from extracted triples.
+        
+        Args:
+            triples: List of triple dictionaries with subject, relation, object, confidence
+            entity_name_to_id: Mapping from entity names to their IDs
+            
+        Returns:
+            Number of relationships successfully created
+            
+        Raises:
+            RepositoryError: For database errors
+        """
+        try:
+            created_count = 0
+            
+            for triple in triples:
+                subject_name = triple.get("subject", "").strip()
+                object_name = triple.get("object", "").strip()
+                relation_type = triple.get("relation", "").strip()
+                confidence = float(triple.get("confidence", 0.5))
+                source = triple.get("source", "extracted")
+                evidence = triple.get("evidence", "")
+                
+                # Skip invalid triples
+                if not subject_name or not object_name or not relation_type:
+                    continue
+                
+                # Look up entity IDs
+                source_id = entity_name_to_id.get(subject_name)
+                target_id = entity_name_to_id.get(object_name)
+                
+                if not source_id or not target_id:
+                    logger.warning(f"Skipping triple - entities not found: {subject_name} -> {object_name}")
+                    continue
+                
+                try:
+                    # Create the relationship
+                    success = await self.create_relationship(
+                        source_entity_id=source_id,
+                        target_entity_id=target_id,
+                        relationship_type=relation_type,
+                        confidence=confidence,
+                        source=source,
+                        evidence=evidence
+                    )
+                    
+                    if success:
+                        created_count += 1
+                        
+                except Exception as e:
+                    logger.warning(f"Failed to create relationship for triple {subject_name} -{relation_type}-> {object_name}: {str(e)}")
+                    continue
+            
+            logger.info(f"Successfully created {created_count} relationships from {len(triples)} triples")
+            return created_count
+            
+        except Exception as e:
+            logger.error(f"Failed to batch create triples: {str(e)}")
+            raise RepositoryError(f"Failed to batch create triples: {str(e)}")
+    
+    async def find_or_create_entities_by_name(
+        self,
+        entity_names: List[str],
+        default_type: EntityType = EntityType.CONCEPT,
+        document_id: Optional[UUID] = None
+    ) -> Dict[str, UUID]:
+        """
+        Find existing entities by name or create new ones.
+        
+        Args:
+            entity_names: List of entity names to find or create
+            default_type: Default entity type for new entities
+            document_id: Source document ID for new entities
+            
+        Returns:
+            Dictionary mapping entity names to their IDs
+            
+        Raises:
+            RepositoryError: For database errors
+        """
+        try:
+            name_to_id = {}
+            
+            for name in entity_names:
+                if not name or not name.strip():
+                    continue
+                
+                name = name.strip()
+                
+                # First try to find existing entity
+                existing_entities = await self.get_by_name(name)
+                
+                if existing_entities:
+                    # Use the first matching entity
+                    name_to_id[name] = existing_entities[0].id
+                else:
+                    # Create new entity
+                    new_entity = Entity(
+                        name=name,
+                        entity_type=default_type,
+                        source_document_id=document_id or uuid.UUID("00000000-0000-0000-0000-000000000000"),
+                        confidence=0.7,  # Default confidence for auto-created entities
+                        description=f"Auto-generated {default_type.value} entity"
+                    )
+                    
+                    created_entity = await self.create(new_entity)
+                    name_to_id[name] = created_entity.id
+                    logger.info(f"Created new entity: {name} ({default_type.value})")
+            
+            return name_to_id
+            
+        except Exception as e:
+            logger.error(f"Failed to find or create entities: {str(e)}")
+            raise RepositoryError(f"Failed to find or create entities: {str(e)}")

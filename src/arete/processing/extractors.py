@@ -632,23 +632,229 @@ class TEIXMLExtractor:
 
 
 class EntityExtractor:
-    """Lightweight entity extractor using spaCy with optional EntityRuler patterns.
+    """Advanced entity extractor using spaCy with philosophical domain patterns.
 
-    Designed for deterministic tests without requiring large models. By default uses
-    a blank English pipeline and only the EntityRuler if patterns are provided.
+    Designed for philosophical text analysis with built-in patterns for classical
+    philosophical entities including persons, concepts, places, and works.
+    Supports both lightweight testing with blank models and full NER with trained models.
     """
 
-    def __init__(self, patterns: Optional[List[Dict[str, Any]]] = None):
+    def __init__(self, 
+                 patterns: Optional[List[Dict[str, Any]]] = None,
+                 model_name: str = "en_core_web_sm",
+                 use_philosophical_patterns: bool = True):
+        """
+        Initialize EntityExtractor with spaCy and optional patterns.
+        
+        Args:
+            patterns: Custom EntityRuler patterns
+            model_name: spaCy model to use (defaults to en_core_web_sm)
+            use_philosophical_patterns: Whether to load built-in philosophical patterns
+        """
         self._nlp: Optional[Language] = None
+        self._has_patterns = bool(patterns) or use_philosophical_patterns
+        
         if spacy is not None:
-            # Use a blank English model to avoid heavyweight downloads
-            self._nlp = spacy.blank("en")
+            try:
+                # Try to load the full model first for better NER
+                self._nlp = spacy.load(model_name)
+            except OSError:
+                # Fallback to blank model for testing environments
+                self._nlp = spacy.blank("en")
+            
+            # Add entity ruler with patterns
+            all_patterns = []
+            
+            # Add built-in philosophical patterns if requested
+            if use_philosophical_patterns:
+                all_patterns.extend(self._get_philosophical_patterns())
+            
+            # Add custom patterns
             if patterns:
-                ruler = self._nlp.add_pipe("entity_ruler")  # type: ignore[arg-type]
+                all_patterns.extend(patterns)
+            
+            if all_patterns:
+                # Add entity ruler, positioning depends on whether NER exists
+                if "ner" in self._nlp.component_names:
+                    ruler = self._nlp.add_pipe("entity_ruler", before="ner")  # type: ignore[arg-type]
+                else:
+                    ruler = self._nlp.add_pipe("entity_ruler")  # type: ignore[arg-type]
                 assert isinstance(ruler, EntityRuler)
-                ruler.add_patterns(patterns)  # type: ignore[union-attr]
-
-        self._has_patterns = bool(patterns)
+                ruler.add_patterns(all_patterns)  # type: ignore[union-attr]
+    
+    def _get_philosophical_patterns(self) -> List[Dict[str, Any]]:
+        """
+        Get built-in patterns for classical philosophical entities.
+        
+        Returns:
+            List of EntityRuler patterns for philosophical domain
+        """
+        return [
+            # Classical Greek Philosophers
+            {"label": "PERSON", "pattern": "Socrates"},
+            {"label": "PERSON", "pattern": "Plato"},
+            {"label": "PERSON", "pattern": "Aristotle"},
+            {"label": "PERSON", "pattern": "Pythagoras"},
+            {"label": "PERSON", "pattern": "Heraclitus"},
+            {"label": "PERSON", "pattern": "Parmenides"},
+            {"label": "PERSON", "pattern": "Democritus"},
+            {"label": "PERSON", "pattern": "Epicurus"},
+            {"label": "PERSON", "pattern": "Zeno"},
+            {"label": "PERSON", "pattern": "Diogenes"},
+            {"label": "PERSON", "pattern": "Thales"},
+            {"label": "PERSON", "pattern": "Anaximander"},
+            {"label": "PERSON", "pattern": "Anaximenes"},
+            {"label": "PERSON", "pattern": "Empedocles"},
+            {"label": "PERSON", "pattern": "Anaxagoras"},
+            {"label": "PERSON", "pattern": "Protagoras"},
+            {"label": "PERSON", "pattern": "Gorgias"},
+            {"label": "PERSON", "pattern": "Thrasymachus"},
+            {"label": "PERSON", "pattern": "Callicles"},
+            {"label": "PERSON", "pattern": "Meno"},
+            {"label": "PERSON", "pattern": "Phaedrus"},
+            {"label": "PERSON", "pattern": "Glaucon"},
+            {"label": "PERSON", "pattern": "Adeimantus"},
+            
+            # Roman and Later Philosophers
+            {"label": "PERSON", "pattern": "Cicero"},
+            {"label": "PERSON", "pattern": "Seneca"},
+            {"label": "PERSON", "pattern": "Marcus Aurelius"},
+            {"label": "PERSON", "pattern": "Epictetus"},
+            {"label": "PERSON", "pattern": "Augustine"},
+            {"label": "PERSON", "pattern": "Aquinas"},
+            {"label": "PERSON", "pattern": "Thomas Aquinas"},
+            
+            # Major Works
+            {"label": "WORK_OF_ART", "pattern": "Republic"},
+            {"label": "WORK_OF_ART", "pattern": "Nicomachean Ethics"},
+            {"label": "WORK_OF_ART", "pattern": "Poetics"},
+            {"label": "WORK_OF_ART", "pattern": "Politics"},
+            {"label": "WORK_OF_ART", "pattern": "Metaphysics"},
+            {"label": "WORK_OF_ART", "pattern": "Physics"},
+            {"label": "WORK_OF_ART", "pattern": "Categories"},
+            {"label": "WORK_OF_ART", "pattern": "Apology"},
+            {"label": "WORK_OF_ART", "pattern": "Phaedo"},
+            {"label": "WORK_OF_ART", "pattern": "Meno"},
+            {"label": "WORK_OF_ART", "pattern": "Phaedrus"},
+            {"label": "WORK_OF_ART", "pattern": "Symposium"},
+            {"label": "WORK_OF_ART", "pattern": "Timaeus"},
+            {"label": "WORK_OF_ART", "pattern": "Parmenides"},
+            {"label": "WORK_OF_ART", "pattern": "Theaetetus"},
+            {"label": "WORK_OF_ART", "pattern": "Laws"},
+            {"label": "WORK_OF_ART", "pattern": "Gorgias"},
+            {"label": "WORK_OF_ART", "pattern": "Protagoras"},
+            {"label": "WORK_OF_ART", "pattern": "Crito"},
+            {"label": "WORK_OF_ART", "pattern": "Euthyphro"},
+            {"label": "WORK_OF_ART", "pattern": "Ion"},
+            {"label": "WORK_OF_ART", "pattern": "Laches"},
+            {"label": "WORK_OF_ART", "pattern": "Lysis"},
+            {"label": "WORK_OF_ART", "pattern": "Charmides"},
+            {"label": "WORK_OF_ART", "pattern": "Hippias Major"},
+            {"label": "WORK_OF_ART", "pattern": "Hippias Minor"},
+            {"label": "WORK_OF_ART", "pattern": "Euthydemus"},
+            {"label": "WORK_OF_ART", "pattern": "Menexenus"},
+            {"label": "WORK_OF_ART", "pattern": "Cratylus"},
+            {"label": "WORK_OF_ART", "pattern": "Statesman"},
+            {"label": "WORK_OF_ART", "pattern": "Sophist"},
+            {"label": "WORK_OF_ART", "pattern": "Critias"},
+            
+            # Places
+            {"label": "GPE", "pattern": "Athens"},
+            {"label": "GPE", "pattern": "Sparta"},
+            {"label": "GPE", "pattern": "Thebes"},
+            {"label": "GPE", "pattern": "Corinth"},
+            {"label": "GPE", "pattern": "Alexandria"},
+            {"label": "GPE", "pattern": "Rome"},
+            {"label": "LOC", "pattern": "Academy"},
+            {"label": "LOC", "pattern": "Lyceum"},
+            {"label": "LOC", "pattern": "Stoa"},
+            {"label": "LOC", "pattern": "Garden"},
+            {"label": "LOC", "pattern": "Agora"},
+            
+            # Philosophical Concepts
+            {"label": "CONCEPT", "pattern": "virtue"},
+            {"label": "CONCEPT", "pattern": "justice"},
+            {"label": "CONCEPT", "pattern": "wisdom"},
+            {"label": "CONCEPT", "pattern": "courage"},
+            {"label": "CONCEPT", "pattern": "temperance"},
+            {"label": "CONCEPT", "pattern": "piety"},
+            {"label": "CONCEPT", "pattern": "truth"},
+            {"label": "CONCEPT", "pattern": "knowledge"},
+            {"label": "CONCEPT", "pattern": "opinion"},
+            {"label": "CONCEPT", "pattern": "belief"},
+            {"label": "CONCEPT", "pattern": "forms"},
+            {"label": "CONCEPT", "pattern": "Ideas"},
+            {"label": "CONCEPT", "pattern": "Good"},
+            {"label": "CONCEPT", "pattern": "Beautiful"},
+            {"label": "CONCEPT", "pattern": "True"},
+            {"label": "CONCEPT", "pattern": "soul"},
+            {"label": "CONCEPT", "pattern": "body"},
+            {"label": "CONCEPT", "pattern": "mind"},
+            {"label": "CONCEPT", "pattern": "reason"},
+            {"label": "CONCEPT", "pattern": "emotion"},
+            {"label": "CONCEPT", "pattern": "passion"},
+            {"label": "CONCEPT", "pattern": "desire"},
+            {"label": "CONCEPT", "pattern": "pleasure"},
+            {"label": "CONCEPT", "pattern": "pain"},
+            {"label": "CONCEPT", "pattern": "happiness"},
+            {"label": "CONCEPT", "pattern": "eudaimonia"},
+            {"label": "CONCEPT", "pattern": "flourishing"},
+            {"label": "CONCEPT", "pattern": "excellence"},
+            {"label": "CONCEPT", "pattern": "arete"},
+            {"label": "CONCEPT", "pattern": "techne"},
+            {"label": "CONCEPT", "pattern": "episteme"},
+            {"label": "CONCEPT", "pattern": "sophia"},
+            {"label": "CONCEPT", "pattern": "phronesis"},
+            {"label": "CONCEPT", "pattern": "dialectic"},
+            {"label": "CONCEPT", "pattern": "rhetoric"},
+            {"label": "CONCEPT", "pattern": "logic"},
+            {"label": "CONCEPT", "pattern": "ethics"},
+            {"label": "CONCEPT", "pattern": "politics"},
+            {"label": "CONCEPT", "pattern": "metaphysics"},
+            {"label": "CONCEPT", "pattern": "ontology"},
+            {"label": "CONCEPT", "pattern": "epistemology"},
+            {"label": "CONCEPT", "pattern": "cosmology"},
+            {"label": "CONCEPT", "pattern": "theology"},
+            {"label": "CONCEPT", "pattern": "philosophy"},
+            {"label": "CONCEPT", "pattern": "philosopher"},
+            {"label": "CONCEPT", "pattern": "sophist"},
+            {"label": "CONCEPT", "pattern": "sophistry"},
+            {"label": "CONCEPT", "pattern": "philosopher-king"},
+            {"label": "CONCEPT", "pattern": "cave"},
+            {"label": "CONCEPT", "pattern": "allegory"},
+            {"label": "CONCEPT", "pattern": "divided line"},
+            {"label": "CONCEPT", "pattern": "tripartite soul"},
+            {"label": "CONCEPT", "pattern": "cardinal virtues"},
+            {"label": "CONCEPT", "pattern": "golden mean"},
+            {"label": "CONCEPT", "pattern": "substance"},
+            {"label": "CONCEPT", "pattern": "essence"},
+            {"label": "CONCEPT", "pattern": "accident"},
+            {"label": "CONCEPT", "pattern": "matter"},
+            {"label": "CONCEPT", "pattern": "form"},
+            {"label": "CONCEPT", "pattern": "actuality"},
+            {"label": "CONCEPT", "pattern": "potentiality"},
+            {"label": "CONCEPT", "pattern": "causation"},
+            {"label": "CONCEPT", "pattern": "final cause"},
+            {"label": "CONCEPT", "pattern": "efficient cause"},
+            {"label": "CONCEPT", "pattern": "material cause"},
+            {"label": "CONCEPT", "pattern": "formal cause"},
+            {"label": "CONCEPT", "pattern": "unmoved mover"},
+            {"label": "CONCEPT", "pattern": "Prime Mover"},
+            
+            # Schools of Thought
+            {"label": "CONCEPT", "pattern": "Platonism"},
+            {"label": "CONCEPT", "pattern": "Aristotelianism"},
+            {"label": "CONCEPT", "pattern": "Stoicism"},
+            {"label": "CONCEPT", "pattern": "Epicureanism"},
+            {"label": "CONCEPT", "pattern": "Cynicism"},
+            {"label": "CONCEPT", "pattern": "Skepticism"},
+            {"label": "CONCEPT", "pattern": "Neoplatonism"},
+            {"label": "CONCEPT", "pattern": "Peripatetic"},
+            {"label": "CONCEPT", "pattern": "Academic"},
+            {"label": "CONCEPT", "pattern": "Sophistic"},
+            {"label": "CONCEPT", "pattern": "Pre-Socratic"},
+            {"label": "CONCEPT", "pattern": "Socratic"},
+        ]
 
     def extract_entities(self, text: str, document_id) -> List[Entity]:
         if not text or not text.strip():
@@ -718,43 +924,278 @@ class EntityExtractor:
 
 
 class RelationshipExtractor:
-    """Simple rule-based relationship extractor for SVO patterns.
+    """Advanced relationship extractor for philosophical texts.
 
-    This lightweight extractor is deterministic for tests and provides a
-    placeholder until LLM-based extraction is integrated.
+    Supports both rule-based pattern matching and LLM-based extraction.
+    Designed specifically for philosophical domain relationships such as
+    influences, critiques, develops, etc.
     """
 
-    def __init__(self):
-        # Common relation verbs in philosophical texts
-        self._verbs = [
-            "refutes", "criticizes", "influences", "cites", "agrees with", "disagrees with",
+    def __init__(self, use_llm: bool = False, llm_client = None):
+        """
+        Initialize RelationshipExtractor.
+        
+        Args:
+            use_llm: Whether to use LLM-based extraction (fallback to rules if unavailable)
+            llm_client: Optional LLM client for advanced extraction
+        """
+        self.use_llm = use_llm
+        self.llm_client = llm_client
+        
+        # Expanded philosophical relationship verbs
+        self._philosophical_verbs = [
+            # Core philosophical relationships
+            "refutes", "criticizes", "critiques", "challenges", "disputes", "objects to",
+            "influences", "inspires", "shapes", "affects", "impacts",
+            "develops", "builds on", "extends", "elaborates", "expands",
+            "agrees with", "supports", "endorses", "confirms", "validates",
+            "disagrees with", "opposes", "contradicts", "rejects", "denies",
+            "cites", "references", "mentions", "quotes", "discusses",
+            "responds to", "replies to", "answers", "addresses",
+            "interprets", "explains", "clarifies", "defines", "analyzes",
+            "compares to", "contrasts with", "distinguishes from", "differentiates from",
+            "synthesizes", "combines", "merges", "integrates", "unifies",
+            "precedes", "follows", "succeeds", "leads to", "results in",
+            "teaches", "instructs", "guides", "mentors", "educates",
+            "learns from", "studies under", "follows", "emulates",
+            "debates with", "argues with", "disputes with", "questions",
+            "examines", "investigates", "explores", "considers", "contemplates",
+            "proposes", "suggests", "advocates", "recommends", "argues for",
+            "demonstrates", "proves", "shows", "establishes", "maintains",
+            "assumes", "presupposes", "takes for granted", "accepts",
+            "concludes", "infers", "deduces", "derives", "reasons",
+            "illustrates", "exemplifies", "instantiates", "embodies",
+            "foreshadows", "anticipates", "predicts", "forecasts",
+            "originates", "creates", "establishes", "founds", "initiates"
         ]
+        
+        # Philosophical relationship types for standardization
+        self._relationship_mapping = {
+            # Disagreement/Opposition
+            "refutes": "REFUTES", "criticizes": "CRITIQUES", "critiques": "CRITIQUES",
+            "challenges": "CHALLENGES", "disputes": "DISPUTES", "objects to": "OBJECTS_TO",
+            "disagrees with": "DISAGREES_WITH", "opposes": "OPPOSES", 
+            "contradicts": "CONTRADICTS", "rejects": "REJECTS", "denies": "DENIES",
+            
+            # Influence/Development
+            "influences": "INFLUENCES", "inspires": "INSPIRES", "shapes": "INFLUENCES",
+            "affects": "INFLUENCES", "impacts": "INFLUENCES",
+            "develops": "DEVELOPS", "builds on": "BUILDS_ON", "extends": "EXTENDS",
+            "elaborates": "ELABORATES", "expands": "EXPANDS",
+            
+            # Agreement/Support
+            "agrees with": "AGREES_WITH", "supports": "SUPPORTS", "endorses": "ENDORSES",
+            "confirms": "CONFIRMS", "validates": "VALIDATES",
+            
+            # Reference/Citation
+            "cites": "CITES", "references": "REFERENCES", "mentions": "MENTIONS",
+            "quotes": "QUOTES", "discusses": "DISCUSSES",
+            
+            # Response/Dialogue
+            "responds to": "RESPONDS_TO", "replies to": "RESPONDS_TO", 
+            "answers": "RESPONDS_TO", "addresses": "ADDRESSES",
+            
+            # Analysis/Interpretation
+            "interprets": "INTERPRETS", "explains": "EXPLAINS", "clarifies": "CLARIFIES",
+            "defines": "DEFINES", "analyzes": "ANALYZES",
+            
+            # Comparison
+            "compares to": "COMPARES_TO", "contrasts with": "CONTRASTS_WITH",
+            "distinguishes from": "DISTINGUISHES_FROM", "differentiates from": "DISTINGUISHES_FROM",
+            
+            # Synthesis
+            "synthesizes": "SYNTHESIZES", "combines": "COMBINES", "merges": "SYNTHESIZES",
+            "integrates": "INTEGRATES", "unifies": "UNIFIES",
+            
+            # Temporal
+            "precedes": "PRECEDES", "follows": "FOLLOWS", "succeeds": "FOLLOWS",
+            "leads to": "LEADS_TO", "results in": "RESULTS_IN",
+            
+            # Teaching/Learning
+            "teaches": "TEACHES", "instructs": "TEACHES", "guides": "GUIDES",
+            "mentors": "MENTORS", "educates": "EDUCATES",
+            "learns from": "LEARNS_FROM", "studies under": "STUDIES_UNDER",
+            "emulates": "EMULATES",
+            
+            # Debate/Inquiry
+            "debates with": "DEBATES_WITH", "argues with": "DEBATES_WITH",
+            "disputes with": "DISPUTES", "questions": "QUESTIONS",
+            "examines": "EXAMINES", "investigates": "INVESTIGATES",
+            "explores": "EXPLORES", "considers": "CONSIDERS", "contemplates": "CONTEMPLATES",
+            
+            # Proposal/Argument
+            "proposes": "PROPOSES", "suggests": "PROPOSES", "advocates": "ADVOCATES",
+            "recommends": "ADVOCATES", "argues for": "ARGUES_FOR",
+            
+            # Demonstration/Proof
+            "demonstrates": "DEMONSTRATES", "proves": "PROVES", "shows": "DEMONSTRATES",
+            "establishes": "ESTABLISHES", "maintains": "MAINTAINS",
+            
+            # Assumption/Acceptance
+            "assumes": "ASSUMES", "presupposes": "PRESUPPOSES", 
+            "takes for granted": "ASSUMES", "accepts": "ACCEPTS",
+            
+            # Conclusion/Reasoning
+            "concludes": "CONCLUDES", "infers": "INFERS", "deduces": "DEDUCES",
+            "derives": "DERIVES", "reasons": "REASONS",
+            
+            # Illustration/Example
+            "illustrates": "ILLUSTRATES", "exemplifies": "EXEMPLIFIES",
+            "instantiates": "INSTANTIATES", "embodies": "EMBODIES",
+            
+            # Temporal/Causal
+            "foreshadows": "FORESHADOWS", "anticipates": "ANTICIPATES",
+            "predicts": "PREDICTS", "forecasts": "PREDICTS",
+            
+            # Creation/Origin
+            "originates": "ORIGINATES", "creates": "CREATES", "establishes": "ESTABLISHES",
+            "founds": "FOUNDS", "initiates": "INITIATES"
+        }
 
-    def extract_relationships(self, text: str) -> List[Dict[str, Any]]:
+    def extract_relationships(self, text: str, entities: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """
+        Extract relationships from text using rule-based or LLM-based methods.
+        
+        Args:
+            text: Text to extract relationships from
+            entities: Optional list of known entities to focus extraction
+            
+        Returns:
+            List of relationship dictionaries with subject, relation, object, confidence
+        """
         if not text or not text.strip():
             return []
-        patterns = []
-        # Build regex patterns for single-word verbs and two-word like "agrees with"
-        for v in self._verbs:
-            if " " in v:
-                patterns.append(rf"\b([A-Z][a-z]+)\s+{re.escape(v)}\s+([A-Z][a-z]+)\b")
-            else:
-                patterns.append(rf"\b([A-Z][a-z]+)\s+{re.escape(v)}\s+([A-Z][a-z]+)\b")
-
+            
+        # Try LLM-based extraction first if available
+        if self.use_llm and self.llm_client:
+            try:
+                return self._extract_with_llm(text, entities)
+            except Exception:
+                # Fallback to rule-based extraction
+                pass
+        
+        return self._extract_with_rules(text, entities)
+    
+    def _extract_with_rules(self, text: str, entities: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """
+        Extract relationships using rule-based pattern matching.
+        
+        Args:
+            text: Text to extract relationships from
+            entities: Optional list of known entities to focus extraction
+            
+        Returns:
+            List of relationship dictionaries
+        """
         triples: List[Dict[str, Any]] = []
-        for pat in patterns:
-            for m in re.finditer(pat, text):
-                subject = m.group(1)
-                relation = re.search(r"\b([a-z]+(?:\s+[a-z]+)?)\b", m.group(0))
-                object_ = m.group(2)
-                if subject and object_:
-                    triples.append({
-                        "subject": subject,
-                        "relation": relation.group(1) if relation else "relates to",
-                        "object": object_,
-                        "confidence": 0.7,
-                    })
+        
+        # Build regex patterns for philosophical verbs
+        patterns = []
+        for verb in self._philosophical_verbs:
+            if " " in verb:
+                # Multi-word verbs like "agrees with"
+                escaped_verb = re.escape(verb)
+                patterns.append((rf"\b([A-Z][a-zA-Z\s]+?)\s+{escaped_verb}\s+([A-Z][a-zA-Z\s]+?)\b", verb))
+            else:
+                # Single word verbs
+                patterns.append((rf"\b([A-Z][a-zA-Z\s]+?)\s+{re.escape(verb)}\s+([A-Z][a-zA-Z\s]+?)\b", verb))
+        
+        # Extract relationships using patterns
+        for pattern, verb in patterns:
+            for match in re.finditer(pattern, text, re.IGNORECASE):
+                subject = match.group(1).strip()
+                object_ = match.group(2).strip()
+                
+                # Clean up extracted entities (remove extra whitespace, limit length)
+                subject = re.sub(r'\s+', ' ', subject)[:50].strip()
+                object_ = re.sub(r'\s+', ' ', object_)[:50].strip()
+                
+                # Skip if entities are too short or contain non-alphabetic characters
+                if (len(subject) < 2 or len(object_) < 2 or 
+                    not re.match(r'^[A-Za-z\s\-\.]+$', subject) or 
+                    not re.match(r'^[A-Za-z\s\-\.]+$', object_)):
+                    continue
+                
+                # If entities list provided, filter to only include known entities
+                if entities:
+                    if not any(entity.lower() in subject.lower() for entity in entities):
+                        continue
+                    if not any(entity.lower() in object_.lower() for entity in entities):
+                        continue
+                
+                # Map to standardized relationship type
+                standardized_relation = self._relationship_mapping.get(verb.lower(), verb.upper())
+                
+                triples.append({
+                    "subject": subject,
+                    "relation": standardized_relation,
+                    "object": object_,
+                    "confidence": 0.75,  # Higher confidence for rule-based extraction
+                    "source": "rule_based",
+                    "evidence": match.group(0)  # Include the matched text as evidence
+                })
+        
         return triples
+    
+    def _extract_with_llm(self, text: str, entities: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """
+        Extract relationships using LLM-based analysis.
+        
+        Args:
+            text: Text to extract relationships from
+            entities: Optional list of known entities to focus extraction
+            
+        Returns:
+            List of relationship dictionaries
+        """
+        # This is a placeholder for LLM-based extraction
+        # Implementation would involve:
+        # 1. Crafting a prompt for philosophical relationship extraction
+        # 2. Calling the LLM with the text and entities
+        # 3. Parsing the LLM response into structured triples
+        # 4. Validating and standardizing the results
+        
+        prompt = self._build_relationship_extraction_prompt(text, entities)
+        
+        # For now, return empty list as LLM integration is not fully implemented
+        # TODO: Implement actual LLM call when LLM client is available
+        return []
+    
+    def _build_relationship_extraction_prompt(self, text: str, entities: Optional[List[str]] = None) -> str:
+        """
+        Build a prompt for LLM-based relationship extraction.
+        
+        Args:
+            text: Text to extract relationships from
+            entities: Optional list of known entities
+            
+        Returns:
+            Formatted prompt for relationship extraction
+        """
+        entity_context = ""
+        if entities:
+            entity_context = f"\nKnown entities in the text: {', '.join(entities)}"
+        
+        prompt = f"""
+        You are an expert in classical philosophy. Extract philosophical relationships from the following text.
+        
+        Focus on relationships between philosophers, philosophical concepts, works, and places.
+        Return relationships in the format: Subject | Relationship | Object | Confidence (0.0-1.0)
+        
+        Use these standardized relationship types when applicable:
+        - INFLUENCES, CRITIQUES, REFUTES, AGREES_WITH, DISAGREES_WITH
+        - DEVELOPS, BUILDS_ON, EXTENDS, ELABORATES
+        - CITES, REFERENCES, MENTIONS, QUOTES, DISCUSSES
+        - TEACHES, LEARNS_FROM, STUDIES_UNDER, DEBATES_WITH
+        - PROPOSES, DEMONSTRATES, ESTABLISHES, ASSUMES
+        - PRECEDES, FOLLOWS, LEADS_TO, RESPONDS_TO
+        
+        Text: {text}
+        {entity_context}
+        
+        Relationships:
+        """
+        return prompt
 
 
 class TripleValidator:
