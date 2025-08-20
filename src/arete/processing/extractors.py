@@ -385,16 +385,67 @@ class TEIXMLExtractor:
         # Extract all text content, preserving paragraph structure
         text_parts = []
         
-        # Process paragraphs
-        paragraphs = text_elem.findall('.//{http://www.tei-c.org/ns/1.0}p')
-        if not paragraphs:
-            paragraphs = text_elem.findall('.//p')
+        # Process all content, maintaining document order
+        # We need to get all paragraphs and speeches, preserving their order
+        
+        # Get all body elements and process them in document order
+        body = text_elem.find('.//{http://www.tei-c.org/ns/1.0}body')
+        if body is None:
+            body = text_elem.find('.//body')
             
-        if paragraphs:
+        if body is not None:
+            # Process all direct children and descendants that contain text
+            self._extract_text_from_element(body, text_parts)
+        else:
+            # Fallback: process all paragraphs and speeches
+            # First get regular paragraphs not inside speeches
+            paragraphs = text_elem.findall('.//{http://www.tei-c.org/ns/1.0}p')
+            if not paragraphs:
+                paragraphs = text_elem.findall('.//p')
+                
+            speeches = text_elem.findall('.//{http://www.tei-c.org/ns/1.0}sp')
+            if not speeches:
+                speeches = text_elem.findall('.//sp')
+                
+            # Extract paragraphs not inside speech elements
             for p in paragraphs:
-                para_text = self._get_element_text(p)
-                if para_text.strip():
-                    text_parts.append(para_text.strip())
+                # Check if this paragraph is inside a speech element
+                is_in_speech = False
+                parent = p.getparent() if hasattr(p, 'getparent') else None
+                while parent is not None:
+                    if parent.tag.endswith('}sp') or parent.tag == 'sp':
+                        is_in_speech = True
+                        break
+                    parent = parent.getparent() if hasattr(parent, 'getparent') else None
+                    
+                if not is_in_speech:
+                    para_text = self._get_element_text(p)
+                    if para_text.strip():
+                        text_parts.append(para_text.strip())
+            
+            # Extract speech elements
+            for sp in speeches:
+                speech_parts = []
+                
+                # Extract speaker name if present
+                speaker = sp.find('.//{http://www.tei-c.org/ns/1.0}speaker')
+                if speaker is None:
+                    speaker = sp.find('.//speaker')
+                if speaker is not None and speaker.text:
+                    speech_parts.append(f"{speaker.text.strip()}:")
+                
+                # Extract paragraphs within this speech
+                sp_paragraphs = sp.findall('.//{http://www.tei-c.org/ns/1.0}p')
+                if not sp_paragraphs:
+                    sp_paragraphs = sp.findall('.//p')
+                    
+                for p in sp_paragraphs:
+                    para_text = self._get_element_text(p)
+                    if para_text.strip():
+                        speech_parts.append(para_text.strip())
+                
+                if speech_parts:
+                    text_parts.append(' '.join(speech_parts))
                 
         # If no paragraphs found, get all text
         if not text_parts:
@@ -430,6 +481,58 @@ class TEIXMLExtractor:
                 text_parts.append(child.tail)
                 
         return ' '.join(text_parts)
+
+    def _extract_text_from_element(self, element: ET.Element, text_parts: List[str]) -> None:
+        """Extract text from element in document order.
+        
+        Args:
+            element: XML element to extract text from
+            text_parts: List to append extracted text parts to
+        """
+        # Process direct paragraphs
+        direct_paragraphs = []
+        for child in element:
+            if child.tag.endswith('}p') or child.tag == 'p':
+                # Check if this paragraph is not inside a speech element
+                is_in_speech = False
+                parent = element
+                while parent is not None:
+                    if parent.tag.endswith('}sp') or parent.tag == 'sp':
+                        is_in_speech = True
+                        break
+                    parent = parent.getparent() if hasattr(parent, 'getparent') else None
+                    
+                if not is_in_speech:
+                    para_text = self._get_element_text(child)
+                    if para_text.strip():
+                        text_parts.append(para_text.strip())
+                        
+            elif child.tag.endswith('}sp') or child.tag == 'sp':
+                # Handle speech elements
+                speech_parts = []
+                
+                # Extract speaker name if present
+                speaker = child.find('.//{http://www.tei-c.org/ns/1.0}speaker')
+                if speaker is None:
+                    speaker = child.find('.//speaker')
+                if speaker is not None and speaker.text:
+                    speech_parts.append(f"{speaker.text.strip()}:")
+                
+                # Extract paragraphs within this speech
+                sp_paragraphs = child.findall('.//{http://www.tei-c.org/ns/1.0}p')
+                if not sp_paragraphs:
+                    sp_paragraphs = child.findall('.//p')
+                    
+                for p in sp_paragraphs:
+                    para_text = self._get_element_text(p)
+                    if para_text.strip():
+                        speech_parts.append(para_text.strip())
+                
+                if speech_parts:
+                    text_parts.append(' '.join(speech_parts))
+            else:
+                # Recursively process other elements that might contain text
+                self._extract_text_from_element(child, text_parts)
 
     def _extract_structure(self, root: ET.Element) -> Dict[str, List[str]]:
         """Extract document structure information.

@@ -49,6 +49,11 @@ class Document(BaseModel):
 - **Categories**: Unit tests, integration tests, end-to-end validation
 - **Mock Strategy**: External dependencies mocked appropriately
 
+### Established from Citation Model Implementation
+- **Enum Serialization**: Conditional value extraction for database compatibility
+- **Computed Properties**: Database-specific field aliases with @computed_field
+- **Domain Modeling**: Philosophical citation types and context modeling patterns
+
 ### Application Areas
 - Model implementation (Document, Entity, Chunk, Citation)
 - Service layer business logic
@@ -984,6 +989,220 @@ for chunk in result.chunks:
 
 ---
 
+## [MemoryID: 20250820-MM41] Enum Serialization Pattern for Database Compatibility
+**Type**: code_pattern  
+**Priority**: 1  
+**Tags**: enum-serialization, database-compatibility, pydantic-patterns, dual-database
+
+### Pattern Description
+Established pattern for handling Pydantic enum serialization across different database systems, ensuring compatibility with both Neo4j and Weaviate while maintaining type safety and validation.
+
+### Enum Serialization Challenge
+Database serialization of Pydantic enums requires conditional value extraction because different contexts may provide enum instances vs. string values during serialization.
+
+### Solution Pattern
+```python
+# Conditional enum value extraction for cross-database compatibility
+def to_neo4j_dict(self) -> Dict[str, Any]:
+    """Serialize for Neo4j with proper enum handling."""
+    result = {
+        "citation_type": self.citation_type.value if hasattr(self.citation_type, 'value') else self.citation_type,
+        "context_type": self.context_type.value if hasattr(self.context_type, 'value') else self.context_type,
+        # ... other fields
+    }
+    return result
+
+def to_weaviate_dict(self) -> Dict[str, Any]:
+    """Serialize for Weaviate with consistent enum handling."""
+    result = self.model_dump(exclude={'id'})
+    
+    # Apply same conditional enum extraction pattern
+    if hasattr(self.citation_type, 'value'):
+        result['citation_type'] = self.citation_type.value
+    if hasattr(self.context_type, 'value'):
+        result['context_type'] = self.context_type.value
+    
+    return result
+```
+
+### Enum Definition Pattern for Database Compatibility
+```python
+from enum import Enum
+
+# Define enums as string enums for database compatibility
+class CitationType(str, Enum):
+    DIRECT_QUOTE = "direct_quote"
+    PARAPHRASE = "paraphrase"
+    REFERENCE = "reference"
+    ALLUSION = "allusion"
+
+class ContextType(str, Enum):
+    ARGUMENT = "argument"
+    COUNTERARGUMENT = "counterargument"
+    EXAMPLE = "example"
+    DEFINITION = "definition"
+
+# Use in Pydantic models with proper validation
+class Citation(AreteBaseModel):
+    citation_type: CitationType = Field(..., description="Type of citation")
+    context_type: ContextType = Field(..., description="Philosophical context")
+```
+
+### Computed Property Aliases Pattern
+```python
+# Use computed properties for database-specific field names
+class Citation(AreteBaseModel):
+    # Main fields
+    cited_text: str = Field(..., min_length=1, max_length=5000)
+    
+    # Computed fields with aliases for database storage
+    word_count_field: int = Field(alias="word_count")
+    snippet_text_field: str = Field(alias="snippet_text", max_length=200)
+    
+    @computed_field
+    @property
+    def word_count(self) -> int:
+        """Computed word count for database storage."""
+        return len(self.cited_text.split())
+    
+    @computed_field
+    @property
+    def snippet_text(self) -> str:
+        """Computed snippet for database indexing."""
+        return self.get_context_snippet(100)
+    
+    def get_context_snippet(self, context_window: int = 100) -> str:
+        """Generate context snippet for display and indexing."""
+        return self.cited_text[:context_window] + "..." if len(self.cited_text) > context_window else self.cited_text
+```
+
+### Domain-Specific Enum Patterns
+```python
+# Philosophy-specific enum patterns for academic domain modeling
+class CitationType(str, Enum):
+    """Citation types specific to philosophical discourse."""
+    DIRECT_QUOTE = "direct_quote"      # Exact quotation from source
+    PARAPHRASE = "paraphrase"          # Restated content preserving meaning
+    REFERENCE = "reference"            # General reference to concept/work
+    ALLUSION = "allusion"              # Indirect reference or hint
+
+class ContextType(str, Enum):
+    """Contextual usage in philosophical arguments."""
+    ARGUMENT = "argument"              # Supporting an argument
+    COUNTERARGUMENT = "counterargument"  # Opposing or refuting
+    EXAMPLE = "example"                # Illustrative case
+    DEFINITION = "definition"          # Defining concepts
+
+# Validation methods for domain-specific requirements
+@field_validator('citation_type')
+@classmethod
+def validate_citation_type_context(cls, v, info):
+    """Validate citation type is appropriate for context."""
+    if 'context_type' in info.data:
+        context = info.data['context_type']
+        
+        # Business rules for philosophical citations
+        if context == ContextType.DEFINITION and v == CitationType.ALLUSION:
+            raise ValueError("Allusions cannot be used for definitions")
+    
+    return v
+```
+
+### Error Handling for Enum Serialization
+```python
+# Robust error handling for enum serialization edge cases
+def safe_enum_serialization(self, field_name: str, enum_value: Any) -> str:
+    """Safely extract enum value with fallback handling."""
+    try:
+        # Primary approach: extract .value if available
+        if hasattr(enum_value, 'value'):
+            return enum_value.value
+        
+        # Fallback: use string representation
+        if isinstance(enum_value, str):
+            return enum_value
+        
+        # Last resort: string conversion
+        return str(enum_value)
+    
+    except Exception as e:
+        logger.warning(f"Enum serialization failed for {field_name}: {e}")
+        return "unknown"
+
+# Usage in serialization methods
+def to_neo4j_dict(self) -> Dict[str, Any]:
+    """Serialize with robust enum handling."""
+    result = super().to_neo4j_dict()
+    result.update({
+        'citation_type': self.safe_enum_serialization('citation_type', self.citation_type),
+        'context_type': self.safe_enum_serialization('context_type', self.context_type)
+    })
+    return result
+```
+
+### Testing Pattern for Enum Serialization
+```python
+# Comprehensive test coverage for enum serialization edge cases
+def test_enum_serialization_with_enum_instance():
+    """Test serialization when field contains actual enum instance."""
+    citation = Citation(
+        citation_type=CitationType.DIRECT_QUOTE,  # Enum instance
+        context_type=ContextType.ARGUMENT,
+        cited_text="Justice is the virtue of the soul"
+    )
+    
+    neo4j_data = citation.to_neo4j_dict()
+    assert neo4j_data['citation_type'] == "direct_quote"
+    assert neo4j_data['context_type'] == "argument"
+
+def test_enum_serialization_with_string_value():
+    """Test serialization when field contains string value."""
+    citation_data = {
+        'citation_type': "paraphrase",  # String value
+        'context_type': "counterargument",
+        'cited_text': "The soul is tripartite"
+    }
+    citation = Citation(**citation_data)
+    
+    neo4j_data = citation.to_neo4j_dict()
+    assert neo4j_data['citation_type'] == "paraphrase"
+    assert neo4j_data['context_type'] == "counterargument"
+
+def test_enum_validation_edge_cases():
+    """Test enum validation for domain-specific business rules."""
+    with pytest.raises(ValueError, match="Allusions cannot be used for definitions"):
+        Citation(
+            citation_type=CitationType.ALLUSION,
+            context_type=ContextType.DEFINITION,
+            cited_text="Some vague reference to justice"
+        )
+```
+
+### Integration with Existing Patterns
+- **Extends Pydantic Pattern** (MM04): Builds on base serialization methods
+- **Compatible with Database Client Pattern** (MM11): Works with both Neo4j and Weaviate clients
+- **Follows TDD Pattern** (MM03): Comprehensive test coverage for edge cases
+- **Supports Dual Database Architecture**: Consistent enum handling across database systems
+
+### Application Areas
+- **All Enum Fields**: Apply to any Pydantic model with enum fields requiring database storage
+- **Cross-Database Models**: Essential for models stored in both Neo4j and Weaviate
+- **Domain-Specific Enums**: Philosophical, academic, or business domain modeling
+- **API Serialization**: Consistent enum handling across different serialization contexts
+
+### Performance Considerations
+- **Minimal Overhead**: hasattr() check is very fast
+- **Caching**: Consider caching enum value extraction for high-frequency operations
+- **Error Handling**: Graceful degradation without performance impact
+
+### Success Metrics from Citation Model
+- **Test Coverage**: 26 comprehensive tests including enum edge cases
+- **Cross-Database Compatibility**: Consistent serialization across Neo4j and Weaviate
+- **Type Safety**: Maintains Pydantic validation while supporting database storage
+- **Domain Modeling**: Successfully models complex philosophical citation relationships
+
+---
+
 ## Pattern Dependencies
 
 ### Core Foundation Patterns
@@ -1008,5 +1227,5 @@ for chunk in result.chunks:
 3. **Text Processing patterns**: Chunking strategies, PDF extraction, dual database serialization
 4. **Advanced patterns**: Repository, Service Layer with contract-based validation
 
-**Last Updated**: 2025-08-12  
+**Last Updated**: 2025-08-20  
 **Review Schedule**: Monthly for pattern consistency, as-needed for new patterns
