@@ -3,6 +3,7 @@
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from xml.etree import ElementTree as ET
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -205,6 +206,11 @@ class TEIXMLExtractor:
             preserve_structure: Whether to preserve document structure
         """
         self.preserve_structure = preserve_structure
+        # Define TEI namespaces
+        self.namespaces = {
+            'tei': 'http://www.tei-c.org/ns/1.0',
+            '': 'http://www.tei-c.org/ns/1.0'
+        }
 
     def extract_from_file(self, file_path: str) -> Dict[str, Any]:
         """Extract text and metadata from a TEI-XML file.
@@ -245,34 +251,314 @@ class TEIXMLExtractor:
         if '<TEI' not in xml_content and '<tei' not in xml_content:
             raise ValueError("Invalid TEI-XML: missing TEI root element")
             
-        # Mock extraction for now
-        return self._mock_tei_extraction_result()
+        try:
+            # Parse the XML
+            root = ET.fromstring(xml_content)
+            
+            # Register TEI namespace if present
+            if 'http://www.tei-c.org/ns/1.0' in xml_content:
+                ET.register_namespace('tei', 'http://www.tei-c.org/ns/1.0')
+            
+            # Extract metadata from teiHeader
+            metadata = self._extract_metadata(root)
+            
+            # Extract text content
+            text = self._extract_text(root)
+            
+            # Extract structure if requested
+            structure = self._extract_structure(root) if self.preserve_structure else {}
+            
+            # Extract citations and references
+            citations = self._extract_citations(root)
+            
+            return {
+                "text": text,
+                "metadata": metadata,
+                "structure": structure,
+                "citations": citations
+            }
+            
+        except ET.ParseError as e:
+            raise ValueError(f"Invalid XML format: {e}")
 
-    def _mock_tei_extraction_result(self) -> Dict[str, Any]:
-        """Create a mock TEI extraction result for testing.
+    def _extract_metadata(self, root: ET.Element) -> Dict[str, str]:
+        """Extract metadata from TEI header.
         
+        Args:
+            root: Root element of TEI document
+            
         Returns:
-            Mock TEI extraction result
+            Dictionary of metadata
         """
-        sample_text = (
-            "Plato argues in the Republic that justice is the harmony of the soul. "
-            "The tripartite division of the soul into reason, spirit, and appetite "
-            "corresponds to the three classes in the ideal state."
-        )
+        metadata = {}
         
-        return {
-            "text": sample_text,
-            "metadata": {
-                "title": "Republic",
-                "author": "Plato",
-                "date": "380 BCE",
-                "language": "Ancient Greek",
-                "translator": "Benjamin Jowett"
-            },
-            "structure": {
-                "books": ["Book I", "Book II", "Book III"],
-                "chapters": [],
-                "sections": []
-            },
-            "citations": []
+        # Handle both namespaced and non-namespaced TEI
+        tei_header = None
+        # Try with namespace first
+        tei_header = root.find('.//{http://www.tei-c.org/ns/1.0}teiHeader')
+        if tei_header is None:
+            # Try without namespace
+            tei_header = root.find('.//teiHeader')
+                
+        if tei_header is None:
+            return metadata
+            
+        # Extract title
+        title_elem = tei_header.find('.//{http://www.tei-c.org/ns/1.0}title')
+        if title_elem is None:
+            title_elem = tei_header.find('.//title')
+        if title_elem is not None and title_elem.text:
+            metadata['title'] = title_elem.text.strip()
+                
+        # Extract author
+        author_elem = tei_header.find('.//{http://www.tei-c.org/ns/1.0}author')
+        if author_elem is None:
+            author_elem = tei_header.find('.//author')
+        if author_elem is not None and author_elem.text:
+            metadata['author'] = author_elem.text.strip()
+                
+        # Extract editor
+        editor_elem = tei_header.find('.//{http://www.tei-c.org/ns/1.0}editor')
+        if editor_elem is None:
+            editor_elem = tei_header.find('.//editor')
+        if editor_elem is not None and editor_elem.text:
+            metadata['editor'] = editor_elem.text.strip()
+                
+        # Extract translator
+        translator_elem = tei_header.find('.//{http://www.tei-c.org/ns/1.0}translator')
+        if translator_elem is None:
+            translator_elem = tei_header.find('.//translator')
+        if translator_elem is not None and translator_elem.text:
+            metadata['translator'] = translator_elem.text.strip()
+                
+        # Extract date
+        date_elem = tei_header.find('.//{http://www.tei-c.org/ns/1.0}date')
+        if date_elem is None:
+            date_elem = tei_header.find('.//date')
+        if date_elem is not None and date_elem.text:
+            metadata['date'] = date_elem.text.strip()
+                
+        # Extract language
+        lang_elem = tei_header.find('.//{http://www.tei-c.org/ns/1.0}language')
+        if lang_elem is None:
+            lang_elem = tei_header.find('.//language')
+        if lang_elem is not None:
+            if lang_elem.text:
+                metadata['language'] = lang_elem.text.strip()
+            elif 'ident' in lang_elem.attrib:
+                lang_code = lang_elem.attrib['ident']
+                lang_map = {
+                    'en': 'English',
+                    'grc': 'Ancient Greek', 
+                    'la': 'Latin',
+                    'de': 'German',
+                    'fr': 'French'
+                }
+                metadata['language'] = lang_map.get(lang_code, lang_code)
+        
+        # Extract publisher
+        pub_elem = tei_header.find('.//{http://www.tei-c.org/ns/1.0}publisher')
+        if pub_elem is None:
+            pub_elem = tei_header.find('.//publisher')
+        if pub_elem is not None and pub_elem.text:
+            metadata['publisher'] = pub_elem.text.strip()
+        
+        return metadata
+
+    def _extract_text(self, root: ET.Element) -> str:
+        """Extract text content from TEI document.
+        
+        Args:
+            root: Root element of TEI document
+            
+        Returns:
+            Extracted text content
+        """
+        # Find the text element
+        text_elem = root.find('.//{http://www.tei-c.org/ns/1.0}text')
+        if text_elem is None:
+            text_elem = root.find('.//text')
+                
+        if text_elem is None:
+            return ""
+            
+        # Extract all text content, preserving paragraph structure
+        text_parts = []
+        
+        # Process paragraphs
+        paragraphs = text_elem.findall('.//{http://www.tei-c.org/ns/1.0}p')
+        if not paragraphs:
+            paragraphs = text_elem.findall('.//p')
+            
+        if paragraphs:
+            for p in paragraphs:
+                para_text = self._get_element_text(p)
+                if para_text.strip():
+                    text_parts.append(para_text.strip())
+                
+        # If no paragraphs found, get all text
+        if not text_parts:
+            text_content = self._get_element_text(text_elem)
+            if text_content.strip():
+                text_parts.append(text_content.strip())
+        
+        # Join paragraphs with double newlines
+        return '\n\n'.join(text_parts)
+
+    def _get_element_text(self, element: ET.Element) -> str:
+        """Get all text content from an element, including children.
+        
+        Args:
+            element: XML element
+            
+        Returns:
+            Combined text content
+        """
+        text_parts = []
+        
+        if element.text:
+            text_parts.append(element.text)
+            
+        for child in element:
+            # Get text from child elements
+            child_text = self._get_element_text(child)
+            if child_text.strip():
+                text_parts.append(child_text)
+                
+            # Get tail text after child element
+            if child.tail:
+                text_parts.append(child.tail)
+                
+        return ' '.join(text_parts)
+
+    def _extract_structure(self, root: ET.Element) -> Dict[str, List[str]]:
+        """Extract document structure information.
+        
+        Args:
+            root: Root element of TEI document
+            
+        Returns:
+            Dictionary with structure information
+        """
+        structure = {
+            "books": [],
+            "chapters": [],
+            "sections": []
         }
+        
+        # Find text element
+        text_elem = root.find('.//{http://www.tei-c.org/ns/1.0}text')
+        if text_elem is None:
+            text_elem = root.find('.//text')
+                
+        if text_elem is None:
+            return structure
+            
+        # Extract books
+        book_divs = text_elem.findall('.//{http://www.tei-c.org/ns/1.0}div[@type="book"]')
+        if not book_divs:
+            book_divs = text_elem.findall('.//div[@type="book"]')
+        
+        for book_div in book_divs:
+            book_num = book_div.get('n', '')
+            head_elem = book_div.find('.//{http://www.tei-c.org/ns/1.0}head')
+            if head_elem is None:
+                head_elem = book_div.find('.//head')
+            if head_elem is not None and head_elem.text:
+                structure["books"].append(head_elem.text.strip())
+            elif book_num:
+                structure["books"].append(f"Book {book_num}")
+                
+        # Extract chapters  
+        chapter_divs = text_elem.findall('.//{http://www.tei-c.org/ns/1.0}div[@type="chapter"]')
+        if not chapter_divs:
+            chapter_divs = text_elem.findall('.//div[@type="chapter"]')
+            
+        for chapter_div in chapter_divs:
+            chapter_num = chapter_div.get('n', '')
+            head_elem = chapter_div.find('.//{http://www.tei-c.org/ns/1.0}head')
+            if head_elem is None:
+                head_elem = chapter_div.find('.//head')
+            if head_elem is not None and head_elem.text:
+                structure["chapters"].append(head_elem.text.strip())
+            elif chapter_num:
+                structure["chapters"].append(f"Chapter {chapter_num}")
+                
+        # Extract sections
+        section_divs = text_elem.findall('.//{http://www.tei-c.org/ns/1.0}div[@type="section"]')
+        if not section_divs:
+            section_divs = text_elem.findall('.//div[@type="section"]')
+            
+        for section_div in section_divs:
+            section_num = section_div.get('n', '')
+            if section_num:
+                structure["sections"].append(section_num)
+                
+        return structure
+
+    def _extract_citations(self, root: ET.Element) -> List[Dict[str, str]]:
+        """Extract citations and references from TEI document.
+        
+        Args:
+            root: Root element of TEI document
+            
+        Returns:
+            List of citation dictionaries
+        """
+        citations = []
+        
+        # Find text element
+        text_elem = root.find('.//{http://www.tei-c.org/ns/1.0}text')
+        if text_elem is None:
+            text_elem = root.find('.//text')
+                
+        if text_elem is None:
+            return citations
+            
+        # Extract references
+        ref_elems = text_elem.findall('.//{http://www.tei-c.org/ns/1.0}ref')
+        if not ref_elems:
+            ref_elems = text_elem.findall('.//ref')
+            
+        for ref in ref_elems:
+            citation = {}
+            if ref.text:
+                citation['text'] = ref.text.strip()
+            if 'target' in ref.attrib:
+                citation['target'] = ref.attrib['target']
+            if citation:
+                citations.append(citation)
+                
+        # Extract bibliographic citations
+        bibl_elems = text_elem.findall('.//{http://www.tei-c.org/ns/1.0}bibl')
+        if not bibl_elems:
+            bibl_elems = text_elem.findall('.//bibl')
+            
+        for bibl in bibl_elems:
+            citation = {}
+            
+            # Extract author
+            author_elem = bibl.find('.//{http://www.tei-c.org/ns/1.0}author')
+            if author_elem is None:
+                author_elem = bibl.find('.//author')
+            if author_elem is not None and author_elem.text:
+                citation['author'] = author_elem.text.strip()
+                
+            # Extract title
+            title_elem = bibl.find('.//{http://www.tei-c.org/ns/1.0}title')
+            if title_elem is None:
+                title_elem = bibl.find('.//title')
+            if title_elem is not None and title_elem.text:
+                citation['title'] = title_elem.text.strip()
+                
+            # Extract scope
+            scope_elem = bibl.find('.//{http://www.tei-c.org/ns/1.0}biblScope')
+            if scope_elem is None:
+                scope_elem = bibl.find('.//biblScope')
+            if scope_elem is not None and scope_elem.text:
+                citation['scope'] = scope_elem.text.strip()
+                
+            if citation:
+                citations.append(citation)
+                
+        return citations
