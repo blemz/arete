@@ -10,6 +10,7 @@ from typing import List, Optional, Union, Dict, Any, Callable
 from functools import lru_cache
 import numpy as np
 from uuid import UUID
+import hashlib
 
 try:
     import torch
@@ -75,20 +76,30 @@ class EmbeddingService:
         
         # Model configuration
         self.model_name = model_name or self._get_default_model()
-        self.device = device or self._detect_device()
+        self.device = device or self._get_device_from_settings()
         self.model: Optional[SentenceTransformer] = None
         
         # Performance tracking
         self._embedding_count = 0
         self._batch_count = 0
         
+        # Simple embedding cache (text hash -> embedding)
+        self._embedding_cache: Dict[str, List[float]] = {}
+        self._cache_hits = 0
+        
         logger.info(f"Initialized EmbeddingService with model={self.model_name}, device={self.device}")
     
     def _get_default_model(self) -> str:
-        """Get default embedding model."""
-        # Use multilingual model suitable for classical philosophical texts
-        # Supports Greek, Sanskrit, Latin, and modern languages
-        return 'paraphrase-multilingual-MiniLM-L12-v2'
+        """Get default embedding model from settings."""
+        # Use model from settings/environment variable
+        return self.settings.embedding_model
+    
+    def _get_device_from_settings(self) -> str:
+        """Get device from settings, with auto-detection fallback."""
+        if self.settings.embedding_device == "auto":
+            return self._detect_device()
+        else:
+            return self.settings.embedding_device
     
     def _detect_device(self) -> str:
         """Detect optimal device for embedding generation."""
@@ -135,6 +146,9 @@ class EmbeddingService:
             del self.model
             self.model = None
             
+            # Clear embedding cache
+            self.clear_cache()
+            
             # Clear GPU cache if using CUDA
             if TORCH_AVAILABLE and torch.cuda.is_available():
                 torch.cuda.empty_cache()
@@ -145,13 +159,17 @@ class EmbeddingService:
     
     def get_model_info(self) -> Dict[str, Any]:
         """Get information about the current model."""
+        cache_hit_rate = self._cache_hits / max(self._embedding_count, 1) if self._embedding_count > 0 else 0.0
         return {
             'model_name': self.model_name,
             'device': self.device,
             'is_loaded': self.is_model_loaded(),
             'embedding_dimension': self.get_embedding_dimension() if self.is_model_loaded() else None,
             'embeddings_generated': self._embedding_count,
-            'batches_processed': self._batch_count
+            'batches_processed': self._batch_count,
+            'cache_size': len(self._embedding_cache),
+            'cache_hits': self._cache_hits,
+            'cache_hit_rate': cache_hit_rate
         }
     
     def get_embedding_dimension(self) -> Optional[int]:
@@ -196,6 +214,14 @@ class EmbeddingService:
             # Preprocess text
             processed_text = self._preprocess_text(text)
             
+            # Check cache first
+            cache_key = self._get_cache_key(processed_text, normalize)
+            if cache_key in self._embedding_cache:
+                self._cache_hits += 1
+                self._embedding_count += 1
+                logger.debug(f"Cache hit for text: {processed_text[:50]}...")
+                return self._embedding_cache[cache_key]
+            
             # Generate embedding
             embedding = self.model.encode(
                 processed_text,
@@ -207,7 +233,12 @@ class EmbeddingService:
             self._embedding_count += 1
             
             # Convert to list for JSON serialization
-            return embedding.tolist() if hasattr(embedding, 'tolist') else embedding
+            embedding_list = embedding.tolist() if hasattr(embedding, 'tolist') else embedding
+            
+            # Cache the result
+            self._embedding_cache[cache_key] = embedding_list
+            
+            return embedding_list
             
         except Exception as e:
             logger.error(f"Failed to generate embedding: {e}")
@@ -312,8 +343,8 @@ class EmbeddingService:
             Embedding vector as list of floats
         """
         # Use vectorizable_text if available and requested
-        if use_vectorizable_text and chunk.vectorizable_text:
-            text = chunk.vectorizable_text
+        if use_vectorizable_text:
+            text = chunk.get_vectorizable_text()
         else:
             text = chunk.text
         
@@ -343,8 +374,8 @@ class EmbeddingService:
         # Extract texts from chunks
         texts = []
         for chunk in chunks:
-            if use_vectorizable_text and chunk.vectorizable_text:
-                texts.append(chunk.vectorizable_text)
+            if use_vectorizable_text:
+                texts.append(chunk.get_vectorizable_text())
             else:
                 texts.append(chunk.text)
         
@@ -499,6 +530,27 @@ class EmbeddingService:
         """Check if current model supports multiple languages."""
         return 'multilingual' in self.model_name.lower()
     
+    def _get_cache_key(self, text: str, normalize: bool) -> str:
+        """
+        Generate cache key for text and parameters.
+        
+        Args:
+            text: Processed text
+            normalize: Whether embeddings are normalized
+            
+        Returns:
+            Cache key string
+        """
+        # Include model name, text, and normalization in cache key
+        key_data = f"{self.model_name}:{text}:{normalize}"
+        return hashlib.md5(key_data.encode('utf-8')).hexdigest()
+    
+    def clear_cache(self) -> None:
+        """Clear embedding cache."""
+        cache_size = len(self._embedding_cache)
+        self._embedding_cache.clear()
+        logger.info(f"Cleared embedding cache ({cache_size} entries)")
+    
     def _calculate_optimal_batch_size(self, total_items: int) -> int:
         """
         Calculate optimal batch size based on available memory and model.
@@ -510,7 +562,7 @@ class EmbeddingService:
             Optimal batch size
         """
         # Base batch size from settings
-        base_batch_size = getattr(self.settings, 'batch_size', 32)
+        base_batch_size = self.settings.embedding_batch_size
         
         # Adjust based on device
         if self.device == 'cuda':

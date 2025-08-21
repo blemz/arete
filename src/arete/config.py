@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     
     # Embedding Configuration
     embedding_model: str = Field(
-        default="all-MiniLM-L6-v2",
+        default="paraphrase-multilingual-mpnet-base-v2",
         description="Default sentence-transformer model for embeddings"
     )
     embedding_device: str = Field(

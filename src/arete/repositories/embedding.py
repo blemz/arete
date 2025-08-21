@@ -91,13 +91,20 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
     def embedding_service(self):
         """Get embedding service with lazy initialization."""
         if self._embedding_service is None:
-            from ..services.embedding_service import get_embedding_service
+            from ..services.embedding_factory import get_embedding_service
             self._embedding_service = get_embedding_service(settings=self.settings)
             
-            # Ensure model is loaded for performance
-            if not self._embedding_service.is_model_loaded():
+            # Ensure model is loaded for performance (sentence-transformers only)
+            if hasattr(self._embedding_service, 'is_model_loaded') and not self._embedding_service.is_model_loaded():
                 logger.info("Loading embedding model for repository")
                 self._embedding_service.load_model()
+            elif hasattr(self._embedding_service, 'is_available'):
+                # For Ollama services, check availability
+                if not self._embedding_service.is_available():
+                    logger.warning("Ollama service not available")
+                elif not self._embedding_service.is_model_available():
+                    logger.info("Ollama model not available, attempting to pull...")
+                    self._embedding_service.pull_model_if_needed()
         
         return self._embedding_service
     
