@@ -19,6 +19,7 @@ from .base import (
 )
 from .document import DocumentRepository
 from .entity import EntityRepository
+from .embedding import EmbeddingRepository, create_embedding_repository
 
 __all__ = [
     # Base classes and exceptions
@@ -32,4 +33,7 @@ __all__ = [
     # Repository implementations
     "DocumentRepository",
     "EntityRepository",
+    "EmbeddingRepository",
+    # Factory functions
+    "create_embedding_repository",
 ]

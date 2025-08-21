@@ -46,6 +46,32 @@ class Settings(BaseSettings):
         description="Ollama server base URL"
     )
     
+    # Embedding Configuration
+    embedding_model: str = Field(
+        default="all-MiniLM-L6-v2",
+        description="Default sentence-transformer model for embeddings"
+    )
+    embedding_device: str = Field(
+        default="auto",
+        description="Device for embedding generation (auto, cuda, cpu, mps)"
+    )
+    embedding_batch_size: int = Field(
+        default=32,
+        ge=1,
+        le=128,
+        description="Batch size for embedding generation"
+    )
+    embedding_normalize: bool = Field(
+        default=True,
+        description="Whether to L2 normalize embeddings for cosine similarity"
+    )
+    embedding_cache_size: int = Field(
+        default=1000,
+        ge=0,
+        le=10000,
+        description="Number of embeddings to cache in memory"
+    )
+    
     # Logging Configuration
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
         default="INFO",
@@ -124,6 +150,15 @@ class Settings(BaseSettings):
             raise ValueError("chunk_overlap must be smaller than chunk_size")
         return v
     
+    @field_validator("embedding_device")
+    @classmethod
+    def validate_embedding_device(cls, v: str) -> str:
+        """Validate embedding device setting."""
+        valid_devices = {"auto", "cuda", "cpu", "mps"}
+        if v.lower() not in valid_devices:
+            raise ValueError(f"embedding_device must be one of: {valid_devices}")
+        return v.lower()
+    
     @property
     def neo4j_auth(self) -> Tuple[str, str]:
         """Return Neo4j authentication tuple."""
@@ -137,6 +172,17 @@ class Settings(BaseSettings):
             "format": "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
             "backtrace": self.debug,
             "diagnose": self.debug,
+        }
+    
+    @property
+    def embedding_config(self) -> dict:
+        """Return embedding configuration dict."""
+        return {
+            "model": self.embedding_model,
+            "device": self.embedding_device,
+            "batch_size": self.embedding_batch_size,
+            "normalize": self.embedding_normalize,
+            "cache_size": self.embedding_cache_size
         }
 
 
