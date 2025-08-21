@@ -15,7 +15,8 @@
       "mcp__context7__get-library-docs",
       "Bash(python -m pytest tests/test_tei_xml_extraction.py -v)",
       "Bash(python -m pytest tests/test_tei_xml_extraction.py -v --tb=short)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }

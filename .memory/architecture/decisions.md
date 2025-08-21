@@ -2,6 +2,70 @@
 
 This file contains critical technical architecture decisions and their rationale for the Arete Graph-RAG system.
 
+## [MemoryID: 20250821-MM43] Sparse Retrieval System Architecture
+**Type**: architecture_decision  
+**Priority**: 1  
+**Tags**: sparse-retrieval, bm25, splade, hybrid-search, repository-pattern
+
+### Decision
+Implement comprehensive sparse retrieval system with multiple algorithms and fusion strategies:
+- **BM25Retriever**: Classic TF-IDF algorithm with BM25 scoring for term-based retrieval
+- **SPLADERetriever**: Advanced sparse retrieval with query expansion and importance weighting
+- **SparseRetrievalService**: Coordination layer with algorithm selection and caching
+- **RetrievalRepository**: Hybrid fusion with 4 strategies (Weighted Average, RRF, Interleaved, Score Threshold)
+
+### Rationale
+- **Complementary Search**: Sparse retrieval captures exact term matches that dense embeddings might miss
+- **Philosophical Terminology**: BM25 excels at finding specific philosophical terms and concepts
+- **Algorithm Diversity**: Multiple sparse methods provide robustness and quality improvement
+- **Hybrid Fusion**: Combining sparse and dense retrieval improves overall search quality for educational content
+
+### Technical Implementation
+```python
+# Abstract interface for consistent patterns
+class BaseSparseRetriever(ABC):
+    @abstractmethod
+    def index_documents(self, documents: List[Document]) -> None:
+        pass
+    
+    @abstractmethod
+    def search(self, query: str, limit: int = 10) -> List[SearchResult]:
+        pass
+
+# BM25 with optimized parameters for philosophical content
+class BM25Retriever(BaseSparseRetriever):
+    def __init__(self, k1: float = 1.2, b: float = 0.75):
+        self.k1 = k1  # Term frequency saturation parameter
+        self.b = b    # Document length normalization
+
+# Hybrid repository with fusion strategies
+class RetrievalRepository:
+    def hybrid_search(self, query: str, fusion_method: FusionMethod) -> List[SearchResult]:
+        sparse_results = self.sparse_service.search(query)
+        dense_results = self.dense_service.search(query)
+        return self.fusion_strategy.combine(sparse_results, dense_results)
+```
+
+### Performance Results
+- **BM25**: 0.000s index time, ~0.0000s average query time on 20 philosophical chunks
+- **SPLADE**: 0.001s index time, ~0.0007s average query time
+- **Term Analysis**: Successfully indexed 195 unique terms from philosophical texts
+- **Memory Efficiency**: Minimal memory footprint with optimized data structures
+
+### Integration Architecture
+- **Repository Pattern**: Follows established conventions with dependency injection
+- **Neo4j Ready**: Prepared for graph-based retrieval integration
+- **Factory Pattern**: SparseRetrievalService provides algorithm selection abstraction
+- **Caching Strategy**: Service-level caching for improved performance
+
+### Impact Areas
+- Hybrid search quality and recall improvements
+- Term-based query processing for philosophical concepts
+- Repository layer expansion with sparse retrieval capabilities
+- Foundation for complete hybrid search (sparse + dense + graph)
+
+---
+
 ## [MemoryID: 20250810-MM01] Multi-Provider LLM Infrastructure
 **Type**: architecture_decision  
 **Priority**: 1  
@@ -215,13 +279,14 @@ Configure Weaviate with text2vec-transformers for philosophical content:
 ### Primary Architecture Stack
 1. **Database Foundation** (MM02) → **Schema Implementation** (MM07, MM08)
 2. **LLM Infrastructure** (MM01) → **Repository Pattern** (MM05)
-3. **Hybrid Architecture** (MM02) → **Performance Optimization** (patterns in development/)
+3. **Hybrid Architecture** (MM02) → **Sparse Retrieval** (MM43) → **Performance Optimization**
 
 ### Implementation Order
 1. Database schemas and connections (MM07, MM08)
 2. Repository pattern implementation (MM05)
-3. LLM provider integration (MM01)
-4. Performance optimization and caching
+3. Sparse retrieval system implementation (MM43)
+4. LLM provider integration (MM01)
+5. Performance optimization and caching
 
 ---
 
@@ -321,5 +386,5 @@ Context: {relevant_background}
 
 ---
 
-**Last Updated**: 2025-08-10  
+**Last Updated**: 2025-08-21  
 **Review Schedule**: Monthly for architectural decisions, quarterly for implementation details

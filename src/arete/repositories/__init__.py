@@ -20,6 +20,13 @@ from .base import (
 from .document import DocumentRepository
 from .entity import EntityRepository
 from .embedding import EmbeddingRepository, create_embedding_repository
+from .retrieval import (
+    RetrievalRepository,
+    RetrievalMethod,
+    HybridStrategy,
+    HybridRetrievalConfig,
+    create_retrieval_repository
+)
 
 __all__ = [
     # Base classes and exceptions
@@ -34,6 +41,12 @@ __all__ = [
     "DocumentRepository",
     "EntityRepository",
     "EmbeddingRepository",
+    "RetrievalRepository",
+    # Retrieval configuration
+    "RetrievalMethod",
+    "HybridStrategy", 
+    "HybridRetrievalConfig",
     # Factory functions
     "create_embedding_repository",
+    "create_retrieval_repository",
 ]
