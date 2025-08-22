@@ -47,7 +47,7 @@ class TestEmbeddingModelConfiguration:
             debug=True
         )
     
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_model_loading_default_model(self, mock_sentence_transformer):
         """Test loading default sentence-transformers model."""
         # Mock the model loading
@@ -61,7 +61,7 @@ class TestEmbeddingModelConfiguration:
         # Test will pass once implementation exists
         mock_sentence_transformer.assert_not_called()  # Placeholder
         
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_model_loading_custom_model(self, mock_sentence_transformer):
         """Test loading custom embedding model."""
         mock_model = Mock()
@@ -72,7 +72,7 @@ class TestEmbeddingModelConfiguration:
         # Test custom model configuration
         mock_sentence_transformer.assert_not_called()  # Placeholder
         
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_model_loading_error_handling(self, mock_sentence_transformer):
         """Test error handling during model loading."""
         # Simulate model loading failure
@@ -103,14 +103,14 @@ class TestBasicEmbeddingGeneration:
         self.sample_chunk = Chunk(
             text="Philosophy seeks to understand the fundamental nature of reality.",
             document_id=uuid4(),
-            start_position=0,
-            end_position=60,
-            sequence_number=0,
+            position=0,
+            start_char=0,
+            end_char=60,
             word_count=9,
             chunk_type=ChunkType.PARAGRAPH
         )
     
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_single_text_embedding_generation(self, mock_sentence_transformer):
         """Test generating embedding for single text."""
         # Mock model and embedding output
@@ -131,7 +131,7 @@ class TestBasicEmbeddingGeneration:
         assert len(expected_embedding) == 5  # Verify embedding dimension
         assert all(isinstance(x, float) for x in expected_embedding)
         
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_chunk_embedding_generation(self, mock_sentence_transformer):
         """Test generating embedding for Chunk model."""
         mock_model = Mock()
@@ -174,16 +174,16 @@ class TestBatchEmbeddingGeneration:
             Chunk(
                 text=f"Chunk {i}: Ancient philosophical wisdom and teachings.",
                 document_id=uuid4(),
-                start_position=i * 50,
-                end_position=(i + 1) * 50,
-                sequence_number=i,
+                position=i,
+                start_char=i * 50,
+                end_char=(i + 1) * 50,
                 word_count=7,
                 chunk_type=ChunkType.PARAGRAPH
             )
             for i in range(15)
         ]
     
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_batch_processing_efficiency(self, mock_sentence_transformer):
         """Test efficient batch processing of multiple texts."""
         mock_model = Mock()
@@ -213,7 +213,7 @@ class TestBatchEmbeddingGeneration:
         # Test progress reporting for UI integration
         assert True  # Placeholder for progress tracking test
         
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_error_resilience_in_batch(self, mock_sentence_transformer):
         """Test error handling during batch processing."""
         mock_model = Mock()

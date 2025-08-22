@@ -59,7 +59,7 @@ class TestMultilingualModelSupport:
             service = EmbeddingService(model_name=model_name)
             assert service.model_name == model_name
     
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_greek_text_embedding_generation(self, mock_sentence_transformer):
         """Test embedding generation for ancient Greek texts."""
         mock_model = Mock()
@@ -88,7 +88,7 @@ class TestMultilingualModelSupport:
         call_args = mock_model.encode.call_args[0][0]
         assert any("ἀρετὴ" in text for text in call_args)  # Greek characters preserved
     
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_sanskrit_text_embedding_generation(self, mock_sentence_transformer):
         """Test embedding generation for Sanskrit texts."""
         mock_model = Mock()
@@ -117,7 +117,7 @@ class TestMultilingualModelSupport:
         call_args = mock_model.encode.call_args[0][0]
         assert any("धर्मः" in text for text in call_args)  # Devanagari characters preserved
     
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_mixed_language_batch_processing(self, mock_sentence_transformer):
         """Test batch processing with mixed languages."""
         mock_model = Mock()
@@ -171,7 +171,7 @@ class TestCrossLingualSemanticSimilarity:
             "sanskrit": "प्रज्ञा शुभाशुभज्ञानम्"
         }
     
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_cross_lingual_semantic_similarity(self, mock_sentence_transformer):
         """Test that similar concepts across languages have high similarity."""
         mock_model = Mock()
@@ -277,9 +277,9 @@ class TestClassicalTextProcessing:
             Chunk(
                 text="ἀρετὴ μεσότης τίς ἐστι δυοῖν κακιῶν",
                 document_id=uuid4(),
-                start_position=0,
-                end_position=35,
-                sequence_number=0,
+                position=0,
+                start_char=0,
+                end_char=35,
                 word_count=6,
                 chunk_type=ChunkType.PARAGRAPH,
                 vectorizable_text="ἀρετὴ μεσότης τίς ἐστι δυοῖν κακιῶν"
@@ -287,16 +287,16 @@ class TestClassicalTextProcessing:
             Chunk(
                 text="धर्मं चर तपश्चर्",
                 document_id=uuid4(),
-                start_position=0,
-                end_position=15,
-                sequence_number=0,
+                position=0,
+                start_char=0,
+                end_char=15,
                 word_count=3,
                 chunk_type=ChunkType.PARAGRAPH,
                 vectorizable_text="धर्मं चर तपश्चर्"
             )
         ]
     
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_classical_text_chunk_processing(self, mock_sentence_transformer):
         """Test processing chunks containing classical texts."""
         mock_model = Mock()
@@ -392,9 +392,9 @@ class TestMultilingualRepositoryIntegration:
             Chunk(
                 text="τί ἐστι δικαιοσύνη; (What is justice?)",
                 document_id=uuid4(),
-                start_position=0,
-                end_position=40,
-                sequence_number=0,
+                position=0,
+                start_char=0,
+                end_char=40,
                 word_count=8,
                 chunk_type=ChunkType.PARAGRAPH
             ),
@@ -402,9 +402,9 @@ class TestMultilingualRepositoryIntegration:
             Chunk(
                 text="अहिंसा परमो धर्मः (Non-violence is the highest virtue)",
                 document_id=uuid4(),
-                start_position=0,
-                end_position=55,
-                sequence_number=1,
+                position=1,
+                start_char=0,
+                end_char=55,
                 word_count=10,
                 chunk_type=ChunkType.PARAGRAPH
             ),
@@ -412,16 +412,16 @@ class TestMultilingualRepositoryIntegration:
             Chunk(
                 text="Justice according to Plato is harmony in the soul",
                 document_id=uuid4(),
-                start_position=0,
-                end_position=49,
-                sequence_number=2,
+                position=2,
+                start_char=0,
+                end_char=49,
                 word_count=9,
                 chunk_type=ChunkType.PARAGRAPH
             )
         ]
     
     @patch('src.arete.database.weaviate_client.WeaviateClient')
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_multilingual_semantic_search(self, mock_sentence_transformer, mock_weaviate):
         """Test semantic search across multiple languages."""
         from src.arete.repositories.embedding import EmbeddingRepository
@@ -590,7 +590,7 @@ class TestMultilingualWorkflow:
     """Test complete multilingual embedding workflow."""
     
     @patch('src.arete.database.weaviate_client.WeaviateClient')
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_end_to_end_multilingual_pipeline(self, mock_sentence_transformer, mock_weaviate):
         """Test complete pipeline for multilingual philosophical texts."""
         from src.arete.repositories.embedding import EmbeddingRepository
@@ -622,27 +622,27 @@ class TestMultilingualWorkflow:
             Chunk(
                 text="ἀρετὴ μεσότης ἐστι",
                 document_id=uuid4(),
-                start_position=0,
-                end_position=18,
-                sequence_number=0,
+                position=0,
+                start_char=0,
+                end_char=18,
                 word_count=3,
                 chunk_type=ChunkType.PARAGRAPH
             ),
             Chunk(
                 text="धर्मो रक्षति रक्षितः",
                 document_id=uuid4(),
-                start_position=0,
-                end_position=20,
-                sequence_number=1,
+                position=1,
+                start_char=0,
+                end_char=20,
                 word_count=3,
                 chunk_type=ChunkType.PARAGRAPH
             ),
             Chunk(
                 text="Virtue protects those who protect it",
                 document_id=uuid4(),
-                start_position=0,
-                end_position=36,
-                sequence_number=2,
+                position=2,
+                start_char=0,
+                end_char=36,
                 word_count=6,
                 chunk_type=ChunkType.PARAGRAPH
             )

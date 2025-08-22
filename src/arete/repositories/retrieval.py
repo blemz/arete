@@ -19,8 +19,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ..services.dense_retrieval_service import DenseRetrievalService, SearchResult
     from ..services.sparse_retrieval_service import SparseRetrievalService
+    from ..services.graph_traversal_service import GraphTraversalService
 from ..config import Settings, get_settings
-from .base import BaseRepository, RepositoryError
+from .base import RepositoryError
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,9 @@ class RetrievalMethod(Enum):
     """Available retrieval methods."""
     DENSE = "dense"
     SPARSE = "sparse"
+    GRAPH = "graph"
     HYBRID = "hybrid"
+    GRAPH_ENHANCED_HYBRID = "graph_enhanced_hybrid"
 
 
 class HybridStrategy(Enum):
@@ -56,7 +59,7 @@ class RetrievalRepositoryError(RepositoryError):
     pass
 
 
-class RetrievalRepository(BaseRepository):
+class RetrievalRepository:
     """
     Unified retrieval repository combining dense and sparse retrieval.
     
@@ -74,6 +77,7 @@ class RetrievalRepository(BaseRepository):
         self,
         dense_service: Optional["DenseRetrievalService"] = None,
         sparse_service: Optional["SparseRetrievalService"] = None,
+        graph_service: Optional["GraphTraversalService"] = None,
         settings: Optional[Settings] = None
     ):
         """
@@ -81,10 +85,10 @@ class RetrievalRepository(BaseRepository):
         
         Args:
             dense_service: Dense retrieval service instance
-            sparse_service: Sparse retrieval service instance  
+            sparse_service: Sparse retrieval service instance
+            graph_service: Graph traversal service instance
             settings: Configuration settings
         """
-        super().__init__()
         self.settings = settings or get_settings()
         
         # Initialize services with dependency injection
@@ -104,11 +108,26 @@ class RetrievalRepository(BaseRepository):
             )
         else:
             self.sparse_service = sparse_service
+            
+        if graph_service is None:
+            # Import at runtime to avoid circular import
+            from ..services.graph_traversal_service import GraphTraversalService
+            from ..database.client import Neo4jClient
+            
+            # Initialize Neo4j client and graph service
+            neo4j_client = Neo4jClient()
+            neo4j_client.connect()
+            self.graph_service = GraphTraversalService(
+                neo4j_client=neo4j_client,
+                settings=self.settings
+            )
+        else:
+            self.graph_service = graph_service
         
         # Default hybrid configuration
         self.hybrid_config = HybridRetrievalConfig()
         
-        logger.info("Initialized RetrievalRepository with dense and sparse services")
+        logger.info("Initialized RetrievalRepository with dense, sparse, and graph services")
     
     async def initialize(self) -> None:
         """Initialize retrieval services and indices."""
@@ -140,7 +159,7 @@ class RetrievalRepository(BaseRepository):
         
         Args:
             query: Search query text
-            method: Retrieval method (dense, sparse, or hybrid)
+            method: Retrieval method (dense, sparse, graph, hybrid, or graph_enhanced_hybrid)
             limit: Maximum number of results
             min_relevance: Minimum relevance threshold
             document_ids: Optional filter by document IDs
@@ -175,8 +194,29 @@ class RetrievalRepository(BaseRepository):
                     **kwargs
                 )
             
+            elif method == RetrievalMethod.GRAPH:
+                return self._graph_search(
+                    query=query,
+                    limit=limit,
+                    min_relevance=min_relevance,
+                    document_ids=document_ids,
+                    chunk_types=chunk_types,
+                    **kwargs
+                )
+            
             elif method == RetrievalMethod.HYBRID:
                 return self._hybrid_search(
+                    query=query,
+                    limit=limit,
+                    min_relevance=min_relevance,
+                    document_ids=document_ids,
+                    chunk_types=chunk_types,
+                    hybrid_config=hybrid_config or self.hybrid_config,
+                    **kwargs
+                )
+            
+            elif method == RetrievalMethod.GRAPH_ENHANCED_HYBRID:
+                return self._graph_enhanced_hybrid_search(
                     query=query,
                     limit=limit,
                     min_relevance=min_relevance,
@@ -584,12 +624,180 @@ class RetrievalRepository(BaseRepository):
         self.dense_service.reset_metrics()
         self.sparse_service.get_metrics().reset()
         logger.info("All retrieval metrics reset")
+    
+    def _graph_search(
+        self,
+        query: str,
+        limit: int = 10,
+        min_relevance: float = 0.0,
+        document_ids: Optional[List[UUID]] = None,
+        chunk_types: Optional[List[str]] = None,
+        **kwargs
+    ) -> List["SearchResult"]:
+        """Perform graph-based retrieval search."""
+        try:
+            # Detect entities in the query
+            entities = self.graph_service.detect_entities(query)
+            
+            if not entities:
+                logger.warning(f"No entities detected in query: {query}")
+                return []
+            
+            # Generate and execute graph traversal
+            graph_query = self.graph_service.generate_cypher_query(
+                entities=entities,
+                query_type="entity_lookup"
+            )
+            
+            graph_results = self.graph_service.execute_traversal(graph_query)
+            
+            # Convert graph results to SearchResult format
+            search_results = []
+            for graph_result in graph_results:
+                # Create a SearchResult from GraphResult
+                # This is a simplified conversion - in practice you'd want to
+                # integrate this with your chunk/document storage
+                from ..services.dense_retrieval_service import SearchResult
+                from ..models.chunk import Chunk
+                from uuid import uuid4
+                
+                # Create a synthetic chunk representing the graph result
+                chunk = Chunk(
+                    text=f"{graph_result.entity.name}: {graph_result.entity.description or 'Philosophical entity'}",
+                    document_id=graph_result.entity.source_document_id,
+                    position=0,
+                    chunk_type="entity",
+                    start_char=0,
+                    end_char=len(graph_result.entity.name)
+                )
+                
+                search_result = SearchResult(
+                    chunk=chunk,
+                    relevance_score=graph_result.relevance_score,
+                    query=query
+                )
+                
+                # Add graph metadata
+                search_result.metadata.update({
+                    "search_method": "graph",
+                    "entity_name": graph_result.entity.name,
+                    "entity_type": str(graph_result.entity.entity_type),
+                    "path_length": graph_result.path_length,
+                    "graph_confidence": graph_result.confidence
+                })
+                
+                if search_result.relevance_score >= min_relevance:
+                    search_results.append(search_result)
+            
+            # Sort by relevance and limit results
+            search_results.sort(key=lambda r: r.relevance_score, reverse=True)
+            return search_results[:limit]
+            
+        except Exception as e:
+            logger.error(f"Graph search failed: {e}")
+            return []
+    
+    def _graph_enhanced_hybrid_search(
+        self,
+        query: str,
+        limit: int = 10,
+        min_relevance: float = 0.0,
+        document_ids: Optional[List[UUID]] = None,
+        chunk_types: Optional[List[str]] = None,
+        hybrid_config: Optional[HybridRetrievalConfig] = None,
+        **kwargs
+    ) -> List["SearchResult"]:
+        """Perform graph-enhanced hybrid search combining dense, sparse, and graph retrieval."""
+        try:
+            # First get traditional hybrid results (dense + sparse)
+            hybrid_results = self._hybrid_search(
+                query=query,
+                limit=limit * 2,  # Get more results for fusion
+                min_relevance=0.0,  # Apply threshold after graph enhancement
+                document_ids=document_ids,
+                chunk_types=chunk_types,
+                hybrid_config=hybrid_config,
+                **kwargs
+            )
+            
+            # Get graph results
+            graph_results = self._graph_search(
+                query=query,
+                limit=limit,
+                min_relevance=0.0,
+                document_ids=document_ids,
+                chunk_types=chunk_types,
+                **kwargs
+            )
+            
+            # Use graph service to enhance hybrid results with graph context
+            enhanced_results = self.graph_service.integrate_with_search_results(
+                search_results=hybrid_results,
+                graph_results=[
+                    # Convert SearchResults back to GraphResults for integration
+                    # This is a simplified approach - you might want to optimize this
+                    self._search_result_to_graph_result(result) 
+                    for result in graph_results
+                ]
+            )
+            
+            # Apply final relevance threshold and limit
+            final_results = [
+                result for result in enhanced_results
+                if getattr(result, 'final_score', result.relevance_score) >= min_relevance
+            ]
+            
+            # Sort by enhanced scores
+            final_results.sort(
+                key=lambda r: getattr(r, 'final_score', r.relevance_score), 
+                reverse=True
+            )
+            
+            return final_results[:limit]
+            
+        except Exception as e:
+            logger.error(f"Graph-enhanced hybrid search failed: {e}")
+            # Fallback to regular hybrid search
+            return self._hybrid_search(
+                query=query,
+                limit=limit,
+                min_relevance=min_relevance,
+                document_ids=document_ids,
+                chunk_types=chunk_types,
+                hybrid_config=hybrid_config,
+                **kwargs
+            )
+    
+    def _search_result_to_graph_result(self, search_result: "SearchResult") -> "GraphResult":
+        """Convert SearchResult to GraphResult for integration purposes."""
+        from ..services.graph_traversal_service import GraphResult
+        from ..models.entity import Entity, EntityType
+        
+        # Extract entity information from search result metadata
+        entity_name = search_result.metadata.get("entity_name", "Unknown Entity")
+        entity_type_str = search_result.metadata.get("entity_type", "concept")
+        
+        # Create a basic entity representation
+        entity = Entity(
+            name=entity_name,
+            entity_type=EntityType(entity_type_str),
+            source_document_id=search_result.chunk.document_id
+        )
+        
+        return GraphResult(
+            entity=entity,
+            relationships=[],
+            path_length=search_result.metadata.get("path_length", 1),
+            relevance_score=search_result.relevance_score,
+            confidence=search_result.metadata.get("graph_confidence", 0.8)
+        )
 
 
 # Factory function following established pattern
 def create_retrieval_repository(
     dense_service: Optional["DenseRetrievalService"] = None,
     sparse_service: Optional["SparseRetrievalService"] = None,
+    graph_service: Optional["GraphTraversalService"] = None,
     settings: Optional[Settings] = None
 ) -> RetrievalRepository:
     """
@@ -598,6 +806,7 @@ def create_retrieval_repository(
     Args:
         dense_service: Optional dense retrieval service instance
         sparse_service: Optional sparse retrieval service instance
+        graph_service: Optional graph traversal service instance
         settings: Optional configuration settings
         
     Returns:
@@ -606,5 +815,6 @@ def create_retrieval_repository(
     return RetrievalRepository(
         dense_service=dense_service,
         sparse_service=sparse_service,
+        graph_service=graph_service,
         settings=settings
     )

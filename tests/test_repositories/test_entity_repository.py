@@ -130,8 +130,8 @@ class TestEntityRepositoryBasicOperations:
         return MentionData(
             text="Socrates",
             context="Socrates was a classical Greek philosopher",
-            start_position=0,
-            end_position=8,
+            start_char=0,
+            end_char=8,
             confidence=0.9,
             document_id=sample_entity.source_document_id
         )
@@ -1224,8 +1224,8 @@ class TestEntityRepositoryPhilosophicalIntegration:
         mention1 = MentionData(
             text="Socrates",
             context="Socrates was a great philosopher",
-            start_position=0,
-            end_position=8,
+            start_char=0,
+            end_char=8,
             confidence=0.9,
             document_id=socrates.source_document_id
         )
@@ -1233,8 +1233,8 @@ class TestEntityRepositoryPhilosophicalIntegration:
         mention2 = MentionData(
             text="Sokrates",
             context="In Greek, Sokrates means...",
-            start_position=10,
-            end_position=18,
+            start_char=10,
+            end_char=18,
             confidence=0.85,
             document_id=socrates.source_document_id
         )

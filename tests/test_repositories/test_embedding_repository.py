@@ -43,18 +43,18 @@ class TestEmbeddingRepositoryConfiguration:
             Chunk(
                 text="Virtue is the mean between extremes of excess and deficiency.",
                 document_id=uuid4(),
-                start_position=0,
-                end_position=62,
-                sequence_number=0,
+                position=0,
+                start_char=0,
+                end_char=62,
                 word_count=10,
                 chunk_type=ChunkType.PARAGRAPH
             ),
             Chunk(
                 text="The unexamined life is not worth living according to Socrates.",
                 document_id=uuid4(),
-                start_position=0,
-                end_position=62,
-                sequence_number=1,
+                position=1,
+                start_char=0,
+                end_char=62,
                 word_count=10,
                 chunk_type=ChunkType.PARAGRAPH
             )
@@ -85,18 +85,18 @@ class TestBasicEmbeddingOperations:
             Chunk(
                 text="Philosophy is the love of wisdom and pursuit of truth.",
                 document_id=uuid4(),
-                start_position=0,
-                end_position=55,
-                sequence_number=0,
+                position=0,
+                start_char=0,
+                end_char=55,
                 word_count=9,
                 chunk_type=ChunkType.PARAGRAPH
             ),
             Chunk(
                 text="Ethics examines what constitutes a good life and moral behavior.",
                 document_id=uuid4(),
-                start_position=0,
-                end_position=63,
-                sequence_number=1,
+                position=1,
+                start_char=0,
+                end_char=63,
                 word_count=10,
                 chunk_type=ChunkType.PARAGRAPH
             )

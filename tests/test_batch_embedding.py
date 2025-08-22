@@ -35,9 +35,9 @@ class TestBatchEmbeddingGeneration:
             Chunk(
                 text=f"Chunk {i}: Classical philosophical discourse on ethical principles and moral virtue.",
                 document_id=uuid4(),
-                start_position=i * 100,
-                end_position=(i + 1) * 100,
-                sequence_number=i,
+                position=i,
+                start_char=i * 100,
+                end_char=(i + 1) * 100,
                 word_count=12,
                 chunk_type=ChunkType.PARAGRAPH
             )
@@ -46,7 +46,7 @@ class TestBatchEmbeddingGeneration:
         
         self.embedding_service = EmbeddingService(model_name="all-MiniLM-L6-v2")
     
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_batch_processing_single_call_efficiency(self, mock_sentence_transformer):
         """Test that batch processing uses single model call for efficiency."""
         mock_model = Mock()
@@ -63,6 +63,7 @@ class TestBatchEmbeddingGeneration:
         self.embedding_service.load_model()
         embeddings = self.embedding_service.generate_embeddings_batch(
             self.large_text_batch, 
+            batch_size=batch_size,  # Use the full batch size to ensure single call
             show_progress=False
         )
         
@@ -75,7 +76,7 @@ class TestBatchEmbeddingGeneration:
         assert all(isinstance(emb, list) for emb in embeddings)
         assert all(isinstance(val, float) for emb in embeddings for val in emb)
     
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_batch_size_optimization(self, mock_sentence_transformer):
         """Test automatic batch size optimization."""
         mock_model = Mock()
@@ -108,7 +109,7 @@ class TestBatchEmbeddingGeneration:
         # Verify consistency across batches
         assert all(len(emb) == embedding_dim for emb in embeddings)
     
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_custom_batch_size(self, mock_sentence_transformer):
         """Test custom batch size specification."""
         mock_model = Mock()
@@ -138,7 +139,7 @@ class TestBatchEmbeddingGeneration:
         assert mock_model.encode.call_count == expected_batches
         assert len(embeddings) == len(dataset)
     
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_progress_tracking_callback(self, mock_sentence_transformer):
         """Test progress tracking with callback function."""
         mock_model = Mock()
@@ -179,7 +180,7 @@ class TestBatchEmbeddingGeneration:
         embeddings = self.embedding_service.generate_embeddings_batch([])
         assert embeddings == []
     
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_batch_error_resilience(self, mock_sentence_transformer):
         """Test error handling during batch processing."""
         mock_model = Mock()
@@ -215,9 +216,9 @@ class TestChunkBatchProcessing:
             Chunk(
                 text=f"Philosophical chunk {i}: Discussion of ethical principles and moral reasoning.",
                 document_id=uuid4(),
-                start_position=i * 80,
-                end_position=(i + 1) * 80,
-                sequence_number=i,
+                position=i,
+                start_char=i * 80,
+                end_char=(i + 1) * 80,
                 word_count=10,
                 chunk_type=ChunkType.PARAGRAPH,
                 vectorizable_text=f"Optimized text {i}: Ethics and moral reasoning principles."
@@ -227,7 +228,7 @@ class TestChunkBatchProcessing:
         
         self.embedding_service = EmbeddingService()
     
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_chunk_batch_with_vectorizable_text(self, mock_sentence_transformer):
         """Test chunk batch processing using vectorizable_text."""
         mock_model = Mock()
@@ -255,7 +256,7 @@ class TestChunkBatchProcessing:
         assert len(embeddings) == len(self.chunks)
         assert all(len(emb) == embedding_dim for emb in embeddings)
     
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_chunk_batch_with_regular_text(self, mock_sentence_transformer):
         """Test chunk batch processing using regular text."""
         mock_model = Mock()
@@ -296,7 +297,7 @@ class TestBatchPerformanceOptimization:
         """Set up test fixtures."""
         self.embedding_service = EmbeddingService()
     
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_gpu_batch_size_optimization(self, mock_sentence_transformer):
         """Test GPU-optimized batch sizes."""
         mock_model = Mock()
@@ -328,7 +329,7 @@ class TestBatchPerformanceOptimization:
         assert hasattr(self.embedding_service, 'generate_embeddings_batch')
         assert hasattr(self.embedding_service, '_calculate_optimal_batch_size')
     
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_normalization_in_batch_processing(self, mock_sentence_transformer):
         """Test L2 normalization is applied correctly in batch processing."""
         mock_model = Mock()
@@ -379,9 +380,9 @@ class TestBatchProcessingIntegration:
         chunk = Chunk(
             text="Test philosophical text",
             document_id=uuid4(),
-            start_position=0,
-            end_position=25,
-            sequence_number=0,
+            position=0,
+            start_char=0,
+            end_char=25,
             word_count=3,
             chunk_type=ChunkType.PARAGRAPH
         )
@@ -436,7 +437,7 @@ class TestBatchProcessingEdgeCases:
         valid_texts = [text for text in mixed_texts if text and text.strip()]
         assert len(valid_texts) == 2
     
-    @patch('sentence_transformers.SentenceTransformer')
+    @patch('src.arete.services.embedding_service.SentenceTransformer')
     def test_very_large_text_in_batch(self, mock_sentence_transformer):
         """Test batch processing with very large texts."""
         mock_model = Mock()

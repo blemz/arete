@@ -12,7 +12,7 @@ class TestEntityExtractor:
 		patterns = [
 			{"label": "PERSON", "pattern": "Socrates"},
 		]
-		extractor = EntityExtractor(patterns=patterns)
+		extractor = EntityExtractor(patterns=patterns, use_philosophical_patterns=False)
 		text = "Socrates engages in dialogue about virtue."
 		document_id = uuid.uuid4()
 
@@ -37,7 +37,7 @@ class TestEntityExtractor:
 		patterns = [
 			{"label": "PERSON", "pattern": "Socrates"},
 		]
-		extractor = EntityExtractor(patterns=patterns)
+		extractor = EntityExtractor(patterns=patterns, use_philosophical_patterns=False)
 		text = "Socrates argues about justice. Many say Socrates was wise."
 		document_id = uuid.uuid4()
 
@@ -63,7 +63,7 @@ class TestEntityExtractor:
 			{"label": "GPE", "pattern": "Athens"},
 			{"label": "WORK_OF_ART", "pattern": "Republic"},
 		]
-		extractor = EntityExtractor(patterns=patterns)
+		extractor = EntityExtractor(patterns=patterns, use_philosophical_patterns=False)
 		text = "In Athens, Socrates taught at the Academy and discussed the Republic."
 		document_id = uuid.uuid4()
 
@@ -80,7 +80,7 @@ class TestEntityExtractor:
 			{"label": "PERSON", "pattern": "Plato"},
 			{"label": "PERSON", "pattern": "Socrates"},
 		]
-		extractor = EntityExtractor(patterns=patterns)
+		extractor = EntityExtractor(patterns=patterns, use_philosophical_patterns=False)
 		text = "Plato was a student of Socrates."
 		document_id = uuid.uuid4()
 

@@ -313,3 +313,90 @@ class WeaviateClient:
             
         except WeaviateBaseError as e:
             raise DatabaseQueryError(f"Failed to save entity: {str(e)}") from e
+            
+    # Generic Object Operations
+    def create_object(self, class_name: str, properties: Dict[str, Any], vector: Optional[List[float]] = None) -> str:
+        """Create a generic object in Weaviate.
+        
+        Args:
+            class_name: Name of the Weaviate class/collection
+            properties: Object properties dictionary
+            vector: Optional vector for the object
+            
+        Returns:
+            str: ID of created object
+            
+        Raises:
+            DatabaseQueryError: If creation fails
+        """
+        if not self.client:
+            raise DatabaseConnectionError("Client not connected. Call connect() first.")
+            
+        try:
+            collection = self.client.collections.get(class_name)
+            
+            # Insert object with optional vector
+            if vector:
+                result = collection.data.insert(
+                    properties=properties,
+                    vector=vector
+                )
+            else:
+                result = collection.data.insert(
+                    properties=properties
+                )
+            
+            return str(result.uuid) if hasattr(result, 'uuid') else "created"
+            
+        except WeaviateBaseError as e:
+            raise DatabaseQueryError(f"Failed to create {class_name} object: {str(e)}") from e
+            
+    def create_objects_batch(self, class_name: str, objects: List[Dict[str, Any]]) -> List[str]:
+        """Create multiple objects in Weaviate using batch operations.
+        
+        Args:
+            class_name: Name of the Weaviate class/collection
+            objects: List of objects with 'properties' and optional 'vector' keys
+            
+        Returns:
+            List[str]: List of created object IDs
+            
+        Raises:
+            DatabaseQueryError: If batch creation fails
+        """
+        if not self.client:
+            raise DatabaseConnectionError("Client not connected. Call connect() first.")
+            
+        try:
+            collection = self.client.collections.get(class_name)
+            ids = []
+            
+            # Prepare batch data
+            batch_data = []
+            for obj in objects:
+                properties = obj.get("properties", {})
+                vector = obj.get("vector")
+                
+                if vector:
+                    batch_data.append({
+                        "properties": properties,
+                        "vector": vector
+                    })
+                else:
+                    batch_data.append({
+                        "properties": properties
+                    })
+            
+            # Insert batch
+            result = collection.data.insert_many(batch_data)
+            
+            # Extract IDs from result
+            if hasattr(result, 'uuids'):
+                ids = [str(uuid) for uuid in result.uuids]
+            else:
+                ids = [f"batch_item_{i}" for i in range(len(objects))]
+                
+            return ids
+            
+        except WeaviateBaseError as e:
+            raise DatabaseQueryError(f"Failed to batch create {class_name} objects: {str(e)}") from e

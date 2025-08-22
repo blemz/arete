@@ -150,7 +150,7 @@ class TestDenseRetrievalService:
         # Verify repository call
         retrieval_service.embedding_repository.search_by_text.assert_called_once_with(
             query_text=query,
-            limit=3,
+            limit=6,  # Service requests 2x limit for filtering/ranking
             min_certainty=0.8,
             document_ids=None,
             chunk_types=None

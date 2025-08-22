@@ -25,9 +25,9 @@ class TestWeaviateEmbeddingStorage:
             Chunk(
                 text="Virtue is the mean between extremes of excess and deficiency.",
                 document_id=uuid4(),
-                start_position=0,
-                end_position=62,
-                sequence_number=0,
+                position=0,
+                start_char=0,
+                end_char=62,
                 word_count=10,
                 chunk_type=ChunkType.PARAGRAPH,
                 embedding_vector=[0.1, 0.2, 0.3, 0.4, 0.5]
@@ -35,9 +35,9 @@ class TestWeaviateEmbeddingStorage:
             Chunk(
                 text="The unexamined life is not worth living according to Socrates.",
                 document_id=uuid4(),
-                start_position=0,
-                end_position=62,
-                sequence_number=0,
+                position=1,
+                start_char=63,
+                end_char=125,
                 word_count=10,
                 chunk_type=ChunkType.PARAGRAPH,
                 embedding_vector=[0.6, 0.7, 0.8, 0.9, 1.0]
@@ -142,8 +142,8 @@ class TestWeaviateEmbeddingStorage:
         
         # Verify metadata preservation
         assert "position_info" in weaviate_dict
-        assert weaviate_dict["position_info"]["start"] == chunk.start_position
-        assert weaviate_dict["position_info"]["end"] == chunk.end_position
+        assert weaviate_dict["position_info"]["start"] == chunk.start_char
+        assert weaviate_dict["position_info"]["end"] == chunk.end_char
 
 
 class TestSemanticSearchRetrieval:
@@ -332,18 +332,18 @@ class TestEmbeddingStorageIntegration:
             Chunk(
                 text="Philosophy is the love of wisdom and pursuit of truth.",
                 document_id=uuid4(),
-                start_position=0,
-                end_position=55,
-                sequence_number=0,
+                position=0,
+                start_char=0,
+                end_char=55,
                 word_count=9,
                 chunk_type=ChunkType.PARAGRAPH
             ),
             Chunk(
                 text="Ethics examines what constitutes a good life and moral behavior.",
                 document_id=uuid4(),
-                start_position=0,
-                end_position=63,
-                sequence_number=1,
+                position=1,
+                start_char=56,
+                end_char=119,
                 word_count=10,
                 chunk_type=ChunkType.PARAGRAPH
             )
