@@ -130,6 +130,71 @@ class Settings(BaseSettings):
         description="Maximum number of worker threads"
     )
     
+    # LLM Provider Configuration
+    ollama_api_key: str = Field(
+        default="",
+        description="Ollama API key (if required)",
+        repr=False
+    )
+    openrouter_api_key: str = Field(
+        default="",
+        description="OpenRouter API key",
+        repr=False
+    )
+    gemini_api_key: str = Field(
+        default="",
+        description="Google Gemini API key",
+        repr=False
+    )
+    anthropic_api_key: str = Field(
+        default="",
+        description="Anthropic Claude API key",
+        repr=False
+    )
+    openai_api_key: str = Field(
+        default="",
+        description="OpenAI API key for GPT models",
+        repr=False
+    )
+    
+    # LLM Provider Settings
+    default_llm_provider: str = Field(
+        default="ollama",
+        description="Default LLM provider to use (ollama, openrouter, gemini, anthropic, openai)"
+    )
+    selected_llm_provider: str = Field(
+        default="",
+        description="Currently selected LLM provider (overrides default if set)"
+    )
+    selected_llm_model: str = Field(
+        default="",
+        description="Currently selected LLM model (overrides provider default if set)"
+    )
+    llm_max_tokens: int = Field(
+        default=4000,
+        ge=100,
+        le=32000,
+        description="Maximum tokens for LLM responses"
+    )
+    llm_temperature: float = Field(
+        default=0.7,
+        ge=0.0,
+        le=2.0,
+        description="Temperature for LLM responses"
+    )
+    llm_timeout: int = Field(
+        default=30,
+        ge=5,
+        le=300,
+        description="Timeout for LLM requests in seconds"
+    )
+    llm_retry_attempts: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Number of retry attempts for failed LLM requests"
+    )
+    
     # Security Configuration
     api_key_header: str = Field(
         default="X-API-Key",
@@ -159,6 +224,15 @@ class Settings(BaseSettings):
             raise ValueError(f"embedding_device must be one of: {valid_devices}")
         return v.lower()
     
+    @field_validator("default_llm_provider")
+    @classmethod
+    def validate_default_llm_provider(cls, v: str) -> str:
+        """Validate default LLM provider setting."""
+        valid_providers = {"ollama", "openrouter", "gemini", "anthropic", "openai"}
+        if v.lower() not in valid_providers:
+            raise ValueError(f"default_llm_provider must be one of: {valid_providers}")
+        return v.lower()
+    
     @property
     def neo4j_auth(self) -> Tuple[str, str]:
         """Return Neo4j authentication tuple."""
@@ -183,6 +257,38 @@ class Settings(BaseSettings):
             "batch_size": self.embedding_batch_size,
             "normalize": self.embedding_normalize,
             "cache_size": self.embedding_cache_size
+        }
+    
+    @property
+    def active_llm_provider(self) -> str:
+        """Get the currently active LLM provider."""
+        return self.selected_llm_provider or self.default_llm_provider
+    
+    @property 
+    def active_llm_model(self) -> str:
+        """Get the currently active LLM model."""
+        return self.selected_llm_model
+    
+    @property
+    def llm_config(self) -> dict:
+        """Return LLM configuration dict."""
+        return {
+            "default_provider": self.default_llm_provider,
+            "selected_provider": self.selected_llm_provider,
+            "selected_model": self.selected_llm_model,
+            "active_provider": self.active_llm_provider,
+            "active_model": self.active_llm_model,
+            "max_tokens": self.llm_max_tokens,
+            "temperature": self.llm_temperature,
+            "timeout": self.llm_timeout,
+            "retry_attempts": self.llm_retry_attempts,
+            "api_keys": {
+                "ollama": self.ollama_api_key,
+                "openrouter": self.openrouter_api_key,
+                "gemini": self.gemini_api_key,
+                "anthropic": self.anthropic_api_key,
+                "openai": self.openai_api_key
+            }
         }
 
 
