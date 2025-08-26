@@ -623,9 +623,9 @@
 | ✅ Write tests for citation injection across different prompt formats | 🚨 High | M | Core prompts | **COMPLETED** |
 | ✅ Implement citation-aware prompt construction per provider | 🚨 High | L | Tests written | **COMPLETED** |
 | ✅ Create provider-specific prompts for different query types | 🚨 High | L | Core prompts | **COMPLETED** |
-| 🔄 Implement cross-provider prompt performance comparison | ⚠️ Medium | M | All prompts | **DEFERRED TO 4.3** |
-| 🔄 Add prompt versioning and rollback capabilities | ⚠️ Medium | M | Template system | **DEFERRED TO 4.3** |
-| 🔄 Implement prompt A/B testing framework across providers | 💡 Low | L | Template system | **DEFERRED TO 4.3** |
+| ✅ Implement cross-provider prompt performance comparison | ⚠️ Medium | M | All prompts | **COMPLETED** |
+| ✅ Add prompt versioning and rollback capabilities | ⚠️ Medium | M | Template system | **COMPLETED** |
+| ✅ Implement prompt A/B testing framework across providers | 💡 Low | L | Template system | **COMPLETED** |
 
 **Milestone 4.2**: ✅ **100% ACHIEVED** - Provider-optimized prompt engineering system with philosophy specialization
 
