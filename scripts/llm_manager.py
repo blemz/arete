@@ -89,6 +89,40 @@ Environment Variables:
     chat_parser = subparsers.add_parser('chat', help='Start interactive chat session')
     chat_parser.add_argument('--provider', help='Provider to use for chat')
     
+    # Configuration management commands
+    config_parser = subparsers.add_parser('config', help='Configuration management')
+    config_subparsers = config_parser.add_subparsers(dest='config_command', help='Configuration commands')
+    
+    # Configure provider
+    configure_parser = config_subparsers.add_parser('set', help='Configure provider')
+    configure_parser.add_argument('provider', help='Provider name')
+    configure_parser.add_argument('--api-key', help='API key')
+    configure_parser.add_argument('--base-url', help='Base URL')
+    configure_parser.add_argument('--timeout', type=int, help='Request timeout')
+    configure_parser.add_argument('--max-retries', type=int, help='Maximum retries')
+    configure_parser.add_argument('--enabled', type=bool, help='Enable/disable provider')
+    
+    # Show configuration
+    config_subparsers.add_parser('show', help='Show all configurations')
+    
+    show_config_parser = config_subparsers.add_parser('show-provider', help='Show provider configuration')
+    show_config_parser.add_argument('provider', help='Provider name')
+    
+    # Validate configuration
+    config_subparsers.add_parser('validate', help='Validate all configurations')
+    
+    validate_provider_parser = config_subparsers.add_parser('validate-provider', help='Validate specific provider')
+    validate_provider_parser.add_argument('provider', help='Provider name')
+    
+    # Backup and restore
+    backup_parser = config_subparsers.add_parser('backup', help='Create configuration backup')
+    backup_parser.add_argument('--name', help='Backup name')
+    
+    config_subparsers.add_parser('list-backups', help='List configuration backups')
+    
+    restore_parser = config_subparsers.add_parser('restore', help='Restore configuration from backup')
+    restore_parser.add_argument('backup_file', help='Backup file path')
+    
     args = parser.parse_args()
     
     if not args.command:
@@ -128,6 +162,9 @@ Environment Variables:
             
         elif args.command == 'chat':
             asyncio.run(start_chat(args.provider))
+            
+        elif args.command == 'config':
+            handle_config_command(args)
             
     except KeyboardInterrupt:
         print("\nGoodbye! Goodbye!")
@@ -259,6 +296,217 @@ async def start_chat(provider_name: Optional[str] = None):
             print("Continuing chat...")
     
     print("\nGoodbye! Chat ended!")
+
+
+def handle_config_command(args):
+    """Handle configuration management commands."""
+    if not args.config_command:
+        print("Configuration command required. Use 'config --help' for options.")
+        return
+    
+    service = SimpleLLMService()
+    
+    if args.config_command == 'set':
+        configure_provider(args, service)
+    elif args.config_command == 'show':
+        show_all_configurations(service)
+    elif args.config_command == 'show-provider':
+        show_provider_configuration(args.provider, service)
+    elif args.config_command == 'validate':
+        asyncio.run(validate_all_configurations(service))
+    elif args.config_command == 'validate-provider':
+        asyncio.run(validate_provider_configuration(args.provider, service))
+    elif args.config_command == 'backup':
+        create_backup(args.name, service)
+    elif args.config_command == 'list-backups':
+        list_backups(service)
+    elif args.config_command == 'restore':
+        restore_backup(args.backup_file, service)
+
+
+def configure_provider(args, service):
+    """Configure a provider."""
+    try:
+        config_options = {}
+        
+        if args.api_key:
+            config_options['api_key'] = args.api_key
+        if args.base_url:
+            config_options['base_url'] = args.base_url
+        if args.timeout:
+            config_options['timeout'] = args.timeout
+        if args.max_retries:
+            config_options['max_retries'] = args.max_retries
+        if args.enabled is not None:
+            config_options['enabled'] = args.enabled
+        
+        service.configure_provider(args.provider, **config_options)
+        print(f"[OK] Configured provider: {args.provider}")
+        
+        # Show updated configuration
+        config = service.get_provider_configuration(args.provider)
+        if config:
+            print("\nUpdated configuration:")
+            for key, value in config.items():
+                if key not in ['created_at', 'updated_at']:
+                    print(f"  {key}: {value}")
+                    
+    except Exception as e:
+        print(f"[--] Failed to configure provider: {e}")
+
+
+def show_all_configurations(service):
+    """Show all provider configurations."""
+    print("Provider Configurations")
+    print("=" * 50)
+    
+    try:
+        info = service.get_provider_info()
+        
+        for provider in service.available_provider_types:
+            config = service.get_provider_configuration(provider)
+            
+            if config:
+                enabled = "✅" if config.get('enabled', True) else "❌"
+                api_key_status = "🔑" if config.get('api_key') else "❌"
+                print(f"\n{provider.upper()}: {enabled} {api_key_status}")
+                
+                for key, value in config.items():
+                    if key not in ['provider', 'created_at', 'updated_at', 'metadata']:
+                        print(f"  {key}: {value}")
+            else:
+                print(f"\n{provider.upper()}: ❌ Not configured")
+        
+        print("\n✅ = Enabled    ❌ = Disabled/Not configured    🔑 = API key set")
+        
+    except Exception as e:
+        print(f"[--] Error showing configurations: {e}")
+
+
+def show_provider_configuration(provider, service):
+    """Show specific provider configuration."""
+    try:
+        config = service.get_provider_configuration(provider)
+        
+        if config:
+            print(f"Configuration for {provider.upper()}")
+            print("=" * 40)
+            
+            for key, value in config.items():
+                print(f"{key}: {value}")
+        else:
+            print(f"[--] No configuration found for provider: {provider}")
+            
+    except Exception as e:
+        print(f"[--] Error showing configuration: {e}")
+
+
+async def validate_all_configurations(service):
+    """Validate all provider configurations."""
+    print("Validating All Provider Configurations")
+    print("=" * 50)
+    
+    try:
+        for provider in service.available_provider_types:
+            print(f"\n{provider.upper()}:")
+            
+            result = await service.validate_provider_configuration(provider)
+            
+            if result['valid']:
+                print("  ✅ Configuration valid")
+            else:
+                print("  ❌ Configuration invalid:")
+                for error in result['validation_errors']:
+                    print(f"    - {error}")
+            
+            health = result['health']
+            health_status = health['status']
+            
+            if health_status == 'healthy':
+                print(f"  🟢 Health: {health_status}")
+            elif health_status == 'unconfigured':
+                print(f"  ⚪ Health: {health_status}")
+            else:
+                print(f"  🔴 Health: {health_status}")
+                if health.get('error_message'):
+                    print(f"    Error: {health['error_message']}")
+                    
+    except Exception as e:
+        print(f"[--] Error validating configurations: {e}")
+
+
+async def validate_provider_configuration(provider, service):
+    """Validate specific provider configuration."""
+    try:
+        print(f"Validating {provider.upper()} Configuration")
+        print("=" * 40)
+        
+        result = await service.validate_provider_configuration(provider)
+        
+        print(f"Provider: {result['provider']}")
+        print(f"Valid: {'✅ Yes' if result['valid'] else '❌ No'}")
+        
+        if not result['valid']:
+            print("Validation Errors:")
+            for error in result['validation_errors']:
+                print(f"  - {error}")
+        
+        health = result['health']
+        print(f"Health Status: {health['status']}")
+        
+        if health.get('response_time'):
+            print(f"Response Time: {health['response_time']:.3f}s")
+        
+        if health.get('error_message'):
+            print(f"Error: {health['error_message']}")
+            
+        print(f"Available: {'✅ Yes' if result['available'] else '❌ No'}")
+        
+    except Exception as e:
+        print(f"[--] Error validating provider: {e}")
+
+
+def create_backup(name, service):
+    """Create configuration backup."""
+    try:
+        backup_path = service.create_configuration_backup(name)
+        print(f"[OK] Configuration backup created: {backup_path}")
+        
+    except Exception as e:
+        print(f"[--] Failed to create backup: {e}")
+
+
+def list_backups(service):
+    """List configuration backups."""
+    try:
+        backups = service.list_configuration_backups()
+        
+        if not backups:
+            print("No configuration backups found.")
+            return
+        
+        print("Configuration Backups")
+        print("=" * 50)
+        
+        for backup in backups:
+            age_info = f"({backup['age_days']} days ago)" if backup['age_days'] > 0 else "(today)"
+            print(f"• {backup['timestamp'][:19]} {age_info}")
+            print(f"  File: {backup['file']}")
+            print()
+            
+    except Exception as e:
+        print(f"[--] Error listing backups: {e}")
+
+
+def restore_backup(backup_file, service):
+    """Restore configuration from backup."""
+    try:
+        service.restore_configuration_backup(backup_file)
+        print(f"[OK] Configuration restored from: {backup_file}")
+        print("All cached providers cleared. They will be reinitialized on next use.")
+        
+    except Exception as e:
+        print(f"[--] Failed to restore backup: {e}")
 
 
 if __name__ == "__main__":

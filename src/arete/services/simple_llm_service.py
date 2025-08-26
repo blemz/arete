@@ -7,6 +7,7 @@ via environment variables or direct input, without the complexity of intelligent
 
 import logging
 from typing import List, Dict, Any, Optional
+from datetime import datetime
 import os
 
 from arete.services.llm_provider import (
@@ -19,6 +20,7 @@ from arete.services.llm_provider import (
     AuthenticationError
 )
 from arete.config import Settings, get_settings
+from arete.services.provider_config_service import ProviderConfigurationService
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -43,6 +45,7 @@ class SimpleLLMService:
         """
         self.settings = settings or get_settings()
         self.factory = LLMProviderFactory(self.settings)
+        self.config_service = ProviderConfigurationService(self.settings)
         self._providers: Dict[str, LLMProvider] = {}
         self._initialized_providers: Dict[str, bool] = {}
         
@@ -50,6 +53,9 @@ class SimpleLLMService:
         self.available_provider_types = [
             "ollama", "openrouter", "gemini", "anthropic", "openai"
         ]
+        
+        # Sync with configuration service
+        self.config_service.sync_with_environment()
         
         logger.info("SimpleLLMService initialized")
     
@@ -318,6 +324,124 @@ class SimpleLLMService:
                 "available": False
             }
     
+    # Configuration Management Integration
+    
+    def configure_provider(
+        self,
+        provider: str,
+        api_key: Optional[str] = None,
+        **config_options
+    ) -> None:
+        """
+        Configure a provider using the configuration service.
+        
+        Args:
+            provider: Provider name
+            api_key: API key
+            **config_options: Additional configuration options
+        """
+        existing_config = self.config_service.get_configuration(provider)
+        
+        if existing_config:
+            # Update existing configuration
+            self.config_service.update_configuration(provider, api_key=api_key, **config_options)
+        else:
+            # Create new configuration
+            self.config_service.create_configuration(provider, api_key=api_key, **config_options)
+        
+        # Clear cached provider to force reinitialization
+        if provider in self._providers:
+            del self._providers[provider]
+            self._initialized_providers[provider] = False
+        
+        logger.info(f"Configured provider: {provider}")
+    
+    def get_provider_configuration(self, provider: str) -> Dict[str, Any]:
+        """
+        Get provider configuration information.
+        
+        Args:
+            provider: Provider name
+            
+        Returns:
+            Configuration dictionary
+        """
+        config = self.config_service.get_configuration(provider)
+        if config:
+            config_dict = config.dict()
+            # Hide sensitive information
+            if 'api_key' in config_dict and config_dict['api_key']:
+                config_dict['api_key'] = "***" + config_dict['api_key'][-4:]
+            return config_dict
+        return {}
+    
+    async def validate_provider_configuration(self, provider: str) -> Dict[str, Any]:
+        """
+        Validate provider configuration and check health.
+        
+        Args:
+            provider: Provider name
+            
+        Returns:
+            Validation results
+        """
+        validation_errors = self.config_service.validate_configuration(provider)
+        health_status = await self.config_service.check_provider_health(provider, force=True)
+        
+        return {
+            "provider": provider,
+            "valid": len(validation_errors) == 0,
+            "validation_errors": validation_errors,
+            "health": health_status.to_dict(),
+            "available": health_status.status.value == "healthy"
+        }
+    
+    def create_configuration_backup(self, name: Optional[str] = None) -> str:
+        """
+        Create backup of current configuration.
+        
+        Args:
+            name: Backup name
+            
+        Returns:
+            Path to backup file
+        """
+        backup_path = self.config_service.create_backup(name)
+        return str(backup_path)
+    
+    def list_configuration_backups(self) -> List[Dict[str, Any]]:
+        """
+        List available configuration backups.
+        
+        Returns:
+            List of backup information
+        """
+        backups = self.config_service.list_backups()
+        return [
+            {
+                "file": str(path),
+                "timestamp": timestamp.isoformat(),
+                "age_days": (datetime.now() - timestamp).days
+            }
+            for path, timestamp in backups
+        ]
+    
+    def restore_configuration_backup(self, backup_file: str) -> None:
+        """
+        Restore configuration from backup.
+        
+        Args:
+            backup_file: Path to backup file
+        """
+        from pathlib import Path
+        self.config_service.restore_backup(Path(backup_file))
+        
+        # Clear cached providers to force reinitialization
+        self._providers.clear()
+        self._initialized_providers.clear()
+        
+        logger.info(f"Restored configuration from backup: {backup_file}")
+    
     def cleanup(self) -> None:
         """Cleanup service resources."""
         logger.info("Cleaning up SimpleLLMService")
@@ -329,6 +453,9 @@ class SimpleLLMService:
                 logger.info(f"Cleaned up provider: {provider_name}")
             except Exception as e:
                 logger.error(f"Error cleaning up provider {provider_name}: {e}")
+        
+        # Cleanup configuration service
+        self.config_service.cleanup()
         
         self._providers.clear()
         self._initialized_providers.clear()
