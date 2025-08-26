@@ -21,6 +21,9 @@ from ..config import Settings, get_settings
 from ..services.context_composition_service import ContextResult
 from ..services.simple_llm_service import SimpleLLMService
 from ..services.expert_validation_service import ExpertValidationService
+from ..services.citation_extraction_service import CitationExtractionService, CitationExtractionConfig
+from ..services.citation_validation_service import CitationValidationService, CitationValidationConfig
+from ..services.citation_tracking_service import CitationTrackingService, CitationTrackingConfig, TrackingEventType, CitationSource
 from ..services.llm_provider import LLMMessage, LLMResponse, MessageRole
 from ..models.citation import Citation
 from .base import ServiceError
@@ -157,6 +160,9 @@ class ResponseGenerationService:
         self,
         llm_service: Optional[SimpleLLMService] = None,
         validation_service: Optional[ExpertValidationService] = None,
+        citation_extraction_service: Optional[CitationExtractionService] = None,
+        citation_validation_service: Optional[CitationValidationService] = None,
+        citation_tracking_service: Optional[CitationTrackingService] = None,
         config: Optional[ResponseGenerationConfig] = None,
         settings: Optional[Settings] = None
     ):
@@ -166,6 +172,9 @@ class ResponseGenerationService:
         Args:
             llm_service: LLM service for response generation
             validation_service: Service for response validation
+            citation_extraction_service: Service for extracting citations from responses
+            citation_validation_service: Service for validating citation accuracy
+            citation_tracking_service: Service for tracking citation provenance
             config: Response generation configuration
             settings: Application settings
         """
@@ -175,6 +184,9 @@ class ResponseGenerationService:
         # Initialize services
         self.llm_service = llm_service or SimpleLLMService(self.settings)
         self.validation_service = validation_service
+        self.citation_extraction_service = citation_extraction_service or CitationExtractionService()
+        self.citation_validation_service = citation_validation_service or CitationValidationService()
+        self.citation_tracking_service = citation_tracking_service or CitationTrackingService()
         
         # Initialize caching
         self._response_cache: Dict[str, ResponseResult] = {}
@@ -226,19 +238,56 @@ class ResponseGenerationService:
                 messages, generation_config
             )
             
-            # Process citations from context
-            citations = self._process_citations(context_result, generation_config)
+            # Extract citations from LLM response
+            extraction_result = self.citation_extraction_service.extract_citations_from_response(
+                llm_response.content, context_result, query
+            )
+            
+            # Validate extracted citations
+            validated_citations = []
+            if extraction_result.citations:
+                validation_results = await self.citation_validation_service.validate_citations_batch(
+                    extraction_result.citations, context_result
+                )
+                validated_citations = [
+                    citation for citation, result in zip(
+                        extraction_result.citations, validation_results.citation_results
+                    )
+                    if result.is_valid or not generation_config.fail_on_validation_error
+                ]
+            
+            # Track citation events
+            for citation in validated_citations:
+                self.citation_tracking_service.record_citation_event(
+                    citation,
+                    TrackingEventType.EXTRACTED,
+                    CitationSource.LLM_RESPONSE,
+                    processor="response_generation_service",
+                    context={
+                        "query": query,
+                        "response_length": len(llm_response.content),
+                        "extraction_confidence": extraction_result.accuracy_score
+                    }
+                )
+            
+            # Process additional citations from context (for completeness)
+            context_citations = self._process_citations(context_result, generation_config)
+            
+            # Combine and deduplicate citations
+            all_citations = validated_citations + context_citations
+            if generation_config.deduplicate_citations:
+                all_citations = self._deduplicate_citations(all_citations)
             
             # Format source attribution
             source_attribution = self._format_source_attribution(
-                context_result, citations, generation_config
+                context_result, all_citations, generation_config
             )
             
             # Create initial response result
             response_result = ResponseResult(
                 response_text=llm_response.content,
                 query=query,
-                citations=citations,
+                citations=all_citations,
                 source_attribution=source_attribution,
                 llm_response_metadata={
                     "model": llm_response.model,
@@ -251,7 +300,7 @@ class ResponseGenerationService:
                     "response_tokens": llm_response.usage_tokens
                 },
                 context_tokens_used=context_result.total_tokens,
-                citations_formatted=len(citations),
+                citations_formatted=len(all_citations),
                 provider_used=llm_response.provider
             )
             
@@ -698,6 +747,9 @@ class ResponseGenerationService:
 def create_response_generation_service(
     llm_service: Optional[SimpleLLMService] = None,
     validation_service: Optional[ExpertValidationService] = None,
+    citation_extraction_service: Optional[CitationExtractionService] = None,
+    citation_validation_service: Optional[CitationValidationService] = None,
+    citation_tracking_service: Optional[CitationTrackingService] = None,
     config: Optional[ResponseGenerationConfig] = None,
     settings: Optional[Settings] = None
 ) -> ResponseGenerationService:
@@ -707,6 +759,9 @@ def create_response_generation_service(
     Args:
         llm_service: Optional LLM service
         validation_service: Optional validation service
+        citation_extraction_service: Optional citation extraction service
+        citation_validation_service: Optional citation validation service
+        citation_tracking_service: Optional citation tracking service
         config: Optional configuration
         settings: Optional settings
         
@@ -716,6 +771,9 @@ def create_response_generation_service(
     return ResponseGenerationService(
         llm_service=llm_service,
         validation_service=validation_service,
+        citation_extraction_service=citation_extraction_service,
+        citation_validation_service=citation_validation_service,
+        citation_tracking_service=citation_tracking_service,
         config=config,
         settings=settings
     )
