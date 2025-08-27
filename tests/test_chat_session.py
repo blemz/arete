@@ -465,6 +465,9 @@ class TestChatService:
             title="Message Test"
         )
         
+        # Capture original timestamp
+        original_updated_at = session.updated_at
+        
         # Add message to session
         message = ChatMessage(
             message_id="msg_test",
@@ -481,7 +484,7 @@ class TestChatService:
         
         assert len(updated_session.messages) == 1
         assert updated_session.messages[0].content == "Test message content"
-        assert updated_session.updated_at > session.updated_at
+        assert updated_session.updated_at > original_updated_at
     
     def test_session_search(self, mock_chat_service):
         """Test searching sessions by content."""

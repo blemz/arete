@@ -16,7 +16,9 @@
       "Bash(python -m pytest tests/test_tei_xml_extraction.py -v)",
       "Bash(python -m pytest tests/test_tei_xml_extraction.py -v --tb=short)",
       "Bash(python:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "mcp__serena__list_dir",
+      "mcp__serena__find_file"
     ],
     "deny": []
   }
