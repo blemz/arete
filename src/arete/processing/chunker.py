@@ -161,9 +161,9 @@ class ParagraphChunker(ChunkingStrategy):
             chunk = Chunk(
                 text=paragraph,
                 document_id=document_id,
-                position=len(chunks),  # Use actual chunk count as position
-                start_char=start_char,
-                end_char=end_char,
+                sequence_number=len(chunks),  # Fixed: use sequence_number instead of position
+                start_position=start_char,   # Fixed: use start_position instead of start_char
+                end_position=end_char,       # Fixed: use end_position instead of end_char
                 chunk_type=ChunkType.PARAGRAPH
             )
             chunks.append(chunk)
