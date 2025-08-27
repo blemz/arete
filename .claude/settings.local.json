@@ -18,7 +18,9 @@
       "Bash(python:*)",
       "Bash(git add:*)",
       "mcp__serena__list_dir",
-      "mcp__serena__find_file"
+      "mcp__serena__find_file",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_navigate"
     ],
     "deny": []
   }
