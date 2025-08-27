@@ -13,8 +13,16 @@ from typing import Optional, List, Dict, Any
 import time
 
 # Arete imports
-from ..models.chat_session import ChatSession, ChatMessage, ChatContext, MessageType, SessionStatus
-from ..services.chat_service import ChatService
+import sys
+from pathlib import Path
+
+# Add the src directory to path so we can import arete modules
+root_path = Path(__file__).parent.parent.parent
+if str(root_path) not in sys.path:
+    sys.path.insert(0, str(root_path))
+
+from arete.models.chat_session import ChatSession, ChatMessage, ChatContext, MessageType, SessionStatus
+from arete.services.chat_service import ChatService
 
 
 class AreteStreamlitInterface:
