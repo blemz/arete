@@ -134,7 +134,7 @@ class CitationExtractionService:
     QUOTE_PATTERNS = [
         r'"([^"]{10,200})"',  # Standard double quotes
         r'"([^"]{10,200})"',  # Curly quotes  
-        r''([^']{10,200})'',  # Single curly quotes
+        r"'([^']{10,200})'",  # Single curly quotes
     ]
     
     # Author-work patterns for broader matching

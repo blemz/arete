@@ -28,7 +28,9 @@
       "mcp__playwright__browser_type",
       "mcp__playwright__browser_press_key",
       "mcp__playwright__browser_wait_for",
-      "mcp__playwright__browser_take_screenshot"
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__serena__find_symbol",
+      "mcp__serena__replace_symbol_body"
     ],
     "deny": []
   }

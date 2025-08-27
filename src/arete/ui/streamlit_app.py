@@ -282,38 +282,110 @@ class AreteStreamlitInterface:
         self.generate_assistant_response(user_input)
     
     def generate_assistant_response(self, user_input: str):
-        """Generate assistant response (placeholder - will integrate with RAG pipeline)."""
+        """Generate assistant response using RAG pipeline."""
+        import asyncio
+        from ..services.rag_pipeline_service import RAGPipelineService, RAGPipelineConfig, create_rag_pipeline_service
+        
         with st.chat_message("assistant"):
             # Show typing indicator
             with st.spinner("🤔 Thinking about your philosophical question..."):
-                time.sleep(2)  # Simulate processing time
-            
-            # Placeholder response (to be replaced with RAG pipeline integration)
-            response_content = self.get_placeholder_response(user_input)
-            
-            st.write(response_content)
-            
-            # Placeholder citations
-            citations = ["Republic 514a", "Ethics 1103a"]
-            if citations:
-                st.markdown("**Sources:**")
-                for citation in citations:
-                    st.markdown(f'<div class="citation">📜 {citation}</div>', 
-                               unsafe_allow_html=True)
-        
-        # Create assistant message
-        assistant_message = ChatMessage(
-            message_id=f"msg_{uuid.uuid4().hex[:8]}",
-            content=response_content,
-            message_type=MessageType.ASSISTANT,
-            timestamp=datetime.now(),
-            citations=citations,
-            metadata={
-                "provider": "placeholder",
-                "response_time": 2.0,
-                "token_count": len(response_content.split()) * 2
-            }
-        )
+                
+                # Initialize RAG pipeline if not already done
+                if not hasattr(self, '_rag_pipeline'):
+                    self._rag_pipeline = create_rag_pipeline_service()
+                
+                # Create pipeline configuration based on session context
+                pipeline_config = RAGPipelineConfig(
+                    max_retrieval_results=30,
+                    max_response_tokens=1500,
+                    temperature=0.7,
+                    enable_reranking=True,
+                    enable_diversification=True,
+                    philosophical_domain_boost=1.2
+                )
+                
+                # Prepare user context from session
+                user_context = {
+                    'student_level': st.session_state.session_context.student_level,
+                    'philosophical_period': st.session_state.session_context.philosophical_period,
+                    'current_topic': st.session_state.session_context.current_topic,
+                    'session_id': st.session_state.current_session.session_id if st.session_state.current_session else None
+                }
+                
+                try:
+                    # Execute RAG pipeline
+                    start_time = time.time()
+                    
+                    # Use asyncio to run the async pipeline
+                    pipeline_result = asyncio.run(
+                        self._rag_pipeline.execute_pipeline(
+                            query=user_input,
+                            config=pipeline_config,
+                            user_context=user_context
+                        )
+                    )
+                    
+                    response_time = time.time() - start_time
+                    
+                    # Display the response
+                    st.write(pipeline_result.response.response_text)
+                    
+                    # Display citations
+                    if pipeline_result.response.citations:
+                        st.markdown("**Sources:**")
+                        for citation in pipeline_result.response.citations:
+                            citation_text = citation.source_reference or f"Citation {citation.id}"
+                            st.markdown(f'<div class="citation">📖 {citation_text}</div>', 
+                                       unsafe_allow_html=True)
+                    
+                    # Display detailed metadata in expander
+                    with st.expander("ℹ️ Response Details", expanded=False):
+                        col1, col2, col3 = st.columns(3)
+                        
+                        col1.caption(f"**Provider:** {pipeline_result.response.provider_used}")
+                        col2.caption(f"**Time:** {response_time:.2f}s")
+                        col3.caption(f"**Citations:** {len(pipeline_result.response.citations)}")
+                        
+                        # Additional pipeline metrics
+                        col1.caption(f"**Retrieved:** {pipeline_result.metrics.retrieved_results}")
+                        col2.caption(f"**Relevance:** {pipeline_result.metrics.average_relevance_score:.3f}")
+                        col3.caption(f"**Validation:** {pipeline_result.response.validation.accuracy_score:.3f}")
+                    
+                    # Create assistant message with real data
+                    assistant_message = ChatMessage(
+                        message_id=f"msg_{uuid.uuid4().hex[:8]}",
+                        content=pipeline_result.response.response_text,
+                        message_type=MessageType.ASSISTANT,
+                        timestamp=datetime.now(),
+                        citations=[citation.source_reference or f"Citation {citation.id}" 
+                                 for citation in pipeline_result.response.citations],
+                        metadata={
+                            "provider": pipeline_result.response.provider_used,
+                            "response_time": response_time,
+                            "token_count": pipeline_result.response.token_usage.get('response_tokens', 0),
+                            "retrieval_results": pipeline_result.metrics.retrieved_results,
+                            "relevance_score": pipeline_result.metrics.average_relevance_score,
+                            "validation_score": pipeline_result.response.validation.accuracy_score,
+                            "citations_count": len(pipeline_result.response.citations)
+                        }
+                    )
+                    
+                except Exception as e:
+                    st.error(f"Sorry, I encountered an error: {str(e)}")
+                    
+                    # Fallback to basic response
+                    assistant_message = ChatMessage(
+                        message_id=f"msg_{uuid.uuid4().hex[:8]}",
+                        content=f"I apologize, but I'm having trouble processing your question right now. Error: {str(e)}",
+                        message_type=MessageType.ASSISTANT,
+                        timestamp=datetime.now(),
+                        citations=[],
+                        metadata={
+                            "provider": "error_fallback",
+                            "response_time": 0.0,
+                            "error": str(e)
+                        }
+                    )
         
         # Add to session
         st.session_state.current_session.add_message(assistant_message)
@@ -324,25 +396,6 @@ class AreteStreamlitInterface:
             st.session_state.current_session.session_id,
             assistant_message
         )
-    
-    def get_placeholder_response(self, user_input: str) -> str:
-        """Generate placeholder response based on keywords (will be replaced with RAG)."""
-        user_lower = user_input.lower()
-        
-        if "virtue" in user_lower or "aristotle" in user_lower:
-            return """According to Aristotle in the Nicomachean Ethics, virtue (arete) is a disposition to act excellently, acquired through habit and practice. Virtue lies in the mean between extremes of excess and deficiency - for example, courage is the mean between cowardice and recklessness."""
-        
-        elif "cave" in user_lower or "plato" in user_lower:
-            return """In Plato's Allegory of the Cave from Book VII of the Republic, prisoners chained in a cave mistake shadows on the wall for reality. This represents how most people mistake the material world for true reality, when they should be seeking the eternal Forms through philosophical contemplation."""
-        
-        elif "justice" in user_lower:
-            return """Plato defines justice in the Republic as each part of the soul doing its proper function: reason ruling, spirit supporting reason, and appetite being controlled. This creates harmony within the individual, just as justice in the state occurs when each class performs its proper role."""
-        
-        elif "good" in user_lower or "form" in user_lower:
-            return """The Form of the Good, according to Plato, is the highest of all Forms and the source of all truth and reality. Just as the sun illuminates the visible world, the Form of the Good illuminates the intelligible world of Forms, making knowledge possible."""
-        
-        else:
-            return f"""That's an excellent philosophical question about "{user_input}". This touches on fundamental questions that have engaged philosophers for millennia. Let me help you explore the different perspectives on this topic, drawing from both ancient and contemporary philosophical traditions."""
     
     def render_welcome_message(self):
         """Render welcome message for new users."""
