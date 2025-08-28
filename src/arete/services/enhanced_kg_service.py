@@ -11,7 +11,6 @@ import re
 
 from langchain_core.documents import Document as LangChainDocument
 from langchain_experimental.graph_transformers import LLMGraphTransformer
-from langchain_core.graph_documents import GraphDocument
 
 from arete.models.entity import Entity, EntityType
 from arete.services.simple_llm_service import SimpleLLMService
@@ -99,50 +98,10 @@ class EnhancedKnowledgeGraphService:
     def _initialize_transformer(self):
         """Initialize the LLMGraphTransformer with philosophical schema."""
         try:
-            # Create a proper LangChain LLM wrapper for SimpleLLMService
-            class SimpleLLMAdapter:
-                """Adapter to make SimpleLLMService compatible with LangChain."""
-                
-                def __init__(self, llm_service: SimpleLLMService):
-                    self.llm_service = llm_service
-                
-                async def ainvoke(self, prompt: str) -> str:
-                    """Async invoke for LangChain compatibility."""
-                    from arete.models.llm import LLMMessage
-                    
-                    messages = [LLMMessage(role="user", content=prompt)]
-                    response = await self.llm_service.generate_response(
-                        messages=messages,
-                        max_tokens=1000,
-                        temperature=0.1
-                    )
-                    return response.content
-                
-                def invoke(self, prompt: str) -> str:
-                    """Sync invoke for LangChain compatibility.""" 
-                    import asyncio
-                    try:
-                        loop = asyncio.get_event_loop()
-                        return loop.run_until_complete(self.ainvoke(prompt))
-                    except RuntimeError:
-                        # Create new event loop if none exists
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        try:
-                            return loop.run_until_complete(self.ainvoke(prompt))
-                        finally:
-                            loop.close()
-            
-            llm_adapter = SimpleLLMAdapter(self.llm_service)
-            
-            # Try to initialize LLMGraphTransformer with our existing LLM service
-            self.llm_transformer = LLMGraphTransformer(
-                llm=llm_adapter,
-                allowed_nodes=self.allowed_nodes,
-                allowed_relationships=self.allowed_relationships,
-                node_properties=["description", "type", "importance"],
-                relationship_properties=["confidence", "evidence", "context"]
-            )
+            # Skip LLMGraphTransformer for now due to compatibility issues
+            # Will use direct LLM-based extraction instead
+            print("INFO: Using direct LLM extraction instead of LLMGraphTransformer")
+            self.llm_transformer = None
             
         except ImportError:
             print("Warning: LangChain experimental not available. Using fallback extraction.")
@@ -277,13 +236,18 @@ class EnhancedKnowledgeGraphService:
         """
         
         try:
-            response = self.llm_service.generate_text(
-                prompt=prompt,
+            from arete.models.llm import LLMMessage
+            
+            messages = [LLMMessage(role="user", content=prompt)]
+            response = await self.llm_service.generate_response(
+                messages=messages,
                 max_tokens=800,
                 temperature=0.1
             )
             
-            return self._parse_fallback_response(response, chunk_id)
+            response_text = response.content
+            
+            return self._parse_fallback_response(response_text, chunk_id)
             
         except Exception as e:
             print(f"Fallback extraction failed: {e}")
