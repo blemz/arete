@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from arete.processing.extractors import PDFExtractor
 from arete.processing.chunker import ChunkingStrategy
-from arete.pipelines.kg_extraction import run_kg_extraction  
+from arete.services.enhanced_kg_service import EnhancedKnowledgeGraphService  
 from arete.models.document import Document, ProcessingStatus
 from arete.models.chunk import Chunk
 from arete.services.embedding_factory import get_embedding_service
@@ -98,71 +98,51 @@ async def process_full_classical_text(pdf_path: str):
     print(f"  Total chunk text: {total_chunk_chars:,} characters")
     print(f"  Average chunk size: {avg_chunk_size:.0f} characters")
     
-    # Step 4: Efficient knowledge graph extraction from ALL chunks (batch processing)
-    print(f"\nStep 4: Knowledge Graph Extraction from ALL {len(all_chunks)} chunks")
+    # Step 4: Enhanced Knowledge Graph Extraction using LLM-based approach
+    print(f"\nStep 4: Enhanced Knowledge Graph Extraction from ALL {len(all_chunks)} chunks")
     try:
-        # Process chunks in batches for efficient relationship extraction
-        print(f"Processing all {len(all_chunks)} chunks in batches for comprehensive relationship extraction...")
+        # Initialize enhanced KG service
+        enhanced_kg_service = EnhancedKnowledgeGraphService()
+        
+        print(f"Using enhanced philosophical relationship extraction...")
+        print(f"Supported entity types: {', '.join(enhanced_kg_service.allowed_nodes[:5])}...")
+        print(f"Supported relationship types: {', '.join(enhanced_kg_service.allowed_relationships[:5])}...")
         
         kg_start = time.time()
-        all_entities = []
-        all_relationships = []
         
-        # Process chunks in batches to balance thoroughness with performance
-        batch_size = 10  # Process 10 chunks at a time
-        processed_chunks = 0
-        
-        for i in range(0, len(all_chunks), batch_size):
-            batch_chunks = all_chunks[i:i + batch_size]
-            batch_text = " ".join([chunk.text for chunk in batch_chunks])
-            
-            # Extract from this batch
-            batch_entities, batch_relationships = await run_kg_extraction(
-                text=batch_text,
-                document_id=document.id,
-                min_triple_confidence=0.5
-            )
-            
-            all_entities.extend(batch_entities)
-            all_relationships.extend(batch_relationships)
-            processed_chunks += len(batch_chunks)
-            
-            # Progress update
-            if processed_chunks % 50 == 0 or processed_chunks == len(all_chunks):
-                print(f"  Progress: {processed_chunks}/{len(all_chunks)} chunks processed ({processed_chunks/len(all_chunks)*100:.1f}%)")
-        
-        # Remove duplicate entities and relationships
-        entities = []
-        seen_entities = set()
-        for entity in all_entities:
-            entity_key = (entity.name.lower(), entity.entity_type)
-            if entity_key not in seen_entities:
-                entities.append(entity)
-                seen_entities.add(entity_key)
-        
-        relationships = []
-        seen_relationships = set()
-        for rel in all_relationships:
-            rel_key = (rel.get('subject', '').lower(), rel.get('relation', '').lower(), rel.get('object', '').lower())
-            if rel_key not in seen_relationships:
-                relationships.append(rel)
-                seen_relationships.add(rel_key)
+        # Process the entire document text with enhanced extraction
+        print(f"Processing complete text with enhanced LLM-based extraction...")
+        entities, relationships = await enhanced_kg_service.extract_knowledge_graph(
+            text=document.content,
+            document_id=str(document.id),
+            chunk_size=2000  # Larger chunks for better context
+        )
         
         kg_time = time.time() - kg_start
         
-        print(f"SUCCESS: Extracted {len(entities)} entities and {len(relationships)} relationships in {kg_time:.2f}s")
+        print(f"SUCCESS: Enhanced extraction found {len(entities)} entities and {len(relationships)} relationships in {kg_time:.2f}s")
         
-        # Show top entities
-        for i, entity in enumerate(entities[:10]):
-            entity_type_str = entity.entity_type.value if hasattr(entity.entity_type, 'value') else str(entity.entity_type)
-            print(f"  Entity {i+1}: {entity.name} ({entity_type_str})")
-            
-        # Show top relationships
-        for i, rel in enumerate(relationships[:5]):
-            print(f"  Relationship {i+1}: {rel.get('subject', 'Unknown')} -> {rel.get('relation', 'relates to')} -> {rel.get('object', 'Unknown')}")
+        # Show top entities with improved formatting
+        if entities:
+            print("  Top Philosophical Entities:")
+            for i, entity in enumerate(entities[:10]):
+                entity_type_str = entity.entity_type.value if hasattr(entity.entity_type, 'value') else str(entity.entity_type)
+                print(f"    {i+1}. {entity.name} ({entity_type_str}) - confidence: {entity.confidence:.2f}")
+        
+        # Show top relationships with improved formatting  
+        if relationships:
+            print("  Top Philosophical Relationships:")
+            for i, rel in enumerate(relationships[:8]):
+                confidence = rel.get('confidence', 0.0)
+                print(f"    {i+1}. {rel.get('subject', 'Unknown')} --[{rel.get('relation', 'RELATES_TO')}]--> {rel.get('object', 'Unknown')} (conf: {confidence:.2f})")
+        
+        # Quality assessment
+        high_confidence_rels = [r for r in relationships if r.get('confidence', 0) >= 0.7]
+        print(f"  Quality metrics: {len(high_confidence_rels)}/{len(relationships)} high-confidence relationships ({len(high_confidence_rels)/len(relationships)*100 if relationships else 0:.1f}%)")
             
     except Exception as e:
-        print(f"WARNING: Knowledge extraction failed: {e}")
+        print(f"WARNING: Enhanced knowledge extraction failed: {e}")
+        print(f"Error details: {type(e).__name__}")
         entities, relationships = [], []
     
     # Step 5: Batch embedding generation for ALL chunks

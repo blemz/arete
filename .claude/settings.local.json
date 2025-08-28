@@ -34,5 +34,9 @@
       "mcp__serena__insert_after_symbol"
     ],
     "deny": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "serena"
+  ],
+  "enableAllProjectMcpServers": true
 }

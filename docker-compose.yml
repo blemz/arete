@@ -37,7 +37,7 @@ services:
       PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
       DEFAULT_VECTORIZER_MODULE: 'none'
       CLUSTER_HOSTNAME: 'node1'
-      ENABLE_MODULES: 'text2vec-transformers,text2vec-openai,generative-openai,ref2vec-centroid'
+      ENABLE_MODULES: ''
     volumes:
       - weaviate_data:/var/lib/weaviate
     networks:

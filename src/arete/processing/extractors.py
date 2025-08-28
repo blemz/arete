@@ -1321,7 +1321,7 @@ class RelationshipExtractor:
     
     def _extract_with_llm(self, text: str, entities: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """
-        Extract relationships using LLM-based analysis.
+        Extract relationships using LLM-based analysis with philosophical focus.
         
         Args:
             text: Text to extract relationships from
@@ -1330,53 +1330,182 @@ class RelationshipExtractor:
         Returns:
             List of relationship dictionaries
         """
-        # This is a placeholder for LLM-based extraction
-        # Implementation would involve:
-        # 1. Crafting a prompt for philosophical relationship extraction
-        # 2. Calling the LLM with the text and entities
-        # 3. Parsing the LLM response into structured triples
-        # 4. Validating and standardizing the results
+        if not self.llm_client:
+            return []
+            
+        try:
+            # Build the philosophical extraction prompt
+            prompt = self._build_relationship_extraction_prompt(text, entities)
+            
+            # Call LLM for relationship extraction
+            response = self.llm_client.generate_text(
+                prompt=prompt,
+                max_tokens=800,
+                temperature=0.1  # Low temperature for more consistent extraction
+            )
+            
+            # Parse LLM response into structured relationships
+            relationships = []
+            lines = response.strip().split('\n')
+            
+            for line in lines:
+                line = line.strip()
+                if not line or '|' not in line:
+                    continue
+                    
+                try:
+                    parts = [part.strip() for part in line.split('|')]
+                    if len(parts) >= 4:
+                        subject, relation, obj, confidence = parts[0], parts[1], parts[2], parts[3]
+                        
+                        # Validate philosophical entities (not pronouns/generic terms)
+                        if self._is_valid_philosophical_entity(subject) and self._is_valid_philosophical_entity(obj):
+                            relationships.append({
+                                "subject": subject,
+                                "relation": relation,
+                                "object": obj,
+                                "confidence": float(confidence) if confidence.replace('.', '').isdigit() else 0.7,
+                                "source": "llm_based",
+                                "evidence": f"LLM extraction from: {text[:100]}..."
+                            })
+                    elif len(parts) >= 3:
+                        subject, relation, obj = parts[0], parts[1], parts[2]
+                        
+                        if self._is_valid_philosophical_entity(subject) and self._is_valid_philosophical_entity(obj):
+                            relationships.append({
+                                "subject": subject,
+                                "relation": relation,
+                                "object": obj,
+                                "confidence": 0.7,
+                                "source": "llm_based",
+                                "evidence": f"LLM extraction from: {text[:100]}..."
+                            })
+                            
+                except (ValueError, IndexError):
+                    continue
+            
+            return relationships
+            
+        except Exception as e:
+            print(f"LLM extraction failed: {e}")
+            return []
+    
+    def _is_valid_philosophical_entity(self, entity: str) -> bool:
+        """
+        Check if an entity is a valid philosophical entity (not pronouns, connectors, etc.)
         
-        prompt = self._build_relationship_extraction_prompt(text, entities)
+        Args:
+            entity: Entity string to validate
+            
+        Returns:
+            True if valid philosophical entity
+        """
+        if not entity or len(entity) < 2:
+            return False
+            
+        # Convert to lowercase for checking
+        entity_lower = entity.lower().strip()
         
-        # For now, return empty list as LLM integration is not fully implemented
-        # TODO: Implement actual LLM call when LLM client is available
-        return []
+        # Skip pronouns, connectors, and generic terms
+        invalid_terms = {
+            'it', 'this', 'that', 'these', 'those', 'he', 'she', 'they', 'we', 'i',
+            'his', 'her', 'their', 'our', 'my', 'your', 'its', 'him', 'them',
+            'and', 'but', 'or', 'the', 'a', 'an', 'what', 'which', 'who', 'how', 
+            'when', 'where', 'why', 'here', 'there', 'now', 'then', 'today',
+            'for', 'from', 'to', 'of', 'in', 'on', 'at', 'by', 'with', 'as',
+            'all', 'any', 'some', 'each', 'every', 'many', 'much', 'few', 'little',
+            'more', 'most', 'less', 'least', 'first', 'last', 'next', 'previous',
+            'one', 'two', 'three', 'death', 'life', 'way', 'time', 'people', 'man',
+            'quickly', 'slowly', 'really', 'very', 'quite', 'rather', 'somewhat',
+            'approving', 'reasons', 'why', 'because', 'since', 'if', 'unless'
+        }
+        
+        if entity_lower in invalid_terms:
+            return False
+            
+        # Must contain at least one letter and be reasonably formatted
+        if not re.search(r'[a-zA-Z]', entity):
+            return False
+            
+        # Skip very short or very long entities
+        if len(entity) < 3 or len(entity) > 50:
+            return False
+            
+        # Prefer entities that start with capital letter (proper nouns)
+        # or are known philosophical concepts
+        philosophical_indicators = [
+            'sócrates', 'platão', 'aristóteles', 'anytus', 'mênon', 'críton',
+            'justiça', 'virtude', 'conhecimento', 'alma', 'coragem', 'sabedoria',
+            'república', 'fédon', 'mênon', 'apologia', 'leis', 'timeu',
+            'filosofia', 'dialética', 'retórica', 'ética', 'política', 'lógica'
+        ]
+        
+        # If entity contains philosophical terms, it's likely valid
+        if any(indicator in entity_lower for indicator in philosophical_indicators):
+            return True
+            
+        # If it starts with capital letter and has reasonable length, probably valid
+        if entity[0].isupper() and 3 <= len(entity) <= 30:
+            return True
+            
+        return False
     
     def _build_relationship_extraction_prompt(self, text: str, entities: Optional[List[str]] = None) -> str:
         """
-        Build a prompt for LLM-based relationship extraction.
+        Build a prompt for LLM-based relationship extraction focused on philosophical relationships.
+        
+        Based on recommendations from philosophical GraphRAG research.
         
         Args:
             text: Text to extract relationships from
             entities: Optional list of known entities
             
         Returns:
-            Formatted prompt for relationship extraction
+            Formatted prompt for philosophical relationship extraction
         """
         entity_context = ""
         if entities:
-            entity_context = f"\nKnown entities in the text: {', '.join(entities)}"
+            entity_context = f"\nKnown philosophical entities in the text: {', '.join(entities)}"
         
-        prompt = f"""
-        You are an expert in classical philosophy. Extract philosophical relationships from the following text.
-        
-        Focus on relationships between philosophers, philosophical concepts, works, and places.
-        Return relationships in the format: Subject | Relationship | Object | Confidence (0.0-1.0)
-        
-        Use these standardized relationship types when applicable:
-        - INFLUENCES, CRITIQUES, REFUTES, AGREES_WITH, DISAGREES_WITH
-        - DEVELOPS, BUILDS_ON, EXTENDS, ELABORATES
-        - CITES, REFERENCES, MENTIONS, QUOTES, DISCUSSES
-        - TEACHES, LEARNS_FROM, STUDIES_UNDER, DEBATES_WITH
-        - PROPOSES, DEMONSTRATES, ESTABLISHES, ASSUMES
-        - PRECEDES, FOLLOWS, LEADS_TO, RESPONDS_TO
-        
-        Text: {text}
-        {entity_context}
-        
-        Relationships:
-        """
+        prompt = f"""You are an expert in classical philosophy specialized in extracting meaningful philosophical relationships from texts.
+
+IMPORTANT: Extract only relationships between PHILOSOPHICAL ENTITIES, not grammatical relationships.
+
+Focus on these types of philosophical entities:
+- Philosophers: Sócrates, Platão, Aristóteles, etc.
+- Philosophical Concepts: justiça, virtude, conhecimento, alma, coragem, etc.
+- Works/Dialogues: República, Mênon, Apologia, Fédon, etc.
+- Arguments: specific philosophical arguments or positions
+
+Extract relationships using ONLY these standardized philosophical relationship types:
+- AUTOROU: philosopher authored a work
+- INFLUENCIADO_POR: philosopher was influenced by another
+- CRITICA: philosopher/work criticizes another philosopher/concept
+- DEFENDE: philosopher defends a concept or position  
+- TEM_ARGUMENTO: work contains a specific argument
+- PREMISSA_DE: one argument is premise of another
+- OBJECAO_A: argument objects to another argument
+- PARTE_DE: concept is part of larger concept
+- ENSINA: philosopher teaches another
+- EXEMPLIFICA: gives example of concept
+
+IGNORE:
+- Grammatical relationships (pronouns, prepositions, connectors)
+- Relationships between non-philosophical terms
+- Generic verbs like "says", "goes", "comes"
+
+Return each relationship in this exact format:
+Subject | Relationship | Object | Confidence
+
+Example good relationships:
+Sócrates | ENSINA | Platão | 0.9
+Platão | DEFENDE | Teoria das Formas | 0.8
+República | TEM_ARGUMENTO | Argumento da Caverna | 0.9
+
+Text: {text}
+{entity_context}
+
+Philosophical Relationships:"""
         return prompt
 
 
