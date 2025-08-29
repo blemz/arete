@@ -15,7 +15,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, asdict
 from enum import Enum
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, ConfigDict, model_serializer
 from arete.config import Settings, get_settings
 from arete.services.llm_provider import LLMProviderFactory, LLMProviderError
 
@@ -106,11 +106,16 @@ class ProviderConfiguration(BaseModel):
         return v.lower()
     
     model_config = ConfigDict(
-        use_enum_values=True,
-        json_encoders={
-            datetime: lambda v: v.isoformat()
-        }
+        use_enum_values=True
     )
+    
+    @model_serializer
+    def serialize_model(self):
+        """Custom serializer for datetime fields."""
+        data = self.__dict__.copy()
+        data['created_at'] = self.created_at.isoformat()
+        data['updated_at'] = self.updated_at.isoformat()
+        return data
 
 
 class ProviderConfigurationService:

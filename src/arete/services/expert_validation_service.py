@@ -12,7 +12,7 @@ from enum import Enum
 from typing import List, Dict, Any, Optional, Union
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_serializer
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +45,12 @@ class ExpertAnnotation(BaseModel):
     suggested_changes: Optional[Dict[str, Any]] = Field(None, description="Suggested changes to the item")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="When annotation was created")
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    @model_serializer
+    def serialize_model(self):
+        """Custom serializer for datetime fields."""
+        data = self.__dict__.copy()
+        data['timestamp'] = self.timestamp.isoformat()
+        return data
 
 
 class ValidationItem(BaseModel):
@@ -70,10 +72,16 @@ class ValidationItem(BaseModel):
     final_status: Optional[ValidationStatus] = Field(None, description="Final validation status")
     consensus_score: Optional[float] = Field(None, description="Expert consensus score")
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    @model_serializer
+    def serialize_model(self):
+        """Custom serializer for datetime fields."""
+        data = self.__dict__.copy()
+        data['created_at'] = self.created_at.isoformat()
+        if self.updated_at:
+            data['updated_at'] = self.updated_at.isoformat()
+        # Serialize nested annotations
+        data['annotations'] = [ann.model_dump() if hasattr(ann, 'model_dump') else ann for ann in self.annotations]
+        return data
     
     def add_annotation(self, annotation: ExpertAnnotation) -> None:
         """Add an expert annotation."""

@@ -16,21 +16,27 @@ import sys
 import time
 import asyncio
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any, Union
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from arete.processing.extractors import PDFExtractor
 from arete.config import get_settings
+from arete.services.philosophical_text_restructurer import (
+    PhilosophicalTextRestructurer, 
+    PhilosophicalContext, 
+    ProcessingMode
+)
 
 class PhilosophicalTextProcessor:
     """Enhanced processor for classical philosophical texts with human-in-the-loop quality control."""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.config = get_settings()
+        self.text_restructurer = PhilosophicalTextRestructurer()
     
-    async def process_philosophical_text(self, pdf_path: str, output_dir: str = "processed_texts"):
+    async def process_philosophical_text(self, pdf_path: str, output_dir: str = "processed_texts") -> Optional[Dict[str, Any]]:
         """
         Complete philosophical text processing pipeline with quality enhancements.
         
@@ -38,8 +44,9 @@ class PhilosophicalTextProcessor:
         1. PDF → Raw Text Extraction
         2. Raw Text → Clean Markdown with Structure
         3. Manual Review & Enhancement (PAUSE for human input)
-        4. Enhanced Markdown → Semantic Processing
-        5. Knowledge Graph + Embeddings + Storage
+        4. Optional AI Restructuring with Philosophical Text Restructurer
+        5. Enhanced Markdown → Semantic Processing
+        6. Knowledge Graph + Embeddings + Storage
         """
         
         print("🏛️ Enhanced Philosophical Text Processing Pipeline")
@@ -91,13 +98,30 @@ class PhilosophicalTextProcessor:
             print(f"❌ Enhanced file not found: {enhanced_file}")
             return None
         
-        # Stage 4: Process Enhanced Markdown
-        print("\n=== Stage 4: Processing Enhanced Philosophical Text ===")
-        result = await self._process_enhanced_markdown(enhanced_file)
+        # Stage 4: Optional AI Restructuring
+        print("\n=== Stage 4: Optional AI Restructuring ===")
+        print("Would you like to apply AI-powered philosophical text restructuring?")
+        print("This will enhance:")
+        print("• Dialogue speaker separation")
+        print("• Argument structure extraction")
+        print("• Entity and concept markup")
+        print("• Citation formatting")
+        
+        use_ai_restructuring = input("\nApply AI restructuring? (y/n): ")
+        
+        if use_ai_restructuring.lower() == 'y':
+            restructured_file = await self._apply_ai_restructuring(enhanced_file, pdf_name, output_path)
+            final_file = restructured_file
+        else:
+            final_file = enhanced_file
+        
+        # Stage 5: Process Final Enhanced Text
+        print("\n=== Stage 5: Processing Final Enhanced Text ===")
+        result = await self._process_enhanced_markdown(final_file)
         
         return result
     
-    async def _extract_pdf_with_structure(self, pdf_path: str) -> Tuple[str, Dict]:
+    async def _extract_pdf_with_structure(self, pdf_path: str) -> Tuple[str, Optional[Any]]:
         """Extract PDF with enhanced structure preservation."""
         
         extractor = PDFExtractor()
@@ -108,13 +132,16 @@ class PhilosophicalTextProcessor:
         
         print(f"✅ Extracted {len(text):,} characters")
         if metadata:
-            print(f"   Title: {metadata.title}")
-            print(f"   Author: {metadata.author}")
-            print(f"   Pages: {metadata.page_count}")
+            title = getattr(metadata, 'title', 'Unknown') if hasattr(metadata, 'title') else 'Unknown'
+            author = getattr(metadata, 'author', 'Unknown') if hasattr(metadata, 'author') else 'Unknown'
+            pages = getattr(metadata, 'page_count', 'Unknown') if hasattr(metadata, 'page_count') else 'Unknown'
+            print(f"   Title: {title}")
+            print(f"   Author: {author}")
+            print(f"   Pages: {pages}")
         
         return text, metadata
     
-    async def _generate_structured_markdown(self, text: str, metadata: Dict, output_file: Path):
+    async def _generate_structured_markdown(self, text: str, metadata: Optional[Any], output_file: Path) -> None:
         """Generate structured markdown with philosophical enhancements."""
         
         # Enhanced markdown generation with philosophical structure
@@ -127,11 +154,11 @@ class PhilosophicalTextProcessor:
         print(f"✅ Generated structured markdown: {output_file}")
         print(f"   Size: {len(markdown_content):,} characters")
     
-    def _create_philosophical_markdown_template(self, text: str, metadata: Dict) -> str:
+    def _create_philosophical_markdown_template(self, text: str, metadata: Optional[Any]) -> str:
         """Create markdown template optimized for philosophical texts."""
         
-        title = metadata.title if metadata and metadata.title else "Classical Philosophical Text"
-        author = metadata.author if metadata and metadata.author else "Classical Philosopher"
+        title = metadata.title if metadata and hasattr(metadata, 'title') and metadata.title else "Classical Philosophical Text"
+        author = metadata.author if metadata and hasattr(metadata, 'author') and metadata.author else "Classical Philosopher"
         
         # Basic structure detection and cleaning
         cleaned_text = self._basic_text_cleaning(text)
@@ -235,7 +262,141 @@ Use these markers to help the knowledge graph:
         # Rejoin with proper spacing
         return '\n\n'.join(cleaned_lines)
     
-    async def _process_enhanced_markdown(self, markdown_file: Path):
+    async def _apply_ai_restructuring(self, enhanced_file: Path, pdf_name: str, output_path: Path) -> Path:
+        """Apply AI-powered philosophical text restructuring."""
+        
+        print("🤖 Applying AI restructuring...")
+        
+        # Read the enhanced markdown
+        with open(enhanced_file, 'r', encoding='utf-8') as f:
+            enhanced_text = f.read()
+        
+        # Create philosophical context based on filename/content analysis
+        context = self._infer_philosophical_context(pdf_name, enhanced_text)
+        
+        print(f"📚 Detected context: {context.author or 'Unknown'} - {context.work_title or 'Unknown Work'}")
+        print(f"🏛️ Period: {context.philosophical_period or 'Unknown'}")
+        print(f"📖 Type: {context.text_type or 'Unknown'}")
+        
+        # Apply full restructuring
+        print("⚙️ Running full philosophical restructuring...")
+        try:
+            result = await self.text_restructurer.restructure_text(
+                enhanced_text,
+                mode=ProcessingMode.FULL_RESTRUCTURE,
+                context=context
+            )
+            
+            # Save restructured text
+            restructured_file = output_path / f"{pdf_name}_ai_restructured.md"
+            
+            with open(restructured_file, 'w', encoding='utf-8') as f:
+                # Add metadata header
+                f.write(f"# AI-Restructured Philosophical Text\n\n")
+                f.write(f"**Original PDF:** {pdf_name}\n")
+                f.write(f"**Processing Mode:** {result.processing_mode.value}\n")
+                f.write(f"**AI Provider:** {result.processing_stats.get('provider', 'Unknown')}\n")
+                f.write(f"**AI Model:** {result.processing_stats.get('model', 'Unknown')}\n")
+                f.write(f"**Author:** {context.author or 'Unknown'}\n")
+                f.write(f"**Work:** {context.work_title or 'Unknown'}\n")
+                f.write(f"**Original Length:** {result.processing_stats.get('original_length', 0):,} chars\n")
+                f.write(f"**Restructured Length:** {result.processing_stats.get('restructured_length', 0):,} chars\n")
+                f.write(f"**Processing Date:** {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+                f.write("---\n\n")
+                f.write(result.restructured_text)
+            
+            print(f"✅ AI restructuring complete!")
+            print(f"📊 Original: {result.processing_stats.get('original_length', 0):,} chars")
+            print(f"📊 Restructured: {result.processing_stats.get('restructured_length', 0):,} chars")
+            print(f"💾 Saved to: {restructured_file}")
+            
+            return restructured_file
+            
+        except Exception as e:
+            print(f"❌ AI restructuring failed: {e}")
+            print("💡 Falling back to human-enhanced version")
+            return enhanced_file
+    
+    def _infer_philosophical_context(self, pdf_name: str, text: str) -> PhilosophicalContext:
+        """Infer philosophical context from filename and content."""
+        
+        # Basic inference from filename and content
+        author = None
+        work_title = None
+        period = None
+        text_type = None
+        key_concepts = []
+        major_themes = []
+        
+        # Author detection
+        filename_lower = pdf_name.lower()
+        if 'plato' in filename_lower:
+            author = "Plato"
+            period = "Ancient"
+            key_concepts = ["wisdom", "virtue", "justice", "knowledge", "soul"]
+            major_themes = ["epistemology", "ethics", "metaphysics", "political philosophy"]
+        elif 'aristotle' in filename_lower:
+            author = "Aristotle"
+            period = "Ancient"
+            key_concepts = ["virtue", "happiness", "substance", "causation"]
+            major_themes = ["ethics", "metaphysics", "logic", "politics"]
+        elif 'augustine' in filename_lower:
+            author = "Augustine"
+            period = "Medieval"
+            key_concepts = ["faith", "reason", "time", "evil"]
+            major_themes = ["theology", "epistemology", "ethics"]
+        elif 'aquinas' in filename_lower:
+            author = "Thomas Aquinas"
+            period = "Medieval"
+            key_concepts = ["being", "essence", "faith", "reason"]
+            major_themes = ["theology", "metaphysics", "ethics"]
+        elif 'descartes' in filename_lower:
+            author = "René Descartes"
+            period = "Modern"
+            key_concepts = ["doubt", "certainty", "cogito", "dualism"]
+            major_themes = ["epistemology", "metaphysics", "methodology"]
+        elif 'kant' in filename_lower:
+            author = "Immanuel Kant"
+            period = "Modern"
+            key_concepts = ["duty", "reason", "autonomy", "categorical imperative"]
+            major_themes = ["ethics", "epistemology", "aesthetics"]
+        
+        # Work title detection
+        if 'republic' in filename_lower:
+            work_title = "The Republic"
+            text_type = "dialogue"
+        elif 'ethics' in filename_lower or 'nicomachean' in filename_lower:
+            work_title = "Nicomachean Ethics"
+            text_type = "treatise"
+        elif 'metaphysics' in filename_lower:
+            work_title = "Metaphysics"
+            text_type = "treatise"
+        elif 'meditations' in filename_lower:
+            work_title = "Meditations"
+            text_type = "treatise"
+        elif 'confessions' in filename_lower:
+            work_title = "Confessions"
+            text_type = "autobiography"
+        elif 'summa' in filename_lower:
+            work_title = "Summa Theologica"
+            text_type = "treatise"
+        
+        # Dialogue detection from content
+        if not text_type and ('said' in text.lower() and 'replied' in text.lower()):
+            text_type = "dialogue"
+        elif not text_type:
+            text_type = "treatise"
+        
+        return PhilosophicalContext(
+            author=author,
+            work_title=work_title,
+            philosophical_period=period,
+            text_type=text_type,
+            key_concepts=key_concepts,
+            major_themes=major_themes
+        )
+    
+    async def _process_enhanced_markdown(self, markdown_file: Path) -> Dict[str, Any]:
         """Process the human-enhanced markdown through the RAG pipeline."""
         
         # Read enhanced markdown
@@ -280,7 +441,7 @@ Use these markers to help the knowledge graph:
         }
 
 
-async def main():
+async def main() -> None:
     """Run the enhanced philosophical text processing pipeline."""
     
     if len(sys.argv) != 2:
@@ -288,6 +449,8 @@ async def main():
         print("\nThis enhanced pipeline provides:")
         print("• PDF → Structured Markdown conversion")
         print("• Human review and enhancement step")
+        print("• Optional AI-powered philosophical restructuring")
+        print("• Dialogue separation, argument extraction, entity markup")
         print("• Superior RAG processing quality")
         return
     
