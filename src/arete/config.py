@@ -170,6 +170,17 @@ class Settings(BaseSettings):
         default="",
         description="Currently selected LLM model (overrides provider default if set)"
     )
+    
+    # Knowledge Graph Extraction LLM Settings
+    kg_llm_provider: str = Field(
+        default="",
+        description="LLM provider for knowledge graph extraction (uses more powerful models)"
+    )
+    kg_llm_model: str = Field(
+        default="",
+        description="LLM model for knowledge graph extraction (uses more powerful models)"
+    )
+    
     llm_max_tokens: int = Field(
         default=4000,
         ge=100,

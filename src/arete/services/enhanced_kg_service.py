@@ -8,6 +8,7 @@ relationship extraction in classical philosophical texts.
 from typing import List, Dict, Any, Optional, Tuple
 import asyncio
 import re
+from uuid import UUID
 
 from langchain_core.documents import Document as LangChainDocument
 from langchain_experimental.graph_transformers import LLMGraphTransformer
@@ -30,8 +31,16 @@ class EnhancedKnowledgeGraphService:
     
     def __init__(self, llm_service: Optional[SimpleLLMService] = None):
         """Initialize the enhanced KG service."""
-        self.llm_service = llm_service or SimpleLLMService()
         self.config = get_settings()
+        
+        # Use dedicated KG LLM service if configured, otherwise fall back to general LLM service
+        if self.config.kg_llm_provider and self.config.kg_llm_model:
+            print(f"INFO: Using dedicated KG LLM: {self.config.kg_llm_provider}/{self.config.kg_llm_model}")
+            # Create specialized LLM service for knowledge extraction
+            self.llm_service = self._create_kg_llm_service()
+        else:
+            print(f"INFO: Using general LLM for KG extraction: {self.config.selected_llm_provider}/{self.config.selected_llm_model}")
+            self.llm_service = llm_service or SimpleLLMService()
         
         # Define philosophical entity schema
         self.allowed_nodes = [
@@ -111,19 +120,38 @@ class EnhancedKnowledgeGraphService:
             print("Falling back to direct LLM-based extraction.")
             self.llm_transformer = None
     
+    def _create_kg_llm_service(self) -> SimpleLLMService:
+        """Create a specialized LLM service for knowledge graph extraction."""
+        from arete.services.simple_llm_service import SimpleLLMService
+        
+        print(f"DEBUG: Creating KG LLM service with {self.config.kg_llm_provider}/{self.config.kg_llm_model}")
+        
+        # Create SimpleLLMService
+        kg_llm_service = SimpleLLMService()
+        
+        # Use the correct methods to set provider and model
+        kg_llm_service.set_provider(self.config.kg_llm_provider)
+        kg_llm_service.set_model(self.config.kg_llm_model)
+        
+        print(f"DEBUG: Configured KG service - Provider: {kg_llm_service.get_active_provider_name()}, Model: {kg_llm_service.get_active_model_name()}")
+        
+        return kg_llm_service
+    
     async def extract_knowledge_graph(
         self, 
         text: str, 
         document_id: str,
-        chunk_size: int = 1000
+        chunk_size: int = 2000,  # Optimal size for philosophical context preservation
+        max_chunks: int = None   # Process all chunks with powerful KG model
     ) -> Tuple[List[Entity], List[Dict[str, Any]]]:
         """
         Extract knowledge graph from text using enhanced philosophical extraction.
         
         Args:
             text: Text to extract knowledge from
-            document_id: Source document ID
-            chunk_size: Size of text chunks for processing
+            document_id: Document identifier  
+            chunk_size: Size of text chunks for processing (larger preserves context)
+            max_chunks: Maximum number of chunks to process (None = all chunks)
             
         Returns:
             Tuple of (entities, relationships)
@@ -131,20 +159,32 @@ class EnhancedKnowledgeGraphService:
         # Split text into manageable chunks
         chunks = self._split_text(text, chunk_size)
         
+        # Optionally limit chunks if max_chunks is specified
+        if max_chunks is not None and len(chunks) > max_chunks:
+            print(f"INFO: Limiting processing to first {max_chunks} chunks out of {len(chunks)} total chunks")
+            chunks = chunks[:max_chunks]
+        else:
+            print(f"INFO: Processing all {len(chunks)} chunks with dedicated KG model")
+        
         all_entities = []
         all_relationships = []
         
+        print(f"Processing {len(chunks)} chunks for knowledge extraction...")
+        
         for i, chunk in enumerate(chunks):
+            print(f"  Processing chunk {i+1}/{len(chunks)}...")
             try:
-                # Extract from chunk using LLMGraphTransformer
+                # Extract from chunk using LLMGraphTransformer with timeout handling
                 entities, relationships = await self._extract_from_chunk(
                     chunk, f"{document_id}_chunk_{i}"
                 )
                 all_entities.extend(entities)
                 all_relationships.extend(relationships)
+                print(f"    Found {len(entities)} entities, {len(relationships)} relationships")
                 
             except Exception as e:
-                print(f"Error processing chunk {i}: {e}")
+                print(f"    WARNING: Error processing chunk {i+1}: {e}")
+                print(f"    Continuing with remaining chunks...")
                 continue
         
         # Deduplicate and merge entities
@@ -178,10 +218,13 @@ class EnhancedKnowledgeGraphService:
             for graph_doc in graph_docs:
                 # Extract entities (nodes)
                 for node in graph_doc.nodes:
+                    # Extract document ID from chunk ID and convert to UUID
+                    document_id = self._extract_document_id_from_chunk_id(chunk_id)
+                    
                     entity = Entity(
                         name=node.id,
                         entity_type=self._map_node_type_to_entity_type(node.type),
-                        source_document_id=chunk_id,
+                        source_document_id=UUID(document_id),
                         mentions=[],  # Would be populated in full implementation
                         confidence=0.8
                     )
@@ -236,13 +279,14 @@ class EnhancedKnowledgeGraphService:
         """
         
         try:
-            from arete.models.llm import LLMMessage
+            from arete.services.llm_provider import LLMMessage, MessageRole
             
-            messages = [LLMMessage(role="user", content=prompt)]
+            messages = [LLMMessage(role=MessageRole.USER, content=prompt)]
             response = await self.llm_service.generate_response(
                 messages=messages,
-                max_tokens=800,
-                temperature=0.1
+                max_tokens=1000,  # Increased for detailed philosophical analysis
+                temperature=0.1,  # Low temperature for consistent extraction
+                timeout=120       # Generous timeout for powerful models
             )
             
             response_text = response.content
@@ -252,6 +296,12 @@ class EnhancedKnowledgeGraphService:
         except Exception as e:
             print(f"Fallback extraction failed: {e}")
             return [], []
+    
+    def _extract_document_id_from_chunk_id(self, chunk_id: str) -> str:
+        """Extract document ID from chunk ID format 'doc_id_chunk_N'."""
+        if '_chunk_' in chunk_id:
+            return chunk_id.split('_chunk_')[0]
+        return chunk_id
     
     def _parse_fallback_response(
         self, 
@@ -283,10 +333,13 @@ class EnhancedKnowledgeGraphService:
                     name, entity_type = parts[0], parts[1]
                     description = parts[2] if len(parts) > 2 else ""
                     
+                    # Extract document ID from chunk ID and convert to UUID
+                    document_id = self._extract_document_id_from_chunk_id(chunk_id)
+                    
                     entity = Entity(
                         name=name,
                         entity_type=self._map_string_to_entity_type(entity_type),
-                        source_document_id=chunk_id,
+                        source_document_id=UUID(document_id),
                         mentions=[],
                         confidence=0.7,
                         properties={"description": description} if description else {}

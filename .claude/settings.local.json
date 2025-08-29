@@ -31,12 +31,16 @@
       "mcp__playwright__browser_take_screenshot",
       "mcp__serena__find_symbol",
       "mcp__serena__replace_symbol_body",
-      "mcp__serena__insert_after_symbol"
+      "mcp__serena__insert_after_symbol",
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(ollama list:*)",
+      "Bash(set SELECTED_LLM_PROVIDER=ollama)",
+      "Bash(set SELECTED_LLM_MODEL=gemma3:4b)"
     ],
     "deny": []
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "serena"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }

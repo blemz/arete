@@ -115,7 +115,8 @@ async def process_full_classical_text(pdf_path: str):
         entities, relationships = await enhanced_kg_service.extract_knowledge_graph(
             text=document.content,
             document_id=str(document.id),
-            chunk_size=2000  # Larger chunks for better context
+            chunk_size=2000,  # Optimal chunks for philosophical context preservation
+            max_chunks=None   # Process all chunks with powerful KG model
         )
         
         kg_time = time.time() - kg_start
