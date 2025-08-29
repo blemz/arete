@@ -6,6 +6,7 @@ from typing import List
 from uuid import UUID
 
 from ..models.chunk import Chunk, ChunkType
+from .heading_aware import HeadingAwareChunkingStrategy
 
 
 class ChunkingStrategy(ABC):
@@ -42,7 +43,8 @@ class ChunkingStrategy(ABC):
             "sliding_window": SlidingWindowChunker,
             "paragraph": ParagraphChunker,
             "sentence": SentenceChunker,
-            "semantic": SemanticChunker
+            "semantic": SemanticChunker,
+            "heading_aware": HeadingAwareChunkingStrategy
         }
         
         if strategy not in strategies:
