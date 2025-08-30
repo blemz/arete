@@ -35,7 +35,8 @@
       "mcp__sequential-thinking__sequentialthinking",
       "Bash(ollama list:*)",
       "Bash(set SELECTED_LLM_PROVIDER=ollama)",
-      "Bash(set SELECTED_LLM_MODEL=gemma3:4b)"
+      "Bash(set SELECTED_LLM_MODEL=gemma3:4b)",
+      "Bash(timeout:*)"
     ],
     "deny": []
   },

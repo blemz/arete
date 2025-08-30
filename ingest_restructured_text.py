@@ -140,21 +140,24 @@ class RestructuredTextParser:
             for match in matches:
                 entity_name = match.strip()
                 if entity_name and len(entity_name) > 1:
-                    try:
-                        entity = Entity(
-                            name=entity_name,
-                            entity_type=EntityType(entity_type.lower()),
-                            confidence=0.95,  # High confidence for AI-structured data
-                            source_document_id=document_id,
-                            description=f"Extracted from AI-restructured {entity_type.lower()} markup"
-                        )
-                        entities.append(entity)
-                    except ValueError as e:
-                        # Handle unknown entity types - use ASCII safe print
+                    # Clean entity name from markdown/XML markup
+                    cleaned_name = self._clean_entity_name(entity_name)
+                    if cleaned_name and len(cleaned_name) > 1:
                         try:
-                            print(f"Warning: Unknown entity type {entity_type} for {entity_name}")
-                        except UnicodeEncodeError:
-                            print(f"Warning: Unknown entity type {entity_type} for [entity with special chars]")
+                            entity = Entity(
+                                name=cleaned_name,
+                                entity_type=EntityType(entity_type.lower()),
+                                confidence=0.95,  # High confidence for AI-structured data
+                                source_document_id=document_id,
+                                description=f"Extracted from AI-restructured {entity_type.lower()} markup"
+                            )
+                            entities.append(entity)
+                        except ValueError as e:
+                            # Handle unknown entity types - use ASCII safe print
+                            try:
+                                print(f"Warning: Unknown entity type {entity_type} for {entity_name}")
+                            except UnicodeEncodeError:
+                                print(f"Warning: Unknown entity type {entity_type} for [entity with special chars]")
         
         return entities
     
@@ -204,71 +207,115 @@ class RestructuredTextParser:
         return relationships
     
     def _extract_nlp_relationships(self, text: str) -> List[Dict[str, Any]]:
-        """Extract relationships using NLP patterns and semantic analysis."""
+        """Extract relationships between simple entities using targeted patterns."""
         relationships = []
         
-        # Enhanced patterns for natural language relationships
-        relationship_patterns = {
-            'LEADS_TO': [
-                r'(.+?)\s+(?:leads?\s+to|results?\s+in|causes?|brings\s+about)\s+(.+?)(?:\.|,|;|:|$)',
-                r'(.+?)\s+->\s*(.+?)(?:\.|,|;|:|$)',
-                r'(.+?)\s+(?:produces?|generates?|creates?)\s+(.+?)(?:\.|,|;|:|$)',
+        # First, extract all potential entity mentions (names, concepts)
+        entity_mentions = set()
+        
+        # Look for proper names (capitalized words)
+        names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b', text)
+        entity_mentions.update(names)
+        
+        # Look for philosophical concepts (often in quotes or bold)
+        concepts = re.findall(r'(?:\*\*|"|`)([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)(?:\*\*|"|`)', text)
+        entity_mentions.update(concepts)
+        
+        # Look for key philosophical terms
+        philosophical_terms = re.findall(r'\b(Justice|Virtue|Wisdom|Truth|Knowledge|Beauty|Good|Evil|Soul|Republic|Ethics|Politics|Metaphysics|Logic|Rhetoric|Dialectic|Form|Idea|Cave|Allegory|Temperance|Courage|Philosophy|Socrates|Plato|Aristotle|Apology)\b', text, re.IGNORECASE)
+        entity_mentions.update([term.title() for term in philosophical_terms])
+        
+        # Convert to list and clean
+        entity_list = []
+        for entity in entity_mentions:
+            cleaned = self._clean_entity_name(entity)
+            if cleaned and len(cleaned) > 2 and not self._is_too_generic(cleaned):
+                entity_list.append(cleaned)
+        
+        # Remove duplicates and sort by length (longer names first for better matching)
+        entity_list = list(set(entity_list))
+        entity_list.sort(key=len, reverse=True)
+        
+        # Simple relationship patterns between entities
+        simple_patterns = {
+            'ARGUES': [
+                r'\b({entities})\s+(?:argues?|claims?|states?|maintains?|asserts?)\s+(?:that\s+)?.*?\b({entities})',
+                r'\b({entities})\s+says?\s+.*?\b({entities})',
             ],
-            'CONTRADICTS': [
-                r'(.+?)\s+(?:contradicts?|opposes?|conflicts?\s+with|is\s+contrary\s+to)\s+(.+?)(?:\.|,|;|:|$)',
-                r'(.+?)\s+(?:refutes?|challenges?|disputes?)\s+(.+?)(?:\.|,|;|:|$)',
-                r'(.+?)\s+is\s+(?:opposite\s+(?:of|to)|inconsistent\s+with)\s+(.+?)(?:\.|,|;|:|$)',
+            'DEFINES': [
+                r'\b({entities})\s+(?:defines?|explains?|describes?)\s+.*?\b({entities})',
+                r'\b({entities}):\s+.*?\b({entities})',
             ],
-            'SUPPORTS': [
-                r'(.+?)\s+(?:supports?|reinforces?|strengthens?|validates?)\s+(.+?)(?:\.|,|;|:|$)',
-                r'(.+?)\s+(?:is\s+evidence\s+for|proves?|confirms?|demonstrates?)\s+(.+?)(?:\.|,|;|:|$)',
-                r'(.+?)\s+(?:backs\s+up|upholds?)\s+(.+?)(?:\.|,|;|:|$)',
+            'CRITIQUES': [
+                r'\b({entities})\s+(?:critiques?|challenges?|refutes?|opposes?)\s+.*?\b({entities})',
+                r'\b({entities})\s+(?:disagrees?\s+with|argues?\s+against)\s+.*?\b({entities})',
             ],
-            'EXAMPLE_OF': [
-                r'(.+?)\s+(?:is\s+an?\s+example\s+of|exemplifies?|illustrates?)\s+(.+?)(?:\.|,|;|:|$)',
-                r'(.+?)\s+(?:such\s+as|like|including|namely)\s+(.+?)(?:\.|,|;|:|$)',
-                r'(?:for\s+(?:example|instance),?\s+)?(.+?)\s+(?:demonstrates?|shows?)\s+(.+?)(?:\.|,|;|:|$)',
+            'TEACHES': [
+                r'\b({entities})\s+(?:teaches?|instructs?|educates?)\s+.*?\b({entities})',
+                r'\b({entities})\s+(?:is\s+(?:the\s+)?(?:teacher|mentor|master)\s+of)\s+.*?\b({entities})',
             ],
-            'BUILDS_ON': [
-                r'(.+?)\s+(?:builds?\s+on|is\s+based\s+on|extends?|develops?)\s+(.+?)(?:\.|,|;|:|$)',
-                r'(.+?)\s+(?:follows?\s+from|derives?\s+from|stems?\s+from)\s+(.+?)(?:\.|,|;|:|$)',
-                r'(.+?)\s+(?:is\s+grounded\s+in|rests?\s+on)\s+(.+?)(?:\.|,|;|:|$)',
+            'INFLUENCES': [
+                r'\b({entities})\s+(?:influences?|affects?|impacts?)\s+.*?\b({entities})',
+                r'\b({entities})\s+(?:is\s+influenced\s+by)\s+.*?\b({entities})',
             ],
-            'IMPLIES': [
-                r'(.+?)\s+(?:implies?|suggests?|indicates?|means?\s+that)\s+(.+?)(?:\.|,|;|:|$)',
-                r'(.+?)\s+(?:entails?|presupposes?|assumes?)\s+(.+?)(?:\.|,|;|:|$)',
+            'DISCUSSES': [
+                r'\b({entities})\s+(?:discusses?|examines?|explores?)\s+.*?\b({entities})',
+                r'\b({entities})\s+(?:talks?\s+about|speaks?\s+of)\s+.*?\b({entities})',
+            ],
+            'RELATES_TO': [
+                r'\b({entities})\s+(?:relates?\s+to|connects?\s+to|is\s+connected\s+to)\s+.*?\b({entities})',
+                r'\b({entities})\s+(?:and|with)\s+({entities})',  # Simple conjunction
             ]
         }
         
-        # Process each sentence for relationships
+        # Create entity regex pattern
+        if not entity_list:
+            return relationships
+            
+        # Escape special regex characters in entity names
+        escaped_entities = [re.escape(entity) for entity in entity_list]
+        entity_pattern = '|'.join(escaped_entities)
+        
+        # Process text by sentences
         sentences = re.split(r'[.!?]+', text)
         
         for sentence in sentences:
             sentence = sentence.strip()
-            if len(sentence) < 20:  # Skip very short sentences
+            if len(sentence) < 10:
                 continue
                 
-            for relation_type, patterns in relationship_patterns.items():
-                for pattern in patterns:
+            # Try each relationship pattern
+            for relation_type, patterns in simple_patterns.items():
+                for pattern_template in patterns:
+                    # Replace {entities} placeholder with actual entity pattern
+                    pattern = pattern_template.format(entities=entity_pattern)
+                    
                     matches = re.finditer(pattern, sentence, re.IGNORECASE)
                     for match in matches:
-                        subject = self._clean_entity(match.group(1))
-                        object_entity = self._clean_entity(match.group(2))
-                        
-                        if subject and object_entity and len(subject) > 2 and len(object_entity) > 2:
-                            # Skip if subject or object are too generic
-                            if self._is_too_generic(subject) or self._is_too_generic(object_entity):
-                                continue
+                        if len(match.groups()) >= 2:
+                            subject_raw = match.group(1).strip()
+                            object_raw = match.group(2).strip()
+                            
+                            # Clean and normalize
+                            subject = self._clean_entity_name(subject_raw)
+                            object_entity = self._clean_entity_name(object_raw)
+                            
+                            # Verify both are valid entities and different
+                            if (subject and object_entity and 
+                                subject != object_entity and
+                                len(subject) > 1 and len(object_entity) > 1 and
+                                not self._is_too_generic(subject) and 
+                                not self._is_too_generic(object_entity)):
                                 
-                            relationship = {
-                                'subject': subject,
-                                'relation': relation_type,
-                                'object': object_entity,
-                                'confidence': 0.75,  # Lower confidence for extracted patterns
-                                'context': sentence[:200],
-                                'extraction_method': 'nlp_pattern'
-                            }
-                            relationships.append(relationship)
+                                relationship = {
+                                    'subject': subject,
+                                    'relation': relation_type,
+                                    'object': object_entity,
+                                    'confidence': 0.80,  # Higher confidence for simple patterns
+                                    'context': sentence[:150],
+                                    'extraction_method': 'simple_nlp_pattern'
+                                }
+                                relationships.append(relationship)
         
         return relationships
     
@@ -369,6 +416,137 @@ class RestructuredTextParser:
         union = len(words1.union(words2))
         
         return intersection / union > threshold
+    
+    def _clean_entity_name(self, entity_name: str) -> str:
+        """Clean entity name from markdown/XML markup."""
+        if not entity_name:
+            return ""
+        
+        cleaned = entity_name.strip()
+        
+        # Remove common markup patterns
+        cleaned = re.sub(r'<[^>]+>', '', cleaned)  # Remove HTML/XML tags like <citation>
+        cleaned = re.sub(r'`([^`]+)`', r'\1', cleaned)  # Remove backticks
+        cleaned = re.sub(r'\*\*([^*]+)\*\*', r'\1', cleaned)  # Remove bold markup
+        cleaned = re.sub(r'_([^_]+)_', r'\1', cleaned)  # Remove italic markup
+        cleaned = re.sub(r'\[([^\]]+)\]', r'\1', cleaned)  # Remove brackets
+        
+        # Clean up whitespace
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        
+        # Handle Unicode characters that might cause issues
+        try:
+            # Try to encode to ASCII, replacing problematic characters
+            cleaned = cleaned.encode('ascii', 'ignore').decode('ascii')
+        except UnicodeEncodeError:
+            # If that fails, keep the original but remove non-printable characters
+            cleaned = ''.join(char for char in cleaned if ord(char) < 128)
+        
+        return cleaned
+    
+    def resolve_entity_from_phrase(self, phrase: str, entity_name_to_id: Dict[str, Any]) -> Optional[str]:
+        """
+        Try to resolve an entity name from a complex phrase.
+        
+        Args:
+            phrase: Complex phrase that might contain entity names
+            entity_name_to_id: Dictionary mapping entity names to IDs
+            
+        Returns:
+            Resolved entity name if found, None otherwise
+        """
+        if not phrase or not entity_name_to_id:
+            return None
+        
+        # First try exact match
+        if phrase in entity_name_to_id:
+            return phrase
+        
+        # Clean the phrase by removing common patterns
+        cleaned_phrase = phrase.strip()
+        
+        # Remove common prefixes/suffixes that don't help with entity matching
+        prefixes_to_remove = [
+            "Definition of ", "Concept of ", "Idea of ", "Theory of ",
+            "Argument about ", "Discussion of ", "Analysis of ",
+            "* ", "**", "- ", ": "
+        ]
+        
+        for prefix in prefixes_to_remove:
+            if cleaned_phrase.startswith(prefix):
+                cleaned_phrase = cleaned_phrase[len(prefix):].strip()
+        
+        # Try exact match after cleaning
+        if cleaned_phrase in entity_name_to_id:
+            return cleaned_phrase
+        
+        # Split on common delimiters and try each part
+        delimiters = [" - ", " -> ", ": ", " | ", " & ", " and ", " or "]
+        parts = [cleaned_phrase]
+        
+        for delimiter in delimiters:
+            if delimiter in cleaned_phrase:
+                parts.extend(cleaned_phrase.split(delimiter))
+        
+        # Try each part as a potential entity name
+        for part in parts:
+            part = part.strip()
+            if not part or len(part) < 3:
+                continue
+                
+            # Remove parenthetical content
+            part = re.sub(r'\([^)]+\)', '', part).strip()
+            
+            # Remove quotes and markup
+            part = re.sub(r'["\*\[\]`]', '', part).strip()
+            
+            if part in entity_name_to_id:
+                return part
+        
+        # Try fuzzy matching for close matches
+        phrase_words = set(cleaned_phrase.lower().split())
+        best_match = None
+        best_score = 0.0
+        
+        for entity_name in entity_name_to_id.keys():
+            entity_lower = entity_name.lower()
+            entity_words = set(entity_lower.split())
+            
+            if not phrase_words or not entity_words:
+                continue
+            
+            # Method 1: Check if phrase is contained in entity name
+            if cleaned_phrase.lower() in entity_lower:
+                score = len(cleaned_phrase) / len(entity_name)
+                if score > best_score and score >= 0.3:
+                    best_score = score
+                    best_match = entity_name
+                    
+            # Method 2: Check if entity name is contained in phrase  
+            if entity_lower in cleaned_phrase.lower():
+                score = len(entity_name) / len(cleaned_phrase)
+                if score > best_score and score >= 0.3:
+                    best_score = score
+                    best_match = entity_name
+            
+            # Method 3: Word overlap scoring
+            intersection = len(phrase_words.intersection(entity_words))
+            if intersection > 0:
+                # Jaccard similarity
+                union = len(phrase_words.union(entity_words))
+                jaccard_score = intersection / union if union > 0 else 0
+                
+                # Word overlap ratio (more forgiving)
+                overlap_score = intersection / max(len(phrase_words), len(entity_words))
+                
+                # Use the better of the two scores
+                score = max(jaccard_score, overlap_score)
+                
+                if score > best_score and score >= 0.4:  # Lowered threshold for better matching
+                    best_score = score
+                    best_match = entity_name
+        
+        return best_match
     
     def create_semantic_chunks(self, text: str, document_id: str) -> List[Chunk]:
         """Create semantically meaningful chunks from AI-restructured text."""
@@ -632,12 +810,93 @@ async def store_in_databases(result_data: Dict[str, Any]) -> bool:
         # Store relationships
         print(f"4. Storing {len(relationships)} AI-extracted relationships...")
         relationships_stored = 0
-        if relationships:
+        if relationships and entities:
             try:
-                relationships_stored = await entity_repository.batch_create_triples(relationships)
+                # Create entity name to ID mapping for relationship storage
+                entity_name_to_id = {}
+                for entity in entities:
+                    entity_name_to_id[entity.name] = entity.id
+                    # Also add canonical form if different
+                    canonical = entity.get_canonical_form()
+                    if canonical != entity.name:
+                        entity_name_to_id[canonical] = entity.id
+                    # Add aliases if they exist
+                    if entity.aliases:
+                        for alias in entity.aliases:
+                            entity_name_to_id[alias] = entity.id
+                
+                print(f"   Created mapping for {len(entity_name_to_id)} entity names/aliases")
+                
+                # Debug: Show first few entities
+                entity_names = list(entity_name_to_id.keys())[:5]
+                print(f"   Sample entities: {entity_names}")
+                
+                # Debug: Show first few relationships
+                sample_rels = relationships[:3]
+                for i, rel in enumerate(sample_rels):
+                    print(f"   Sample rel {i+1}: '{rel.get('subject', '')}' -> '{rel.get('relation', '')}' -> '{rel.get('object', '')}'")
+                
+                # Resolve relationships with improved entity matching
+                resolved_relationships = []
+                parser = RestructuredTextParser()
+                
+                for rel in relationships:
+                    subject = rel.get('subject', '')
+                    object_entity = rel.get('object', '')
+                    
+                    # Try to resolve subject and object to actual entity names
+                    resolved_subject = parser.resolve_entity_from_phrase(subject, entity_name_to_id)
+                    resolved_object = parser.resolve_entity_from_phrase(object_entity, entity_name_to_id)
+                    
+                    if resolved_subject and resolved_object:
+                        # Update the relationship with resolved names
+                        resolved_rel = rel.copy()
+                        resolved_rel['subject'] = resolved_subject
+                        resolved_rel['object'] = resolved_object
+                        resolved_relationships.append(resolved_rel)
+                    else:
+                        # Debug output for troubleshooting
+                        missing_parts = []
+                        if not resolved_subject:
+                            missing_parts.append(f"subject '{subject}'")
+                        if not resolved_object:
+                            missing_parts.append(f"object '{object_entity}'")
+                        
+                        if len(subject + object_entity) < 100:  # Only show short relationships to avoid spam
+                            try:
+                                print(f"Skipping triple - entities not found: {' & '.join(missing_parts)} -> {rel['relation']}")
+                            except UnicodeEncodeError:
+                                print(f"Skipping triple - entities not found: [contains special characters] -> {rel['relation']}")
+                
+                print(f"   Resolved {len(resolved_relationships)}/{len(relationships)} relationships to valid entities")
+                
+                # Debug: Show resolved relationships
+                if resolved_relationships:
+                    rel = resolved_relationships[0]
+                    subject = rel['subject']
+                    obj = rel['object']
+                    print(f"   First resolved relationship: '{subject}' -> '{rel['relation']}' -> '{obj}'")
+                    
+                    # Check if these entities exist in our mapping
+                    subject_exists = subject in entity_name_to_id
+                    object_exists = obj in entity_name_to_id
+                    print(f"   Entity mapping check: '{subject}' exists = {subject_exists}, '{obj}' exists = {object_exists}")
+                    
+                    if not subject_exists:
+                        print(f"   Available entity names: {list(entity_name_to_id.keys())[:10]}")
+                else:
+                    print(f"   No relationships resolved to valid entities")
+                
+                try:
+                    relationships_stored = await entity_repository.batch_create_triples(resolved_relationships, entity_name_to_id)
+                except Exception as batch_error:
+                    print(f"   BATCH ERROR: {batch_error}")
+                    relationships_stored = 0
                 print(f"   SUCCESS: {relationships_stored}/{len(relationships)} relationships stored")
             except Exception as e:
                 print(f"   Warning: Relationship storage failed: {e}")
+        else:
+            print(f"   SKIPPED: No entities to create relationships between")
         
         print(f"\nSUCCESS: SUCCESS: AI-Restructured text stored in production databases!")
         print(f"   Document: {document.title} ({document.word_count:,} words)")
