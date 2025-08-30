@@ -107,17 +107,23 @@ class EnhancedKnowledgeGraphService:
     def _initialize_transformer(self):
         """Initialize the LLMGraphTransformer with philosophical schema."""
         try:
-            # Skip LLMGraphTransformer for now due to compatibility issues
-            # Will use direct LLM-based extraction instead
-            print("INFO: Using direct LLM extraction instead of LLMGraphTransformer")
-            self.llm_transformer = None
+            from arete.services.llm_graph_transformer_service import LLMGraphTransformerService
             
-        except ImportError:
-            print("Warning: LangChain experimental not available. Using fallback extraction.")
+            # Use the new LLMGraphTransformerService
+            self.llm_transformer = LLMGraphTransformerService(self.llm_service)
+            
+            if self.llm_transformer.is_available():
+                print("✅ Successfully initialized LLMGraphTransformerService with philosophical schema")
+            else:
+                print("⚠️  LLMGraphTransformerService initialized but LangChain transformer not available - will use fallback")
+            
+        except ImportError as e:
+            print(f"❌ Failed to import LLMGraphTransformerService: {e}")
+            print("Falling back to basic extraction.")
             self.llm_transformer = None
         except Exception as e:
-            print(f"Warning: Could not initialize LLMGraphTransformer: {e}")
-            print("Falling back to direct LLM-based extraction.")
+            print(f"❌ Could not initialize LLMGraphTransformerService: {e}")
+            print("Falling back to basic extraction.")
             self.llm_transformer = None
     
     def _create_kg_llm_service(self) -> SimpleLLMService:
@@ -206,46 +212,21 @@ class EnhancedKnowledgeGraphService:
             return await self._fallback_extraction(text, chunk_id)
         
         try:
-            # Create LangChain document
-            doc = LangChainDocument(page_content=text, metadata={"chunk_id": chunk_id})
+            # Extract document ID from chunk ID
+            document_id = self._extract_document_id_from_chunk_id(chunk_id)
             
-            # Transform to graph document
-            graph_docs = self.llm_transformer.convert_to_graph_documents([doc])
+            # Use the LLMGraphTransformerService for extraction
+            entities, relationships = await self.llm_transformer.extract_knowledge_graph(
+                text=text,
+                document_id=document_id,
+                chunk_size=len(text)  # Process the chunk as-is
+            )
             
-            entities = []
-            relationships = []
-            
-            for graph_doc in graph_docs:
-                # Extract entities (nodes)
-                for node in graph_doc.nodes:
-                    # Extract document ID from chunk ID and convert to UUID
-                    document_id = self._extract_document_id_from_chunk_id(chunk_id)
-                    
-                    entity = Entity(
-                        name=node.id,
-                        entity_type=self._map_node_type_to_entity_type(node.type),
-                        source_document_id=UUID(document_id),
-                        mentions=[],  # Would be populated in full implementation
-                        confidence=0.8
-                    )
-                    entities.append(entity)
-                
-                # Extract relationships
-                for rel in graph_doc.relationships:
-                    relationship = {
-                        "subject": rel.source.id,
-                        "relation": rel.type,
-                        "object": rel.target.id,
-                        "confidence": rel.properties.get("confidence", 0.8),
-                        "evidence": rel.properties.get("evidence", text[:200]),
-                        "source": "llm_graph_transformer"
-                    }
-                    relationships.append(relationship)
-            
+            print(f"    ✅ LLMGraphTransformer extracted {len(entities)} entities, {len(relationships)} relationships")
             return entities, relationships
             
         except Exception as e:
-            print(f"LLMGraphTransformer extraction failed: {e}")
+            print(f"❌ LLMGraphTransformerService extraction failed: {e}")
             return await self._fallback_extraction(text, chunk_id)
     
     async def _fallback_extraction(

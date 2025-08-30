@@ -405,9 +405,10 @@ Use these markers to help the knowledge graph:
         
         print(f"📖 Processing enhanced text: {len(enhanced_text):,} characters")
         
-        # Now process through existing pipeline with enhanced text
+        # Now process through existing pipeline with enhanced text + NEW LLMGraphTransformer
         from arete.processing.chunker import ChunkingStrategy
         from arete.services.enhanced_kg_service import EnhancedKnowledgeGraphService
+        from arete.services.llm_graph_transformer_service import LLMGraphTransformerService
         from arete.services.embedding_factory import get_embedding_service
         from arete.models.document import Document, ProcessingStatus
         
