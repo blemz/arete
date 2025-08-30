@@ -20,6 +20,9 @@ torch>=2.1.2
 spacy>=3.7.2
 datasets>=2.16.1
 
+# RAG Evaluation Framework
+ragas>=0.1.0
+
 # Document Processing
 pymupdf4llm>=0.0.5
 marker-pdf>=0.2.1

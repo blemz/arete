@@ -312,6 +312,19 @@
 | 📊 Create data quality dashboard and reporting | ⚠️ Medium | L | Quality pipeline | Frontend |
 | 📊 Implement data quality alerting system | ⚠️ Medium | M | Quality dashboard | DevOps |
 
+#### Problems to Solve:
+  1. Critical Enhancement Description: need to replace the current custom relationship extraction system with LangChain's LLMGraphTransformer
+  2. Problem Statement: 424 "entities not found" failures due to brittle pattern matching
+  3. Proposed Solution: Enhanced pipeline using LLMGraphTransformer for direct LLM-based triple extraction
+  4. Expected Benefits:
+    - Elimination of pattern matching dependency
+    - Canonical entity labels
+    - Improved accuracy for philosophical texts
+    - Clean output without markup fragments
+  5. Target Components: Focus on philosophical entities, works, and relationship mapping
+  6. Comprehensive Task Breakdown: 9 detailed tasks from research to optimization, prioritized by criticality
+  7. Updated Section Numbers: Renumbered the former "2.4 Data Validation" to "2.5" to accommodate the new phase
+
 **Milestone 2.4**: Comprehensive data quality assurance system
 
 ## Phase 3: Retrieval and RAG System (Weeks 7-10)
