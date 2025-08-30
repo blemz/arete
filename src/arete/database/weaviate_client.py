@@ -50,11 +50,12 @@ class WeaviateClient:
             host = parsed.hostname or 'localhost'
             port = parsed.port or 8080
             
-            # Use modern Weaviate client connection
+            # Use modern Weaviate client connection with skip_init_checks for Docker setup
             self.client = weaviate.connect_to_local(
                 host=host,
                 port=port,
-                headers=self.headers
+                headers=self.headers,
+                skip_init_checks=True  # Skip gRPC health check for Docker compatibility
             )
         except (WeaviateConnectionError, AuthenticationFailedException) as e:
             self.client = None

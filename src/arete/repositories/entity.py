@@ -67,19 +67,10 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
         """
         try:
             # Store in Neo4j for graph relationships and structured queries
-            # Note: relationships and mentions are stored as separate Neo4j relationships
-            neo4j_data = entity.to_neo4j_dict()
-            # Remove relationships and mentions from entity properties (they'll be stored separately)
-            neo4j_data.pop('relationships', None)
-            neo4j_data.pop('mentions', None)
-            
-            neo4j_result = await self._neo4j_client.create_node(
-                label='Entity',
-                properties=neo4j_data
-            )
+            neo4j_result = await self._neo4j_client.async_save_entity(entity)
             
             # Store in Weaviate for vector search
-            await self._weaviate_client.save_entity(entity)
+            weaviate_result = self._weaviate_client.save_entity(entity)
             
             logger.info(f"Created entity: {entity.id}")
             return entity

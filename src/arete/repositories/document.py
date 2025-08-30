@@ -64,13 +64,10 @@ class DocumentRepository(SearchableRepository[Document]):
         """
         try:
             # Store in Neo4j for graph relationships and structured queries
-            neo4j_result = await self._neo4j_client.create_node(
-                label='Document',
-                properties=entity.model_dump(exclude={'embeddings'})
-            )
+            neo4j_result = await self._neo4j_client.async_save_document(entity)
             
             # Store in Weaviate for vector search
-            await self._weaviate_client.save_entity(entity)
+            weaviate_result = self._weaviate_client.save_document(entity)
             
             logger.info(f"Created document: {entity.id}")
             return entity
