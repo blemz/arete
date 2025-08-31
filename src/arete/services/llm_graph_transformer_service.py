@@ -105,6 +105,19 @@ class PhilosophicalLLMGraphTransformer:
             # Get the appropriate LLM based on current configuration
             llm = self._create_langchain_llm()
             
+            # Test the LLM connection first with a simple call
+            print("[INFO] Testing LLM connection...")
+            try:
+                test_response = llm.invoke("Test connection")
+                if not test_response or not test_response.content:
+                    print(f"[WARN] LLM test failed - no response content")
+                    return None
+                print(f"[OK] LLM connection test successful")
+            except Exception as test_error:
+                print(f"[WARN] LLM connection test failed: {test_error}")
+                print(f"[INFO] This is likely due to missing API key or network issues")
+                return None
+            
             # Create philosophical extraction prompt
             philosophical_prompt = self._create_philosophical_prompt()
             
@@ -127,9 +140,12 @@ class PhilosophicalLLMGraphTransformer:
             return None
     
     def _create_langchain_llm(self):
-        """Create a LangChain LLM instance based on current configuration."""
-        provider = self.config.selected_llm_provider.lower()
-        model = self.config.selected_llm_model
+        """Create a LangChain LLM instance based on KG-specific configuration."""
+        # Use KG-specific LLM settings if available, otherwise fall back to global settings
+        provider = (self.config.kg_llm_provider or self.config.selected_llm_provider).lower()
+        model = self.config.kg_llm_model or self.config.selected_llm_model
+        
+        print(f"[INFO] Using KG LLM: provider={provider}, model={model}")
         
         if provider == "openai":
             return ChatOpenAI(
@@ -186,6 +202,9 @@ class PhilosophicalLLMGraphTransformer:
             print("[WARN] LLMGraphTransformer not available, using fallback extraction")
             return await self._fallback_extraction(text, document_id)
         
+        print(f"[DEBUG] LLMGraphTransformer available: {type(self.transformer)}")
+        print(f"[DEBUG] Transformer has convert_to_graph_documents: {hasattr(self.transformer, 'convert_to_graph_documents')}")
+        
         # Split text into chunks for better processing
         chunks = self._split_text(text, chunk_size)
         print(f"[INFO] Processing {len(chunks)} chunks for knowledge extraction...")
@@ -193,8 +212,12 @@ class PhilosophicalLLMGraphTransformer:
         all_entities = []
         all_relationships = []
         
-        for i, chunk in enumerate(chunks):
-            print(f"  [INFO] Processing chunk {i+1}/{len(chunks)}...")
+        # Limit processing to first 5 chunks to avoid API rate limits during testing
+        max_chunks = min(5, len(chunks))
+        print(f"[INFO] Processing first {max_chunks} chunks (rate limiting for testing)")
+        
+        for i, chunk in enumerate(chunks[:max_chunks]):
+            print(f"  [INFO] Processing chunk {i+1}/{max_chunks}...")
             
             try:
                 # Create LangChain document
@@ -203,10 +226,33 @@ class PhilosophicalLLMGraphTransformer:
                     metadata={"chunk_id": f"{document_id}_chunk_{i}", "document_id": document_id}
                 )
                 
-                # Transform to graph document
-                graph_docs = await asyncio.get_event_loop().run_in_executor(
-                    None, self.transformer.convert_to_graph_documents, [doc]
-                )
+                # Transform to graph document with timeout
+                try:
+                    # Add a timeout to prevent hanging
+                    graph_docs = await asyncio.wait_for(
+                        asyncio.get_event_loop().run_in_executor(
+                            None, self.transformer.convert_to_graph_documents, [doc]
+                        ),
+                        timeout=30.0  # 30 second timeout
+                    )
+                except asyncio.TimeoutError:
+                    print(f"    [ERROR] LLM transform timed out for chunk {i+1}")
+                    continue
+                except Exception as transform_error:
+                    print(f"    [ERROR] LLM transform failed for chunk {i+1}: {transform_error}")
+                    # For debugging: print the actual chunk content length and first 100 chars
+                    print(f"    [DEBUG] Chunk length: {len(chunk)}")
+                    print(f"    [DEBUG] Chunk preview: {chunk[:100]}...")
+                    continue
+                
+                # Check if graph_docs is valid
+                if graph_docs is None or not isinstance(graph_docs, list):
+                    print(f"    [WARN] No valid graph documents returned for chunk {i+1} (got type: {type(graph_docs)})")
+                    continue
+                
+                if len(graph_docs) == 0:
+                    print(f"    [WARN] Empty graph documents list for chunk {i+1}")
+                    continue
                 
                 # Extract entities and relationships
                 entities, relationships = self._process_graph_documents(graph_docs, document_id)
@@ -218,6 +264,7 @@ class PhilosophicalLLMGraphTransformer:
                 
             except Exception as e:
                 print(f"    [ERROR] Error processing chunk {i+1}: {e}")
+                print(f"    [DEBUG] Error type: {type(e).__name__}")
                 continue
         
         # Post-process results

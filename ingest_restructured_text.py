@@ -8,10 +8,20 @@ and semantic annotations for optimal RAG performance.
 
 Features:
 - Automatic database startup and initialization
+- **NEW**: LLM Graph Transformer integration for superior entity/relationship extraction
+- **NEW**: Hybrid extraction combining LLM + regex patterns for maximum coverage
 - Enhanced entity and relationship extraction from structured text
 - Batch embedding generation with AI-enhanced chunks
 - Direct storage in Neo4j (graph) + Weaviate (vectors)
 - Progress tracking and error handling
+
+LLM Graph Transformer Integration:
+- Uses LangChain's LLMGraphTransformer with philosophical domain schema
+- Supports OpenAI, Anthropic, OpenRouter for advanced extraction
+- Dedicated KG_LLM_PROVIDER/KG_LLM_MODEL configuration (falls back to global settings)
+- Graceful fallback to regex patterns when LLM unavailable
+- Combines both LLM and structured extraction for comprehensive results
+- Configurable via USE_LLM_GRAPH_TRANSFORMER environment variable
 """
 
 import asyncio
@@ -19,6 +29,7 @@ import sys
 import time
 import subprocess
 import re
+import os
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, timezone
@@ -37,6 +48,9 @@ from arete.database.client import Neo4jClient
 from arete.database.weaviate_client import WeaviateClient
 from arete.repositories.document import DocumentRepository
 from arete.repositories.entity import EntityRepository
+
+# Import LLM Graph Transformer for enhanced entity/relationship extraction
+from arete.services.llm_graph_transformer_service import LLMGraphTransformerService
 
 
 def start_databases() -> bool:
@@ -83,7 +97,25 @@ def start_databases() -> bool:
 class RestructuredTextParser:
     """Parse AI-restructured philosophical texts and extract enhanced data."""
     
-    def __init__(self):
+    def __init__(self, use_llm_graph_transformer: bool = True):
+        self.use_llm_graph_transformer = use_llm_graph_transformer
+        
+        # Initialize LLM Graph Transformer if requested and available
+        if self.use_llm_graph_transformer:
+            try:
+                self.llm_graph_transformer = LLMGraphTransformerService()
+                if self.llm_graph_transformer.is_available():
+                    print("SUCCESS: LLM Graph Transformer initialized for enhanced entity extraction")
+                else:
+                    print("WARNING: LLM Graph Transformer not available, falling back to regex patterns")
+                    self.llm_graph_transformer = None
+            except Exception as e:
+                print(f"WARNING: Failed to initialize LLM Graph Transformer: {e}")
+                print("Using regex-based extraction as fallback")
+                self.llm_graph_transformer = None
+        else:
+            self.llm_graph_transformer = None
+            
         self.entity_patterns = {
             'PERSON': r'\*\*(?:Philosopher|Character):\*\*\s*([^,\n]+)',
             'CONCEPT': r'\*\*Concept:\*\*\s*([^,\n]+)', 
@@ -130,8 +162,27 @@ class RestructuredTextParser:
         
         return metadata
     
-    def extract_entities(self, text: str, document_id: str) -> List[Entity]:
-        """Extract entities from AI-restructured text."""
+    async def extract_entities(self, text: str, document_id: str) -> List[Entity]:
+        """Extract entities from AI-restructured text using LLM Graph Transformer + regex hybrid approach."""
+        all_entities = []
+        
+        # First try LLM Graph Transformer for high-quality extraction
+        if self.llm_graph_transformer and self.llm_graph_transformer.is_available():
+            try:
+                print("Using LLM Graph Transformer for enhanced entity extraction...")
+                llm_entities, _ = await self.llm_graph_transformer.extract_knowledge_graph(text, document_id)
+                
+                if llm_entities:
+                    print(f"LLM Graph Transformer extracted {len(llm_entities)} entities")
+                    all_entities.extend(llm_entities)
+                else:
+                    print("LLM Graph Transformer returned no entities")
+                    
+            except Exception as e:
+                print(f"Warning: LLM Graph Transformer failed: {e}")
+        
+        # Always also run regex extraction for AI-structured markup patterns
+        print("Running regex-based extraction for AI-structured markup...")
         entities = []
         
         for entity_type, pattern in self.entity_patterns.items():
@@ -144,11 +195,15 @@ class RestructuredTextParser:
                     cleaned_name = self._clean_entity_name(entity_name)
                     if cleaned_name and len(cleaned_name) > 1:
                         try:
+                            # Handle UUID conversion if needed
+                            from uuid import UUID
+                            source_doc_id = UUID(document_id) if isinstance(document_id, str) else document_id
+                            
                             entity = Entity(
                                 name=cleaned_name,
                                 entity_type=EntityType(entity_type.lower()),
                                 confidence=0.95,  # High confidence for AI-structured data
-                                source_document_id=document_id,
+                                source_document_id=source_doc_id,
                                 description=f"Extracted from AI-restructured {entity_type.lower()} markup"
                             )
                             entities.append(entity)
@@ -159,10 +214,48 @@ class RestructuredTextParser:
                             except UnicodeEncodeError:
                                 print(f"Warning: Unknown entity type {entity_type} for [entity with special chars]")
         
-        return entities
+        # Combine LLM and regex entities, removing duplicates
+        all_entities.extend(entities)
+        
+        if all_entities:
+            # Deduplicate by name (case-insensitive)
+            unique_entities: Dict[str, Entity] = {}
+            for entity in all_entities:
+                key = entity.name.lower().strip()
+                if key not in unique_entities or entity.confidence > unique_entities[key].confidence:
+                    unique_entities[key] = entity
+            
+            final_entities = list(unique_entities.values())
+            print(f"Combined extraction: {len(final_entities)} unique entities")
+            print(f"  LLM extracted: {len(all_entities) - len(entities)}")
+            print(f"  Regex extracted: {len(entities)}")
+            print(f"  Final unique: {len(final_entities)}")
+            
+            return final_entities
+        
+        return []
     
-    def extract_relationships(self, text: str) -> List[Dict[str, Any]]:
-        """Extract relationships using both structured markup and intelligent NLP."""
+    async def extract_relationships(self, text: str, document_id: str) -> List[Dict[str, Any]]:
+        """Extract relationships using LLM Graph Transformer + structured/NLP hybrid approach."""
+        all_relationships = []
+        
+        # First try LLM Graph Transformer for high-quality extraction
+        if self.llm_graph_transformer and self.llm_graph_transformer.is_available():
+            try:
+                print("Using LLM Graph Transformer for enhanced relationship extraction...")
+                _, llm_relationships = await self.llm_graph_transformer.extract_knowledge_graph(text, document_id)
+                
+                if llm_relationships:
+                    print(f"LLM Graph Transformer extracted {len(llm_relationships)} relationships")
+                    all_relationships.extend(llm_relationships)
+                else:
+                    print("LLM Graph Transformer returned no relationships")
+                    
+            except Exception as e:
+                print(f"Warning: LLM Graph Transformer failed: {e}")
+        
+        # Always also run structured/NLP extraction
+        print("Running structured/NLP relationship extraction...")
         relationships = []
         
         # Method 1: Structured markup (existing patterns)
@@ -177,8 +270,21 @@ class RestructuredTextParser:
         causal_rels = self._extract_causal_chains(text)
         relationships.extend(causal_rels)
         
-        # Deduplicate similar relationships
-        return self._deduplicate_relationships(relationships)
+        # Combine LLM and structured relationships, removing duplicates
+        all_relationships.extend(relationships)
+        
+        if all_relationships:
+            print(f"Combined relationship extraction: {len(all_relationships)} total relationships")
+            print(f"  LLM extracted: {len(all_relationships) - len(relationships)}")
+            print(f"  Structured/NLP extracted: {len(relationships)}")
+            
+            # Deduplicate similar relationships
+            final_relationships = self._deduplicate_relationships(all_relationships)
+            print(f"  Final unique: {len(final_relationships)}")
+            
+            return final_relationships
+        
+        return []
     
     def _extract_structured_relationships(self, text: str) -> List[Dict[str, Any]]:
         """Extract relationships from structured markup patterns."""
@@ -208,7 +314,7 @@ class RestructuredTextParser:
     
     def _extract_nlp_relationships(self, text: str) -> List[Dict[str, Any]]:
         """Extract relationships between simple entities using targeted patterns."""
-        relationships = []
+        relationships: List[Dict[str, Any]] = []
         
         # First, extract all potential entity mentions (names, concepts)
         entity_mentions = set()
@@ -649,11 +755,16 @@ async def ingest_restructured_text(markdown_path: str) -> Dict[str, Any]:
         
     except Exception as e:
         print(f"ERROR: Failed to read file: {e}")
-        return None
+        return {}
     
     # Step 2: Parse metadata and create document
     print("\n=== Step 2: Parsing Metadata and Creating Document ===")
-    parser = RestructuredTextParser()
+    
+    # Check for LLM Graph Transformer enablement via environment or default to True
+    import os
+    use_llm_transformer = os.getenv('USE_LLM_GRAPH_TRANSFORMER', 'true').lower() == 'true'
+    
+    parser = RestructuredTextParser(use_llm_graph_transformer=use_llm_transformer)
     metadata = parser.parse_metadata(markdown_content)
     
     document = Document(
@@ -692,11 +803,11 @@ async def ingest_restructured_text(markdown_path: str) -> Dict[str, Any]:
     
     # Step 4: Extract enhanced entities from AI markup
     print("\n=== Step 4: Extracting Enhanced Entities from AI Markup ===")
-    entities = parser.extract_entities(markdown_content, str(document.id))
+    entities = await parser.extract_entities(markdown_content, str(document.id))
     
     print(f"SUCCESS: Extracted {len(entities)} entities from AI markup")
     if entities:
-        entity_types = {}
+        entity_types: Dict[str, int] = {}
         for entity in entities:
             entity_type = entity.entity_type.value if hasattr(entity.entity_type, 'value') else str(entity.entity_type)
             entity_types[entity_type] = entity_types.get(entity_type, 0) + 1
@@ -707,11 +818,11 @@ async def ingest_restructured_text(markdown_path: str) -> Dict[str, Any]:
     
     # Step 5: Extract relationships from AI markup
     print("\n=== Step 5: Extracting Relationships from AI Markup ===")
-    relationships = parser.extract_relationships(markdown_content)
+    relationships = await parser.extract_relationships(markdown_content, str(document.id))
     
     print(f"SUCCESS: Extracted {len(relationships)} relationships from AI markup")
     if relationships:
-        rel_types = {}
+        rel_types: Dict[str, int] = {}
         for rel in relationships:
             rel_type = rel['relation']
             rel_types[rel_type] = rel_types.get(rel_type, 0) + 1
@@ -922,13 +1033,25 @@ async def store_in_databases(result_data: Dict[str, Any]) -> bool:
             pass
 
 
-def main():
+def main() -> None:
     """Ingest AI-restructured philosophical texts with automated storage."""
     if len(sys.argv) != 2:
         print("Usage: python ingest_restructured_text.py <path_to_ai_restructured_markdown>")
         print("\nIngest your AI-restructured philosophical texts:")
         print("  python ingest_restructured_text.py \"processed_texts/Socratis Dialogues_First_2_books_ai_restructured.md\"")
         print("  python ingest_restructured_text.py \"processed_texts/Plato_Republic_ai_restructured.md\"")
+        print("\nExample with KG-specific LLM:")
+        print("  export KG_LLM_PROVIDER=openai")
+        print("  export KG_LLM_MODEL=gpt-4o-mini")
+        print("  export OPENAI_API_KEY=your-api-key")
+        print("  python ingest_restructured_text.py \"path/to/text.md\"")
+        print("\nConfiguration:")
+        print("  See .env for complete KG_LLM_* configuration options")
+        print("  Key variables:")
+        print("    USE_LLM_GRAPH_TRANSFORMER=true/false  # Enable/disable LLM extraction")
+        print("    KG_LLM_PROVIDER=openai/anthropic/openrouter  # KG LLM provider")
+        print("    KG_LLM_MODEL=<model_name>  # KG-specific model")
+        print("  Falls back to SELECTED_LLM_* if KG_LLM_* not set")
         return
     
     markdown_path = sys.argv[1]
@@ -940,7 +1063,8 @@ def main():
     print(f">> Arete AI-Restructured Text Ingestion System")
     print(f"Processing: {Path(markdown_path).name}")
     print(f"Mode: AI-Enhanced RAG Ingestion")
-    print(f"Features: Semantic Chunks + Enhanced Entities + AI Relationships + Vector Embeddings")
+    print(f"Features: Semantic Chunks + LLM Graph Transformer + Enhanced Entities + AI Relationships + Vector Embeddings")
+    print(f"LLM Graph Transformer: {'Enabled' if os.getenv('USE_LLM_GRAPH_TRANSFORMER', 'true').lower() == 'true' else 'Disabled'}")
     print("=" * 80)
     
     # Step 0: Start databases automatically
