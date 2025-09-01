@@ -4,8 +4,8 @@
 **Processing Mode:** full_restructure
 **AI Provider:** openrouter
 **AI Model:** deepseek/deepseek-chat-v3.1:free
-**Author:** Unknown
-**Work:** Unknown
+**Author:** Plato
+**Work:** Apology (First Book) and Charmides (Seccond Book)
 **Original Length:** 117,451 chars
 **Restructured Length:** 365,006 chars
 **Processing Date:** 2025-08-29 20:06:13

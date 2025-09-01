@@ -772,19 +772,29 @@ async def ingest_restructured_text(markdown_path: str) -> Dict[str, Any]:
     parser = RestructuredTextParser(use_llm_graph_transformer=use_llm_transformer)
     metadata = parser.parse_metadata(markdown_content)
     
+    # Get current LLM configuration for accurate metadata
+    config = get_settings()
+    current_provider = config.kg_llm_provider or config.selected_llm_provider
+    current_model = config.kg_llm_model or config.selected_llm_model
+    
+    # Clean up author name - replace "Unknown" with more descriptive fallback
+    author = metadata.get('author', 'Classical Philosopher')
+    if author and author.lower().strip() == 'unknown':
+        author = 'Classical Philosopher'
+    
     document = Document(
         title=metadata.get('work_title', Path(markdown_path).stem.replace('_ai_restructured', '')),
-        author=metadata.get('author', 'Classical Philosopher'),
+        author=author,
         content=markdown_content,
         language='English (AI-Enhanced)',
         source='AI-Restructured Classical Text',
         processing_status=ProcessingStatus.PROCESSING,
         word_count=len(markdown_content.split()),
         metadata={
-            'ai_provider': metadata.get('ai_provider', 'Unknown'),
-            'ai_model': metadata.get('ai_model', 'Unknown'),
-            'period': metadata.get('period', 'Unknown'),
-            'text_type': metadata.get('text_type', 'Unknown'),
+            'ai_provider': current_provider,  # Use actual LLM provider
+            'ai_model': current_model,        # Use actual LLM model
+            'period': metadata.get('period', 'Classical Period'),
+            'text_type': metadata.get('text_type', 'Philosophical Dialogue'),
             'restructured': True,
             'ingestion_date': datetime.now(timezone.utc).isoformat()
         }
@@ -836,14 +846,45 @@ async def ingest_restructured_text(markdown_path: str) -> Dict[str, Any]:
         for rel_type, count in rel_types.items():
             print(f"     {rel_type}: {count}")
     
-    # Step 6: Skip embeddings for now (focus on database storage testing)
-    print(f"\n=== Step 6: Skipping Embeddings (Testing Database Storage) ===")
-    print(f"SKIPPED: Embedding generation disabled for testing")
-    print(f"   Chunks ready for storage: {len(chunks)}")
+    # Step 6: Generate embeddings for semantic chunks
+    print(f"\n=== Step 6: Generating Embeddings for Semantic Chunks ===")
+    print(f"Generating embeddings for {len(chunks)} chunks...")
     
-    # Clear any existing embeddings
-    for chunk in chunks:
-        chunk.embedding_vector = None
+    try:
+        # Initialize embedding service
+        embedding_service = get_embedding_service()
+        print(f"Using embedding service: {embedding_service.__class__.__name__}")
+        
+        # Generate embeddings in batches for efficiency
+        batch_size = 50
+        embeddings_generated = 0
+        
+        for i in range(0, len(chunks), batch_size):
+            batch = chunks[i:i + batch_size]
+            batch_texts = [chunk.text for chunk in batch]
+            
+            print(f"   Processing batch {i//batch_size + 1}/{(len(chunks)-1)//batch_size + 1} ({len(batch)} chunks)...")
+            
+            # Generate embeddings for batch
+            batch_embeddings = embedding_service.generate_embeddings_batch(batch_texts)
+            
+            # Assign embeddings to chunks
+            for chunk, embedding in zip(batch, batch_embeddings):
+                chunk.embedding_vector = embedding
+                embeddings_generated += 1
+            
+            # Progress update for large batches
+            if embeddings_generated % 100 == 0 or embeddings_generated == len(chunks):
+                print(f"   Progress: {embeddings_generated}/{len(chunks)} embeddings generated")
+        
+        print(f"SUCCESS: Generated {embeddings_generated} embeddings")
+        
+    except Exception as e:
+        print(f"ERROR: Embedding generation failed: {e}")
+        print(f"   Continuing without embeddings...")
+        # Clear any partial embeddings
+        for chunk in chunks:
+            chunk.embedding_vector = None
     
     total_time = time.time() - start_time
     

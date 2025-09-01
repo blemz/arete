@@ -105,6 +105,10 @@ class PhilosophicalLLMGraphTransformer:
             # Get the appropriate LLM based on current configuration
             llm = self._create_langchain_llm()
             
+            # Get the actual KG provider being used
+            kg_provider = (self.config.kg_llm_provider or self.config.selected_llm_provider).lower()
+            kg_model = self.config.kg_llm_model or self.config.selected_llm_model
+            
             # Test the LLM connection first with a simple call
             print("[INFO] Testing LLM connection...")
             try:
@@ -129,7 +133,7 @@ class PhilosophicalLLMGraphTransformer:
                 prompt=philosophical_prompt
             )
             
-            print(f"[OK] Successfully initialized LLMGraphTransformer with {self.config.selected_llm_provider}")
+            print(f"[OK] Successfully initialized LLMGraphTransformer with {kg_provider} ({kg_model})")
             return transformer
             
         except ImportError as e:
