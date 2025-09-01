@@ -4,7 +4,7 @@ Following TDD principles - tests written before implementation.
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 
 import pytest
@@ -436,7 +436,7 @@ class TestDocument:
 
         # Update processing status
         document.processing_status = ProcessingStatus.PROCESSING
-        document.updated_at = datetime.utcnow()
+        document.updated_at = datetime.now(timezone.utc)
 
         assert document.processing_status == ProcessingStatus.PROCESSING
         assert document.updated_at != original_updated_at
@@ -604,7 +604,7 @@ class TestDocumentIntegration:
         document.word_count = document.computed_word_count
         document.chunk_count = len(chunks)
         document.processing_status = ProcessingStatus.COMPLETED
-        document.updated_at = datetime.utcnow()
+        document.updated_at = datetime.now(timezone.utc)
 
         # 5. Test serialization for both databases
         neo4j_data = document.to_neo4j_dict()

@@ -7,7 +7,7 @@ knowledge graph construction.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Dict, Any, Optional, Union
 from uuid import UUID, uuid4
@@ -86,7 +86,7 @@ class ValidationItem(BaseModel):
     def add_annotation(self, annotation: ExpertAnnotation) -> None:
         """Add an expert annotation."""
         self.annotations.append(annotation)
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
         
         # Update status if this is the first annotation or if it changes status
         if not self.final_status or annotation.status != self.status:
@@ -416,7 +416,7 @@ class ExpertValidationService:
             "validation_items": [item.dict() for item in self._validation_queue.values()],
             "expert_assignments": self._expert_assignments,
             "statistics": self.get_validation_statistics(),
-            "export_timestamp": datetime.utcnow().isoformat(),
+            "export_timestamp": datetime.now(timezone.utc).isoformat(),
             "thresholds": {
                 "min_consensus_threshold": self.min_consensus_threshold,
                 "min_expert_reviews": self.min_expert_reviews,

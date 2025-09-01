@@ -716,12 +716,19 @@ class RestructuredTextParser:
     
     def _create_chunk(self, text: str, document_id: str, chunk_index: int, section_title: str) -> Chunk:
         """Helper method to create a chunk with consistent metadata."""
+        # Calculate character positions
+        start_char = chunk_index * 1000  # Approximate position
+        end_char = start_char + len(text)
+        
         return Chunk(
             text=text,
             chunk_type=ChunkType.SEMANTIC,
             document_id=document_id,
-            start_position=chunk_index * 1000,  # Approximate position
-            end_position=(chunk_index + 1) * 1000,
+            position=chunk_index,  # Sequential position in document
+            start_char=start_char,  # Starting character position
+            end_char=end_char,  # Ending character position
+            start_position=start_char,  # Keep for backwards compatibility
+            end_position=end_char,
             sequence_number=chunk_index,
             word_count=len(text.split()),
             metadata={

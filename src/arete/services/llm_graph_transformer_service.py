@@ -185,7 +185,7 @@ class PhilosophicalLLMGraphTransformer:
         self, 
         text: str, 
         document_id: str,
-        chunk_size: int = 2000
+        chunk_size: int = 2000  # Optimal size for maintaining context in philosophical texts
     ) -> Tuple[List[Entity], List[Dict[str, Any]]]:
         """
         Extract knowledge graph from philosophical text.
@@ -216,8 +216,17 @@ class PhilosophicalLLMGraphTransformer:
         max_chunks = min(5, len(chunks))
         print(f"[INFO] Processing first {max_chunks} chunks (rate limiting for testing)")
         
+        # Add delay between requests to respect rate limits (500 RPM = ~8.3 requests per second max)
+        # We'll be conservative and do 1 request per 2 seconds
+        request_delay = 2.0  # seconds between requests
+        
         for i, chunk in enumerate(chunks[:max_chunks]):
-            print(f"  [INFO] Processing chunk {i+1}/{max_chunks}...")
+            print(f"  [INFO] Processing chunk {i+1}/{max_chunks} (size: {len(chunk)} chars)...")
+            
+            # Add delay between requests (except for the first one)
+            if i > 0:
+                print(f"  [INFO] Waiting {request_delay}s to respect rate limits...")
+                await asyncio.sleep(request_delay)
             
             try:
                 # Create LangChain document
@@ -228,22 +237,41 @@ class PhilosophicalLLMGraphTransformer:
                 
                 # Transform to graph document with timeout
                 try:
-                    # Add a timeout to prevent hanging
+                    # Increased timeout for complex graph extraction
                     graph_docs = await asyncio.wait_for(
                         asyncio.get_event_loop().run_in_executor(
                             None, self.transformer.convert_to_graph_documents, [doc]
                         ),
-                        timeout=30.0  # 30 second timeout
+                        timeout=120.0  # Increased to 120 seconds for gpt-5-mini model
                     )
                 except asyncio.TimeoutError:
-                    print(f"    [ERROR] LLM transform timed out for chunk {i+1}")
+                    print(f"    [ERROR] LLM transform timed out for chunk {i+1} after 120s")
+                    print(f"    [DEBUG] This may be due to rate limits (500 RPM) or API issues")
+                    print(f"    [DEBUG] Model: {self.llm_model}, Provider: {self.llm_provider}")
                     continue
                 except Exception as transform_error:
-                    print(f"    [ERROR] LLM transform failed for chunk {i+1}: {transform_error}")
-                    # For debugging: print the actual chunk content length and first 100 chars
-                    print(f"    [DEBUG] Chunk length: {len(chunk)}")
-                    print(f"    [DEBUG] Chunk preview: {chunk[:100]}...")
-                    continue
+                    error_msg = str(transform_error).lower()
+                    if "rate" in error_msg or "429" in error_msg or "quota" in error_msg:
+                        print(f"    [ERROR] Rate limit hit for chunk {i+1}: {transform_error}")
+                        print(f"    [INFO] Waiting 10 seconds before retrying...")
+                        await asyncio.sleep(10)
+                        # Retry once after rate limit
+                        try:
+                            graph_docs = await asyncio.wait_for(
+                                asyncio.get_event_loop().run_in_executor(
+                                    None, self.transformer.convert_to_graph_documents, [doc]
+                                ),
+                                timeout=120.0
+                            )
+                        except Exception as retry_error:
+                            print(f"    [ERROR] Retry failed: {retry_error}")
+                            continue
+                    else:
+                        print(f"    [ERROR] LLM transform failed for chunk {i+1}: {transform_error}")
+                        # For debugging: print the actual chunk content length and first 100 chars
+                        print(f"    [DEBUG] Chunk length: {len(chunk)}")
+                        print(f"    [DEBUG] Chunk preview: {chunk[:100]}...")
+                        continue
                 
                 # Check if graph_docs is valid
                 if graph_docs is None or not isinstance(graph_docs, list):
