@@ -39,7 +39,9 @@
       "Bash(timeout:*)",
       "Bash(grep:*)",
       "mcp__serena__write_memory",
-      "mcp__serena__check_onboarding_performed"
+      "mcp__serena__check_onboarding_performed",
+      "Bash(streamlit run:*)",
+      "mcp__playwright__browser_resize"
     ],
     "deny": []
   },

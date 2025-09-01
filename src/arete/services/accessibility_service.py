@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Tuple
 from enum import Enum
 import re
 from dataclasses import dataclass
-from src.arete.models.user_preferences import Theme
+from arete.models.user_preferences import Theme
 
 
 class AccessibilityLevel(Enum):
@@ -68,8 +68,389 @@ class AccessibilityService:
             self._get_responsive_css(compact_mode)
         ]
         
-        return "\\n".join(filter(None, css_parts))
+        return "\n".join(filter(None, css_parts))
     
     def _get_base_accessibility_css(self) -> str:
         """Get base accessibility CSS that applies to all themes."""
-        return \"\"\"\n        <style>\n        /* WCAG 2.1 AA Base Accessibility Styles */\n        \n        /* Focus management */\n        *:focus {\n            outline: 3px solid #4A90E2 !important;\n            outline-offset: 2px !important;\n        }\n        \n        /* Skip links for screen readers */\n        .skip-link {\n            position: absolute;\n            top: -40px;\n            left: 6px;\n            background: #000000;\n            color: #ffffff;\n            padding: 8px;\n            text-decoration: none;\n            border-radius: 3px;\n            z-index: 1000;\n        }\n        .skip-link:focus {\n            top: 6px;\n        }\n        \n        /* Ensure minimum touch target size (44px) */\n        button, .stButton > button, [role=\"button\"] {\n            min-height: 44px !important;\n            min-width: 44px !important;\n            padding: 8px 16px !important;\n        }\n        \n        /* Text selection and readability */\n        .main {\n            line-height: 1.5 !important;\n            word-spacing: 0.16em !important;\n        }\n        \n        /* Paragraph spacing */\n        p {\n            margin-bottom: 1em !important;\n        }\n        \n        /* Link accessibility */\n        a {\n            text-decoration: underline !important;\n        }\n        a:focus, a:hover {\n            text-decoration: underline !important;\n            outline: 2px solid currentColor !important;\n            outline-offset: 2px !important;\n        }\n        \n        /* Form accessibility */\n        input, textarea, select {\n            border: 2px solid #666 !important;\n        }\n        input:focus, textarea:focus, select:focus {\n            border-color: #4A90E2 !important;\n            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.3) !important;\n        }\n        \n        /* Error and status messages */\n        [role=\"alert\"], .stAlert {\n            border: 2px solid currentColor !important;\n            padding: 1rem !important;\n            margin: 1rem 0 !important;\n        }\n        \n        /* Table accessibility */\n        table {\n            border-collapse: collapse !important;\n        }\n        th, td {\n            border: 1px solid #666 !important;\n            padding: 8px !important;\n        }\n        th {\n            font-weight: bold !important;\n            background-color: rgba(0, 0, 0, 0.05) !important;\n        }\n        \"\"\"\n        \n    def _get_theme_specific_css(self, theme: Theme) -> str:\n        \"\"\"Get theme-specific CSS with WCAG compliant colors.\"\"\"\n        if theme == Theme.LIGHT:\n            return \"\"\"\n            /* Light Theme - WCAG AA Compliant */\n            .stApp {\n                background-color: #ffffff !important;\n                color: #212529 !important;\n            }\n            .stSidebar {\n                background-color: #f8f9fa !important;\n                border-right: 1px solid #dee2e6 !important;\n            }\n            .stChatMessage[data-testid=\"message\"] {\n                background-color: #f8f9fa !important;\n                border-left: 4px solid #007bff !important;\n                color: #212529 !important;\n            }\n            \"\"\"\n            \n        elif theme == Theme.DARK:\n            return \"\"\"\n            /* Dark Theme - WCAG AA Compliant */\n            .stApp {\n                background-color: #212529 !important;\n                color: #f8f9fa !important;\n            }\n            .stSidebar {\n                background-color: #343a40 !important;\n                border-right: 1px solid #495057 !important;\n            }\n            .stChatMessage[data-testid=\"message\"] {\n                background-color: #343a40 !important;\n                border-left: 4px solid #17a2b8 !important;\n                color: #f8f9fa !important;\n            }\n            \"\"\"\n            \n        elif theme == Theme.HIGH_CONTRAST:\n            return \"\"\"\n            /* High Contrast Theme - WCAG AAA Compliant */\n            .stApp {\n                background-color: #000000 !important;\n                color: #ffffff !important;\n            }\n            .stSidebar {\n                background-color: #000000 !important;\n                border-right: 3px solid #ffffff !important;\n            }\n            .stChatMessage[data-testid=\"message\"] {\n                background-color: #000000 !important;\n                border: 3px solid #ffffff !important;\n                color: #ffffff !important;\n            }\n            /* Enhanced focus for high contrast */\n            *:focus {\n                outline: 4px solid #ffff00 !important;\n                outline-offset: 2px !important;\n            }\n            \"\"\"\n            \n        elif theme == Theme.SEPIA:\n            return \"\"\"\n            /* Sepia Theme - WCAG AA Compliant */\n            .stApp {\n                background-color: #f4f3e7 !important;\n                color: #3d3020 !important;\n            }\n            .stSidebar {\n                background-color: #ede7d3 !important;\n                border-right: 1px solid #c4b896 !important;\n            }\n            .stChatMessage[data-testid=\"message\"] {\n                background-color: #ede7d3 !important;\n                border-left: 4px solid #8b7355 !important;\n                color: #3d3020 !important;\n            }\n            \"\"\"\n            \n        return \"\"\n        \n    def _get_font_accessibility_css(self, font_size: str) -> str:\n        \"\"\"Get font accessibility CSS with proper sizing and spacing.\"\"\"\n        font_sizes = {\n            \"small\": \"0.9rem\",\n            \"medium\": \"1rem\", \n            \"large\": \"1.25rem\",\n            \"extra_large\": \"1.5rem\"\n        }\n        \n        size = font_sizes.get(font_size, \"1rem\")\n        \n        return f\"\"\"\n        /* Font Accessibility */\n        .main {{\n            font-size: {size} !important;\n            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif !important;\n        }}\n        \n        /* Ensure relative sizing for better scalability */\n        h1 {{ font-size: calc({size} * 2.5) !important; }}\n        h2 {{ font-size: calc({size} * 2) !important; }}\n        h3 {{ font-size: calc({size} * 1.75) !important; }}\n        h4 {{ font-size: calc({size} * 1.5) !important; }}\n        h5 {{ font-size: calc({size} * 1.25) !important; }}\n        h6 {{ font-size: calc({size} * 1.1) !important; }}\n        \n        /* Improve text spacing */\n        p, li {{\n            line-height: 1.6 !important;\n            margin-bottom: 0.75em !important;\n        }}\n        \"\"\"\n        \n    def _get_focus_indicators_css(self) -> str:\n        \"\"\"Get CSS for enhanced focus indicators.\"\"\"\n        if not self.config.enable_focus_indicators:\n            return \"\"\n            \n        return \"\"\"\n        /* Enhanced Focus Indicators */\n        .stSelectbox > div > div:focus-within {\n            outline: 3px solid #4A90E2 !important;\n            outline-offset: 2px !important;\n        }\n        \n        .stTextInput > div > div > input:focus {\n            outline: 3px solid #4A90E2 !important;\n            outline-offset: 2px !important;\n            border-color: #4A90E2 !important;\n        }\n        \n        .stTextArea > div > div > textarea:focus {\n            outline: 3px solid #4A90E2 !important;\n            outline-offset: 2px !important;\n            border-color: #4A90E2 !important;\n        }\n        \n        /* Tab navigation indicators */\n        .stTabs [role=\"tab\"]:focus {\n            outline: 3px solid #4A90E2 !important;\n            outline-offset: 2px !important;\n        }\n        \"\"\"\n        \n    def _get_keyboard_navigation_css(self) -> str:\n        \"\"\"Get CSS for enhanced keyboard navigation.\"\"\"\n        if not self.config.enable_keyboard_navigation:\n            return \"\"\n            \n        return \"\"\"\n        /* Keyboard Navigation Enhancement */\n        [tabindex]:focus {\n            outline: 3px solid #4A90E2 !important;\n            outline-offset: 2px !important;\n        }\n        \n        /* Skip navigation */\n        .skip-nav {\n            position: absolute;\n            top: -40px;\n            left: 6px;\n            background: #4A90E2;\n            color: white;\n            padding: 8px;\n            text-decoration: none;\n            z-index: 1000;\n        }\n        .skip-nav:focus {\n            top: 6px;\n        }\n        \n        /* Ensure keyboard users can see hover states */\n        button:focus, .stButton > button:focus {\n            background-color: #0056b3 !important;\n            border-color: #004085 !important;\n        }\n        \"\"\"\n        \n    def _get_screen_reader_css(self) -> str:\n        \"\"\"Get CSS for screen reader support.\"\"\"\n        if not self.config.enable_screen_reader_support:\n            return \"\"\n            \n        return \"\"\"\n        /* Screen Reader Support */\n        .sr-only {\n            position: absolute !important;\n            width: 1px !important;\n            height: 1px !important;\n            padding: 0 !important;\n            margin: -1px !important;\n            overflow: hidden !important;\n            clip: rect(0, 0, 0, 0) !important;\n            white-space: nowrap !important;\n            border: 0 !important;\n        }\n        \n        .sr-only-focusable:focus {\n            position: static !important;\n            width: auto !important;\n            height: auto !important;\n            padding: inherit !important;\n            margin: inherit !important;\n            overflow: visible !important;\n            clip: auto !important;\n            white-space: normal !important;\n        }\n        \n        /* Ensure content is announced properly */\n        [aria-live=\"polite\"], [aria-live=\"assertive\"] {\n            position: absolute;\n            left: -10000px;\n            width: 1px;\n            height: 1px;\n            overflow: hidden;\n        }\n        \"\"\"\n        \n    def _get_motion_css(self, animations_enabled: bool) -> str:\n        \"\"\"Get CSS for motion and animation control.\"\"\"\n        if animations_enabled and not self.config.reduce_motion:\n            return \"\"\"\n            /* Respectful animations */\n            .stSpinner {\n                animation-duration: 1s !important;\n            }\n            \"\"\"\n        else:\n            return \"\"\"\n            /* Reduced motion */\n            *, *::before, *::after {\n                animation-duration: 0.01ms !important;\n                animation-iteration-count: 1 !important;\n                transition-duration: 0.01ms !important;\n                scroll-behavior: auto !important;\n            }\n            \n            @media (prefers-reduced-motion: reduce) {\n                *, *::before, *::after {\n                    animation-duration: 0.01ms !important;\n                    animation-iteration-count: 1 !important;\n                    transition-duration: 0.01ms !important;\n                }\n            }\n            \"\"\"\n            \n    def _get_responsive_css(self, compact_mode: bool) -> str:\n        \"\"\"Get responsive CSS for different screen sizes.\"\"\"\n        base_responsive = \"\"\"\n        /* Responsive Design */\n        @media (max-width: 768px) {\n            .main {\n                padding: 1rem 0.5rem !important;\n            }\n            \n            button, .stButton > button {\n                min-height: 48px !important;\n                min-width: 48px !important;\n                font-size: 1.1rem !important;\n            }\n            \n            .stTextInput input, .stTextArea textarea {\n                font-size: 16px !important; /* Prevent zoom on iOS */\n            }\n        }\n        \n        @media (max-width: 480px) {\n            .main {\n                font-size: 1.1rem !important;\n            }\n            \n            button, .stButton > button {\n                min-height: 52px !important;\n                padding: 12px 20px !important;\n            }\n        }\n        \"\"\"\n        \n        if compact_mode:\n            base_responsive += \"\"\"\n            /* Compact Mode */\n            .stChatMessage {\n                margin: 0.25rem 0 !important;\n                padding: 0.75rem !important;\n            }\n            \n            .main {\n                padding-top: 1rem !important;\n            }\n            \"\"\"\n            \n        return base_responsive + \"</style>\"\n        \n    def calculate_color_contrast_ratio(self, foreground: str, background: str) -> float:\n        \"\"\"Calculate the contrast ratio between two colors.\"\"\"\n        cache_key = (foreground, background)\n        if cache_key in self._contrast_cache:\n            return self._contrast_cache[cache_key]\n            \n        def hex_to_rgb(hex_color: str) -> Tuple[int, int, int]:\n            \"\"\"Convert hex color to RGB.\"\"\"\n            hex_color = hex_color.lstrip('#')\n            return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))\n            \n        def relative_luminance(rgb: Tuple[int, int, int]) -> float:\n            \"\"\"Calculate relative luminance of an RGB color.\"\"\"\n            r, g, b = [c / 255.0 for c in rgb]\n            \n            def gamma_correct(c: float) -> float:\n                return c / 12.92 if c <= 0.03928 else pow((c + 0.055) / 1.055, 2.4)\n                \n            return 0.2126 * gamma_correct(r) + 0.7152 * gamma_correct(g) + 0.0722 * gamma_correct(b)\n            \n        try:\n            fg_rgb = hex_to_rgb(foreground)\n            bg_rgb = hex_to_rgb(background)\n            \n            fg_lum = relative_luminance(fg_rgb)\n            bg_lum = relative_luminance(bg_rgb)\n            \n            lighter = max(fg_lum, bg_lum)\n            darker = min(fg_lum, bg_lum)\n            \n            ratio = (lighter + 0.05) / (darker + 0.05)\n            \n            self._contrast_cache[cache_key] = ratio\n            return ratio\n            \n        except (ValueError, IndexError):\n            return 1.0  # Default to failing ratio\n            \n    def validate_wcag_compliance(self, theme: Theme) -> Dict[str, bool]:\n        \"\"\"Validate WCAG 2.1 AA compliance for a theme.\"\"\"\n        compliance_results = {\n            'contrast_ratio_normal': False,\n            'contrast_ratio_large': False,\n            'focus_indicators': self.config.enable_focus_indicators,\n            'keyboard_navigation': self.config.enable_keyboard_navigation,\n            'screen_reader_support': self.config.enable_screen_reader_support\n        }\n        \n        # Define color pairs for each theme\n        theme_colors = {\n            Theme.LIGHT: [(\"#212529\", \"#ffffff\"), (\"#007bff\", \"#f8f9fa\")],\n            Theme.DARK: [(\"#f8f9fa\", \"#212529\"), (\"#17a2b8\", \"#343a40\")],\n            Theme.HIGH_CONTRAST: [(\"#ffffff\", \"#000000\")],\n            Theme.SEPIA: [(\"#3d3020\", \"#f4f3e7\"), (\"#8b7355\", \"#ede7d3\")]\n        }\n        \n        colors = theme_colors.get(theme, [(\"#000000\", \"#ffffff\")])\n        \n        for fg, bg in colors:\n            ratio = self.calculate_color_contrast_ratio(fg, bg)\n            \n            if ratio >= ColorContrastRatio.AA_NORMAL.value:\n                compliance_results['contrast_ratio_normal'] = True\n            if ratio >= ColorContrastRatio.AA_LARGE.value:\n                compliance_results['contrast_ratio_large'] = True\n                \n        return compliance_results\n        \n    def generate_aria_attributes(self, element_type: str, content: str = \"\") -> Dict[str, str]:\n        \"\"\"Generate appropriate ARIA attributes for UI elements.\"\"\"\n        attributes = {}\n        \n        if element_type == \"chat_message\":\n            attributes.update({\n                \"role\": \"log\",\n                \"aria-live\": \"polite\",\n                \"aria-label\": f\"Chat message: {content[:50]}...\"\n            })\n            \n        elif element_type == \"sidebar\":\n            attributes.update({\n                \"role\": \"navigation\",\n                \"aria-label\": \"Main navigation\"\n            })\n            \n        elif element_type == \"main_content\":\n            attributes.update({\n                \"role\": \"main\",\n                \"aria-label\": \"Main content area\"\n            })\n            \n        elif element_type == \"button\":\n            attributes.update({\n                \"role\": \"button\",\n                \"aria-pressed\": \"false\"\n            })\n            \n        elif element_type == \"form\":\n            attributes.update({\n                \"role\": \"form\",\n                \"aria-label\": \"User input form\"\n            })\n            \n        return attributes\n        \n    def generate_keyboard_shortcuts_help(self) -> str:\n        \"\"\"Generate help text for keyboard shortcuts.\"\"\"\n        shortcuts = {\n            \"Tab\": \"Navigate between elements\",\n            \"Shift+Tab\": \"Navigate backwards\",\n            \"Enter\": \"Activate buttons and submit forms\",\n            \"Space\": \"Activate buttons and checkboxes\",\n            \"Escape\": \"Close modals and menus\",\n            \"Ctrl+Enter\": \"Submit chat message\",\n            \"Ctrl+/\": \"Show keyboard shortcuts\",\n            \"Alt+1\": \"Go to chat\",\n            \"Alt+2\": \"Go to documents\",\n            \"Alt+3\": \"Go to settings\"\n        }\n        \n        help_text = \"Keyboard Shortcuts:\\n\\n\"\n        for key, description in shortcuts.items():\n            help_text += f\"{key}: {description}\\n\"\n            \n        return help_text
+        return """
+        <style>
+        /* WCAG 2.1 AA Base Accessibility Styles */
+        
+        /* Focus management */
+        *:focus {
+            outline: 3px solid #4A90E2 !important;
+            outline-offset: 2px !important;
+        }
+        
+        /* Skip links for screen readers */
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 6px;
+            background: #000000;
+            color: #ffffff;
+            padding: 8px;
+            text-decoration: none;
+            border-radius: 3px;
+            z-index: 1000;
+        }
+        .skip-link:focus {
+            top: 6px;
+        }
+        
+        /* Ensure minimum touch target size (44px) */
+        button, .stButton > button, [role="button"] {
+            min-height: 44px !important;
+            min-width: 44px !important;
+            padding: 8px 16px !important;
+        }
+        
+        /* Text selection and readability */
+        .main {
+            line-height: 1.5 !important;
+            word-spacing: 0.16em !important;
+        }
+        
+        /* Paragraph spacing */
+        p {
+            margin-bottom: 1em !important;
+        }
+        
+        /* Link accessibility */
+        a {
+            text-decoration: underline !important;
+        }
+        a:focus, a:hover {
+            text-decoration: underline !important;
+            outline: 2px solid currentColor !important;
+            outline-offset: 2px !important;
+        }
+        
+        /* Form accessibility */
+        input, textarea, select {
+            border: 2px solid #666 !important;
+        }
+        input:focus, textarea:focus, select:focus {
+            border-color: #4A90E2 !important;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.3) !important;
+        }
+        
+        /* Error and status messages */
+        [role="alert"], .stAlert {
+            border: 2px solid currentColor !important;
+            padding: 1rem !important;
+            margin: 1rem 0 !important;
+        }
+        
+        /* Table accessibility */
+        table {
+            border-collapse: collapse !important;
+        }
+        th, td {
+            border: 1px solid #666 !important;
+            padding: 8px !important;
+        }
+        th {
+            font-weight: bold !important;
+            background-color: rgba(0, 0, 0, 0.05) !important;
+        }
+        </style>
+        """
+        
+    def _get_theme_specific_css(self, theme: Theme) -> str:
+        """Get theme-specific CSS with WCAG compliant colors."""
+        if theme == Theme.LIGHT:
+            return """
+            <style>
+            /* Light Theme - WCAG AA Compliant */
+            .stApp {
+                background-color: #ffffff !important;
+                color: #212529 !important;
+            }
+            .stSidebar {
+                background-color: #f8f9fa !important;
+                border-right: 1px solid #dee2e6 !important;
+            }
+            .stChatMessage[data-testid="message"] {
+                background-color: #f8f9fa !important;
+                border-left: 4px solid #007bff !important;
+                color: #212529 !important;
+            }
+            </style>
+            """
+            
+        elif theme == Theme.DARK:
+            return """
+            <style>
+            /* Dark Theme - WCAG AA Compliant */
+            .stApp {
+                background-color: #212529 !important;
+                color: #f8f9fa !important;
+            }
+            .stSidebar {
+                background-color: #343a40 !important;
+                border-right: 1px solid #495057 !important;
+            }
+            .stChatMessage[data-testid="message"] {
+                background-color: #343a40 !important;
+                border-left: 4px solid #17a2b8 !important;
+                color: #f8f9fa !important;
+            }
+            </style>
+            """
+            
+        return ""
+        
+    def _get_font_accessibility_css(self, font_size: str) -> str:
+        """Get font accessibility CSS with proper sizing and spacing."""
+        font_sizes = {
+            "small": "0.9rem",
+            "medium": "1rem", 
+            "large": "1.25rem",
+            "extra_large": "1.5rem"
+        }
+        
+        size = font_sizes.get(font_size, "1rem")
+        
+        return f"""
+        <style>
+        /* Font Accessibility */
+        .main {{
+            font-size: {size} !important;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif !important;
+        }}
+        
+        /* Ensure relative sizing for better scalability */
+        h1 {{ font-size: calc({size} * 2.5) !important; }}
+        h2 {{ font-size: calc({size} * 2) !important; }}
+        h3 {{ font-size: calc({size} * 1.75) !important; }}
+        h4 {{ font-size: calc({size} * 1.5) !important; }}
+        h5 {{ font-size: calc({size} * 1.25) !important; }}
+        h6 {{ font-size: calc({size} * 1.1) !important; }}
+        
+        /* Improve text spacing */
+        p, li {{
+            line-height: 1.6 !important;
+            margin-bottom: 0.75em !important;
+        }}
+        </style>
+        """
+        
+    def _get_focus_indicators_css(self) -> str:
+        """Get CSS for enhanced focus indicators."""
+        if not self.config.enable_focus_indicators:
+            return ""
+            
+        return """
+        <style>
+        /* Enhanced Focus Indicators */
+        .stSelectbox > div > div:focus-within {
+            outline: 3px solid #4A90E2 !important;
+            outline-offset: 2px !important;
+        }
+        
+        .stTextInput > div > div > input:focus {
+            outline: 3px solid #4A90E2 !important;
+            outline-offset: 2px !important;
+            border-color: #4A90E2 !important;
+        }
+        
+        .stTextArea > div > div > textarea:focus {
+            outline: 3px solid #4A90E2 !important;
+            outline-offset: 2px !important;
+            border-color: #4A90E2 !important;
+        }
+        
+        /* Tab navigation indicators */
+        .stTabs [role="tab"]:focus {
+            outline: 3px solid #4A90E2 !important;
+            outline-offset: 2px !important;
+        }
+        </style>
+        """
+        
+    def _get_keyboard_navigation_css(self) -> str:
+        """Get CSS for enhanced keyboard navigation."""
+        if not self.config.enable_keyboard_navigation:
+            return ""
+            
+        return """
+        <style>
+        /* Keyboard Navigation Enhancement */
+        [tabindex]:focus {
+            outline: 3px solid #4A90E2 !important;
+            outline-offset: 2px !important;
+        }
+        
+        /* Skip navigation */
+        .skip-nav {
+            position: absolute;
+            top: -40px;
+            left: 6px;
+            background: #4A90E2;
+            color: white;
+            padding: 8px;
+            text-decoration: none;
+            z-index: 1000;
+        }
+        .skip-nav:focus {
+            top: 6px;
+        }
+        
+        /* Ensure keyboard users can see hover states */
+        button:focus, .stButton > button:focus {
+            background-color: #0056b3 !important;
+            border-color: #004085 !important;
+        }
+        </style>
+        """
+        
+    def _get_screen_reader_css(self) -> str:
+        """Get CSS for screen reader support."""
+        if not self.config.enable_screen_reader_support:
+            return ""
+            
+        return """
+        <style>
+        /* Screen Reader Support */
+        .sr-only {
+            position: absolute !important;
+            width: 1px !important;
+            height: 1px !important;
+            padding: 0 !important;
+            margin: -1px !important;
+            overflow: hidden !important;
+            clip: rect(0, 0, 0, 0) !important;
+            white-space: nowrap !important;
+            border: 0 !important;
+        }
+        
+        .sr-only-focusable:focus {
+            position: static !important;
+            width: auto !important;
+            height: auto !important;
+            padding: inherit !important;
+            margin: inherit !important;
+            overflow: visible !important;
+            clip: auto !important;
+            white-space: normal !important;
+        }
+        </style>
+        """
+        
+    def _get_motion_css(self, animations_enabled: bool) -> str:
+        """Get CSS for motion and animation control."""
+        if animations_enabled and not self.config.reduce_motion:
+            return """
+            <style>
+            /* Respectful animations */
+            .stSpinner {
+                animation-duration: 1s !important;
+            }
+            </style>
+            """
+        else:
+            return """
+            <style>
+            /* Reduced motion */
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+            
+            @media (prefers-reduced-motion: reduce) {
+                *, *::before, *::after {
+                    animation-duration: 0.01ms !important;
+                    animation-iteration-count: 1 !important;
+                    transition-duration: 0.01ms !important;
+                }
+            }
+            </style>
+            """
+            
+    def _get_responsive_css(self, compact_mode: bool) -> str:
+        """Get responsive CSS for different screen sizes."""
+        base_responsive = """
+        <style>
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .main {
+                padding: 1rem 0.5rem !important;
+            }
+            
+            button, .stButton > button {
+                min-height: 48px !important;
+                min-width: 48px !important;
+                font-size: 1.1rem !important;
+            }
+            
+            .stTextInput input, .stTextArea textarea {
+                font-size: 16px !important; /* Prevent zoom on iOS */
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .main {
+                font-size: 1.1rem !important;
+            }
+            
+            button, .stButton > button {
+                min-height: 52px !important;
+                padding: 12px 20px !important;
+            }
+        }
+        """
+        
+        if compact_mode:
+            base_responsive += """
+            /* Compact Mode */
+            .stChatMessage {
+                margin: 0.25rem 0 !important;
+                padding: 0.75rem !important;
+            }
+            
+            .main {
+                padding-top: 1rem !important;
+            }
+            """
+            
+        return base_responsive + "</style>"
+        
+    def generate_aria_attributes(self, element_type: str, content: str = "") -> Dict[str, str]:
+        """Generate appropriate ARIA attributes for UI elements."""
+        attributes = {}
+        
+        if element_type == "chat_message":
+            attributes.update({
+                "role": "log",
+                "aria-live": "polite",
+                "aria-label": f"Chat message: {content[:50]}..."
+            })
+            
+        elif element_type == "sidebar":
+            attributes.update({
+                "role": "navigation",
+                "aria-label": "Main navigation"
+            })
+            
+        elif element_type == "main_content":
+            attributes.update({
+                "role": "main",
+                "aria-label": "Main content area"
+            })
+            
+        elif element_type == "button":
+            attributes.update({
+                "role": "button",
+                "aria-pressed": "false"
+            })
+            
+        elif element_type == "form":
+            attributes.update({
+                "role": "form",
+                "aria-label": "User input form"
+            })
+            
+        return attributes

@@ -84,6 +84,7 @@
 
 - **Test-Driven Development**: Strict Red-Green-Refactor cycle, >90% coverage
 - **Quality Over Quantity**: Contract-based testing, focus on essential functionality
+- **Don't Simplify to Pass**: *Never* simplify, hard-code, or patch tests to make them pass; fix the underlying code so the real-world behavior is correct.
 - **Educational Focus**: Pedagogical value prioritized, all responses citation-backed
 - **Type Safety**: Comprehensive type hints and Pydantic validation
 - **Performance**: Connection pooling, caching, batch processing optimization

@@ -315,13 +315,27 @@ class PhilosophicalLLMGraphTransformer:
         for graph_doc in graph_docs:
             # Extract entities (nodes)
             for node in graph_doc.nodes:
+                # Extract description from node properties if available
+                description = None
+                if hasattr(node, 'properties') and node.properties:
+                    # Convert properties dict to description string
+                    if isinstance(node.properties, dict):
+                        # Get description if it exists, otherwise format properties as description
+                        description = node.properties.get('description')
+                        if not description and node.properties:
+                            # Format other properties as description
+                            prop_strings = [f"{k}: {v}" for k, v in node.properties.items() 
+                                          if k != 'description' and v]
+                            if prop_strings:
+                                description = "; ".join(prop_strings)[:1000]  # Limit to 1000 chars
+                
                 entity = Entity(
                     name=node.id,
                     entity_type=self._map_node_type_to_entity_type(node.type),
                     source_document_id=UUID(document_id),
                     mentions=[],
                     confidence=0.9,  # High confidence for LLM extraction
-                    properties=node.properties or {}
+                    description=description  # Store properties as description
                 )
                 entities.append(entity)
             
@@ -423,7 +437,7 @@ Analysis:"""
                     source_document_id=UUID(document_id),
                     mentions=[],
                     confidence=0.8,
-                    properties={"description": ent_data.get("description", "")}
+                    description=ent_data.get("description", "")  # Use description field directly
                 )
                 entities.append(entity)
             
@@ -476,14 +490,20 @@ Analysis:"""
             name_key = entity.name.lower().strip()
             
             if name_key in merged:
-                # Merge properties and update confidence
+                # Merge mentions and update confidence
                 existing = merged[name_key]
                 existing.mentions.extend(entity.mentions)
                 existing.confidence = max(existing.confidence, entity.confidence)
                 
-                # Merge properties
-                if entity.properties:
-                    existing.properties.update(entity.properties)
+                # Merge descriptions if both exist
+                if entity.description and existing.description:
+                    # Combine descriptions if they're different
+                    if entity.description not in existing.description:
+                        combined = f"{existing.description}; {entity.description}"
+                        # Limit to 1000 chars (Entity description field limit)
+                        existing.description = combined[:1000]
+                elif entity.description and not existing.description:
+                    existing.description = entity.description
             else:
                 merged[name_key] = entity
         

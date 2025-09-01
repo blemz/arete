@@ -1,15 +1,21 @@
 """
-Responsive Design Service for Mobile and Multi-Device Support.
+Responsive Design Service for Streamlit UI.
 
-This service provides comprehensive responsive design features including mobile
-optimization, touch interaction support, adaptive layouts, and cross-device
-compatibility for the Arete philosophical tutoring system.
+This service provides responsive design capabilities for the Arete Streamlit
+interface, ensuring optimal user experience across different devices and screen sizes.
 """
 
-from typing import Dict, List, Optional, Tuple
-from enum import Enum
+from typing import Dict, Optional, Any
 from dataclasses import dataclass
-import streamlit as st
+from enum import Enum
+
+
+class BreakpointSize(Enum):
+    """Standard responsive breakpoint sizes."""
+    MOBILE = 480
+    TABLET = 768
+    DESKTOP = 1024
+    WIDE = 1440
 
 
 class DeviceType(Enum):
@@ -17,77 +23,278 @@ class DeviceType(Enum):
     MOBILE = "mobile"
     TABLET = "tablet"
     DESKTOP = "desktop"
-
-
-class ScreenOrientation(Enum):
-    """Screen orientation options."""
-    PORTRAIT = "portrait"
-    LANDSCAPE = "landscape"
-
-
-class BreakpointSize(Enum):
-    """Responsive breakpoint sizes in pixels."""
-    SMALL = 480      # Small mobile devices
-    MEDIUM = 768     # Tablets and large mobile devices
-    LARGE = 1024     # Small laptops and large tablets
-    EXTRA_LARGE = 1440  # Desktop and large screens
+    WIDE_DESKTOP = "wide_desktop"
 
 
 @dataclass
 class ResponsiveConfig:
     """Configuration for responsive design features."""
     enable_mobile_optimization: bool = True
-    enable_touch_optimization: bool = True
-    adaptive_sidebar: bool = True
-    responsive_typography: bool = True
-    mobile_friendly_forms: bool = True
-    optimize_images: bool = True
-    enable_swipe_gestures: bool = False  # Requires JS integration
+    enable_tablet_optimization: bool = True
+    mobile_breakpoint: int = 480
+    tablet_breakpoint: int = 768
+    desktop_breakpoint: int = 1024
+    compact_sidebar_on_mobile: bool = True
+    stack_columns_on_mobile: bool = True
+    adjust_font_sizes: bool = True
 
 
 class ResponsiveDesignService:
-    """Service for implementing responsive design and mobile optimization."""
+    """Service for implementing responsive design in Streamlit."""
     
     def __init__(self, config: Optional[ResponsiveConfig] = None):
         """Initialize the responsive design service."""
         self.config = config or ResponsiveConfig()
         
-    def detect_device_type(self) -> DeviceType:
-        """Detect device type based on user agent (simplified detection)."""
-        # In a real implementation, this would use JavaScript to detect screen size
-        # For now, we'll use a simplified detection based on session state or defaults
+    def generate_responsive_css(
+        self,
+        compact_mode: bool = False,
+        font_scale: float = 1.0
+    ) -> str:
+        """Generate responsive CSS for the Streamlit app."""
+        css_parts = [
+            self._get_base_responsive_css(),
+            self._get_mobile_css(),
+            self._get_tablet_css(),
+            self._get_desktop_css()
+        ]
         
-        # Check if mobile override is set in session state
-        if hasattr(st.session_state, 'force_mobile_layout') and st.session_state.force_mobile_layout:
-            return DeviceType.MOBILE
+        if compact_mode:
+            css_parts.append(self._get_compact_mode_css())
+            
+        if font_scale != 1.0:
+            css_parts.append(self._get_font_scale_css(font_scale))
         
-        # Default detection logic (would be enhanced with actual device detection)
-        screen_width = getattr(st.session_state, 'screen_width', 1024)
-        
-        if screen_width <= BreakpointSize.SMALL.value:
-            return DeviceType.MOBILE
-        elif screen_width <= BreakpointSize.MEDIUM.value:
-            return DeviceType.TABLET
-        else:
-            return DeviceType.DESKTOP
+        return "\n".join(filter(None, css_parts))
     
-    def get_responsive_css(self, device_type: DeviceType = None) -> str:
-        """Generate responsive CSS for different device types."""
+    def _get_base_responsive_css(self) -> str:
+        """Get base responsive CSS that applies to all screen sizes."""
+        return """
+        <style>
+        /* Base Responsive Design */
+        
+        /* Responsive containers */
+        .main {
+            max-width: 100% !important;
+            overflow-x: hidden !important;
+        }
+        
+        /* Responsive images */
+        img {
+            max-width: 100% !important;
+            height: auto !important;
+        }
+        
+        /* Flexible layouts */
+        .stColumns {
+            flex-wrap: wrap !important;
+        }
+        
+        /* Responsive text */
+        .stMarkdown {
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+        }
+        </style>
+        """
+        
+    def _get_mobile_css(self) -> str:
+        """Get CSS optimizations for mobile devices."""
+        if not self.config.enable_mobile_optimization:
+            return ""
+            
+        return f"""
+        <style>
+        /* Mobile Optimizations */
+        @media (max-width: {self.config.mobile_breakpoint}px) {{
+            .main {{
+                padding: 0.5rem !important;
+            }}
+            
+            .stSidebar {{
+                width: 100% !important;
+                position: relative !important;
+            }}
+            
+            /* Stack columns on mobile */
+            .stColumns > div {{
+                width: 100% !important;
+                margin-bottom: 1rem !important;
+            }}
+            
+            /* Larger touch targets for mobile */
+            .stButton > button {{
+                min-height: 44px !important;
+                min-width: 44px !important;
+                font-size: 1.1rem !important;
+            }}
+            
+            /* Prevent zoom on input focus */
+            .stTextInput input, .stTextArea textarea {{
+                font-size: 16px !important;
+            }}
+            
+            /* Mobile-friendly chat */
+            .stChatMessage {{
+                margin: 0.25rem 0 !important;
+                padding: 0.75rem !important;
+            }}
+        }}
+        </style>
+        """
+        
+    def _get_tablet_css(self) -> str:
+        """Get CSS optimizations for tablet devices."""
+        if not self.config.enable_tablet_optimization:
+            return ""
+            
+        return f"""
+        <style>
+        /* Tablet Optimizations */
+        @media (min-width: {self.config.mobile_breakpoint + 1}px) and (max-width: {self.config.tablet_breakpoint}px) {{
+            .main {{
+                padding: 1rem 0.75rem !important;
+            }}
+            
+            .stSidebar {{
+                width: 250px !important;
+            }}
+            
+            /* Tablet button sizing */
+            .stButton > button {{
+                min-height: 40px !important;
+                min-width: 40px !important;
+            }}
+            
+            /* Tablet chat sizing */
+            .stChatMessage {{
+                margin: 0.5rem 0 !important;
+                padding: 1rem !important;
+            }}
+        }}
+        </style>
+        """
+        
+    def _get_desktop_css(self) -> str:
+        """Get CSS optimizations for desktop devices."""
+        return f"""
+        <style>
+        /* Desktop Optimizations */
+        @media (min-width: {self.config.desktop_breakpoint}px) {{
+            .main {{
+                padding: 1rem 2rem !important;
+                max-width: 1200px !important;
+                margin: 0 auto !important;
+            }}
+            
+            .stSidebar {{
+                width: 300px !important;
+            }}
+            
+            /* Desktop spacing */
+            .stChatMessage {{
+                margin: 0.75rem 0 !important;
+                padding: 1.25rem !important;
+            }}
+        }}
+        </style>
+        """
+        
+    def _get_compact_mode_css(self) -> str:
+        """Get CSS for compact mode."""
+        return """
+        <style>
+        /* Compact Mode */
+        .main {
+            padding-top: 0.5rem !important;
+        }
+        
+        .stChatMessage {
+            margin: 0.25rem 0 !important;
+            padding: 0.5rem !important;
+        }
+        
+        .stButton > button {
+            padding: 0.25rem 0.5rem !important;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            margin: 0.5rem 0 !important;
+        }
+        </style>
+        """
+        
+    def _get_font_scale_css(self, scale: float) -> str:
+        """Get CSS for font scaling."""
+        return f"""
+        <style>
+        /* Font Scaling */
+        .main {{
+            font-size: {scale}rem !important;
+        }}
+        
+        h1 {{ font-size: {scale * 2.5}rem !important; }}
+        h2 {{ font-size: {scale * 2}rem !important; }}
+        h3 {{ font-size: {scale * 1.75}rem !important; }}
+        h4 {{ font-size: {scale * 1.5}rem !important; }}
+        h5 {{ font-size: {scale * 1.25}rem !important; }}
+        h6 {{ font-size: {scale * 1.1}rem !important; }}
+        </style>
+        """
+        
+    def get_device_type(self, width: int) -> DeviceType:
+        """Determine device type based on screen width."""
+        if width <= self.config.mobile_breakpoint:
+            return DeviceType.MOBILE
+        elif width <= self.config.tablet_breakpoint:
+            return DeviceType.TABLET
+        elif width <= self.config.desktop_breakpoint:
+            return DeviceType.DESKTOP
+        else:
+            return DeviceType.WIDE_DESKTOP
+            
+    def get_optimal_sidebar_state(self, device_type: DeviceType) -> str:
+        """Get optimal sidebar state for device type."""
+        if device_type == DeviceType.MOBILE:
+            return "collapsed"
+        elif device_type == DeviceType.TABLET:
+            return "auto"
+        else:
+            return "expanded"
+
+    def detect_device_type(self) -> DeviceType:
+        """Detect device type using browser user agent (Streamlit compatible)."""
+        # For Streamlit, we'll default to desktop and let CSS handle responsiveness
+        # In a real implementation, this would use JavaScript to detect screen width
+        return DeviceType.DESKTOP
+        
+    def get_responsive_layout_config(self, device_type: Optional[DeviceType] = None) -> Dict[str, Any]:
+        """Get responsive layout configuration for the given device type."""
         if device_type is None:
             device_type = self.detect_device_type()
             
-        css_parts = [
-            self._get_base_responsive_css(),
-            self._get_mobile_css() if device_type == DeviceType.MOBILE else "",
-            self._get_tablet_css() if device_type == DeviceType.TABLET else "",
-            self._get_desktop_css() if device_type == DeviceType.DESKTOP else "",
-            self._get_touch_optimization_css() if self.config.enable_touch_optimization else "",
-            self._get_typography_css() if self.config.responsive_typography else "",
-            self._get_form_optimization_css() if self.config.mobile_friendly_forms else ""
-        ]
+        return {
+            'layout': 'wide' if device_type in [DeviceType.DESKTOP, DeviceType.WIDE_DESKTOP] else 'centered',
+            'sidebar_state': self.get_optimal_sidebar_state(device_type),
+            'initial_sidebar_state': self.get_optimal_sidebar_state(device_type)
+        }
+
+    def generate_viewport_meta_tag(self) -> str:
+        """Generate viewport meta tag for responsive design."""
+        return '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">'
+
         
-        return "\\n".join(filter(None, css_parts))
-    
-    def _get_base_responsive_css(self) -> str:
-        """Get base responsive CSS that applies to all devices."""
-        return \"\"\"\n        <style>\n        /* Base Responsive Design */\n        \n        /* Responsive containers */\n        .main {\n            max-width: 100% !important;\n            overflow-x: hidden !important;\n        }\n        \n        /* Responsive images */\n        img {\n            max-width: 100% !important;\n            height: auto !important;\n        }\n        \n        /* Flexible layouts */\n        .stColumns {\n            flex-wrap: wrap !important;\n        }\n        \n        /* Responsive text */\n        .stMarkdown {\n            word-wrap: break-word !important;\n            overflow-wrap: break-word !important;\n        }\n        \n        /* Base media queries */\n        @media (max-width: 768px) {\n            .main {\n                padding: 1rem 0.5rem !important;\n            }\n            \n            .stSidebar {\n                width: 100% !important;\n            }\n        }\n        \n        @media (max-width: 480px) {\n            .main {\n                padding: 0.5rem 0.25rem !important;\n                font-size: 1rem !important;\n            }\n        }\n        \"\"\"\n        \n    def _get_mobile_css(self) -> str:\n        \"\"\"Get CSS optimized for mobile devices.\"\"\"\n        return \"\"\"\n        /* Mobile-Specific Optimizations */\n        \n        /* Touch-friendly interface elements */\n        button, .stButton > button {\n            min-height: 48px !important;\n            min-width: 48px !important;\n            padding: 12px 20px !important;\n            font-size: 1.1rem !important;\n            margin: 4px !important;\n        }\n        \n        /* Mobile form inputs */\n        .stTextInput input, .stTextArea textarea, .stSelectbox select {\n            font-size: 16px !important; /* Prevents zoom on iOS */\n            padding: 12px !important;\n            min-height: 44px !important;\n        }\n        \n        /* Mobile chat interface */\n        .stChatMessage {\n            margin: 0.5rem 0 !important;\n            padding: 1rem 0.75rem !important;\n            font-size: 1rem !important;\n        }\n        \n        /* Mobile sidebar */\n        .stSidebar {\n            padding: 1rem 0.5rem !important;\n        }\n        \n        .stSidebar .stSelectbox, .stSidebar .stTextInput {\n            margin-bottom: 1rem !important;\n        }\n        \n        /* Mobile navigation */\n        .stTabs [role=\"tablist\"] {\n            flex-wrap: wrap !important;\n        }\n        \n        .stTabs [role=\"tab\"] {\n            min-height: 48px !important;\n            padding: 12px 16px !important;\n            font-size: 1rem !important;\n        }\n        \n        /* Mobile-friendly spacing */\n        .stHeader {\n            padding: 1rem 0 !important;\n            font-size: 1.5rem !important;\n        }\n        \n        .stSubheader {\n            padding: 0.75rem 0 !important;\n            font-size: 1.25rem !important;\n        }\n        \n        /* Mobile expanders */\n        .stExpander {\n            margin: 0.5rem 0 !important;\n        }\n        \n        .stExpander summary {\n            padding: 0.75rem !important;\n            font-size: 1rem !important;\n        }\n        \n        /* Mobile metrics */\n        .stMetric {\n            padding: 0.5rem !important;\n            margin: 0.25rem 0 !important;\n        }\n        \n        /* Hide or minimize less important elements on mobile */\n        @media (max-width: 480px) {\n            .stCaption {\n                font-size: 0.8rem !important;\n            }\n            \n            /* Compact session stats */\n            .stMetric {\n                padding: 0.25rem !important;\n            }\n        }\n        \"\"\"\n        \n    def _get_tablet_css(self) -> str:\n        \"\"\"Get CSS optimized for tablet devices.\"\"\"\n        return \"\"\"\n        /* Tablet-Specific Optimizations */\n        \n        /* Tablet interface elements */\n        button, .stButton > button {\n            min-height: 46px !important;\n            min-width: 46px !important;\n            padding: 10px 18px !important;\n            font-size: 1.05rem !important;\n        }\n        \n        /* Tablet form inputs */\n        .stTextInput input, .stTextArea textarea {\n            font-size: 15px !important;\n            padding: 10px !important;\n        }\n        \n        /* Tablet sidebar */\n        .stSidebar {\n            padding: 1rem 0.75rem !important;\n        }\n        \n        /* Tablet columns - allow some side-by-side content */\n        .stColumns {\n            flex-wrap: nowrap !important;\n        }\n        \n        /* Tablet chat interface */\n        .stChatMessage {\n            padding: 1rem !important;\n        }\n        \n        @media (orientation: landscape) {\n            /* Landscape tablet optimizations */\n            .main {\n                padding: 1rem !important;\n            }\n            \n            .stSidebar {\n                min-width: 280px !important;\n            }\n        }\n        \"\"\"\n        \n    def _get_desktop_css(self) -> str:\n        \"\"\"Get CSS optimized for desktop devices.\"\"\"\n        return \"\"\"\n        /* Desktop-Specific Optimizations */\n        \n        /* Desktop interface elements */\n        button, .stButton > button {\n            min-height: 40px !important;\n            min-width: 40px !important;\n            padding: 8px 16px !important;\n            font-size: 1rem !important;\n        }\n        \n        /* Desktop sidebar */\n        .stSidebar {\n            padding: 1rem !important;\n            min-width: 300px !important;\n        }\n        \n        /* Desktop main content */\n        .main {\n            padding: 2rem 1rem !important;\n            max-width: 1200px !important;\n            margin: 0 auto !important;\n        }\n        \n        /* Desktop chat interface */\n        .stChatMessage {\n            max-width: 800px !important;\n            margin: 0.5rem auto !important;\n        }\n        \n        /* Desktop columns - full side-by-side support */\n        .stColumns {\n            gap: 1rem !important;\n        }\n        \n        /* Desktop hover states */\n        button:hover, .stButton > button:hover {\n            transform: translateY(-1px) !important;\n            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;\n            transition: all 0.2s ease !important;\n        }\n        \"\"\"\n        \n    def _get_touch_optimization_css(self) -> str:\n        \"\"\"Get CSS for touch interaction optimization.\"\"\"\n        return \"\"\"\n        /* Touch Interaction Optimization */\n        \n        /* Larger touch targets */\n        button, .stButton > button, [role=\"button\"] {\n            min-height: 44px !important;\n            min-width: 44px !important;\n            touch-action: manipulation !important;\n        }\n        \n        /* Touch-friendly spacing */\n        .stSelectbox, .stTextInput, .stTextArea {\n            margin: 0.5rem 0 !important;\n        }\n        \n        /* Remove hover states on touch devices */\n        @media (hover: none) {\n            button:hover, .stButton > button:hover {\n                transform: none !important;\n                box-shadow: none !important;\n            }\n        }\n        \n        /* Prevent text selection on interactive elements */\n        button, .stButton > button, [role=\"button\"] {\n            -webkit-user-select: none !important;\n            -moz-user-select: none !important;\n            -ms-user-select: none !important;\n            user-select: none !important;\n        }\n        \n        /* Touch-friendly scrolling */\n        .stSidebar {\n            -webkit-overflow-scrolling: touch !important;\n            overflow-scrolling: touch !important;\n        }\n        \n        /* Prevent pinch zoom on form inputs */\n        input, textarea, select {\n            touch-action: manipulation !important;\n        }\n        \"\"\"\n        \n    def _get_typography_css(self) -> str:\n        \"\"\"Get responsive typography CSS.\"\"\"\n        return \"\"\"\n        /* Responsive Typography */\n        \n        /* Base responsive font sizing */\n        html {\n            font-size: 16px !important;\n        }\n        \n        @media (max-width: 768px) {\n            html {\n                font-size: 15px !important;\n            }\n            \n            h1 {\n                font-size: 1.8rem !important;\n                line-height: 1.3 !important;\n            }\n            \n            h2 {\n                font-size: 1.5rem !important;\n                line-height: 1.4 !important;\n            }\n            \n            h3 {\n                font-size: 1.3rem !important;\n                line-height: 1.4 !important;\n            }\n        }\n        \n        @media (max-width: 480px) {\n            html {\n                font-size: 14px !important;\n            }\n            \n            h1 {\n                font-size: 1.6rem !important;\n            }\n            \n            h2 {\n                font-size: 1.4rem !important;\n            }\n            \n            h3 {\n                font-size: 1.2rem !important;\n            }\n        }\n        \n        /* Responsive line heights */\n        p, li {\n            line-height: 1.6 !important;\n        }\n        \n        @media (max-width: 768px) {\n            p, li {\n                line-height: 1.5 !important;\n            }\n        }\n        \n        /* Responsive text spacing */\n        p {\n            margin-bottom: 1rem !important;\n        }\n        \n        @media (max-width: 480px) {\n            p {\n                margin-bottom: 0.75rem !important;\n            }\n        }\n        \"\"\"\n        \n    def _get_form_optimization_css(self) -> str:\n        \"\"\"Get mobile-friendly form CSS.\"\"\"\n        return \"\"\"\n        /* Mobile-Friendly Form Optimization */\n        \n        /* Prevent zoom on iOS when focusing inputs */\n        input[type=\"text\"],\n        input[type=\"email\"],\n        input[type=\"password\"],\n        input[type=\"search\"],\n        textarea,\n        select {\n            font-size: 16px !important;\n        }\n        \n        /* Mobile form styling */\n        @media (max-width: 768px) {\n            .stTextInput > div > div > input {\n                padding: 0.75rem !important;\n                border-radius: 8px !important;\n                border: 2px solid #ddd !important;\n            }\n            \n            .stTextArea > div > div > textarea {\n                padding: 0.75rem !important;\n                border-radius: 8px !important;\n                border: 2px solid #ddd !important;\n                min-height: 120px !important;\n            }\n            \n            .stSelectbox > div > div {\n                padding: 0.75rem !important;\n                border-radius: 8px !important;\n            }\n            \n            /* Mobile checkbox and radio styling */\n            .stCheckbox, .stRadio {\n                margin: 0.75rem 0 !important;\n            }\n            \n            .stCheckbox > label, .stRadio > label {\n                font-size: 1rem !important;\n                padding-left: 0.5rem !important;\n            }\n        }\n        \n        /* Form validation styling */\n        input:invalid {\n            border-color: #dc3545 !important;\n        }\n        \n        input:valid {\n            border-color: #28a745 !important;\n        }\n        \n        </style>\n        \"\"\"\n        \n    def get_mobile_navigation_config(self) -> Dict[str, any]:\n        \"\"\"Get mobile navigation configuration.\"\"\"\n        return {\n            'use_bottom_navigation': True,\n            'collapse_sidebar_mobile': True,\n            'enable_swipe_navigation': self.config.enable_swipe_gestures,\n            'mobile_menu_items': [\n                {'icon': '💬', 'label': 'Chat', 'key': 'chat'},\n                {'icon': '📚', 'label': 'Documents', 'key': 'documents'},\n                {'icon': '⚙️', 'label': 'Settings', 'key': 'settings'},\n                {'icon': '❓', 'label': 'Help', 'key': 'help'}\n            ]\n        }\n        \n    def get_responsive_layout_config(self, device_type: DeviceType = None) -> Dict[str, any]:\n        \"\"\"Get responsive layout configuration based on device type.\"\"\"\n        if device_type is None:\n            device_type = self.detect_device_type()\n            \n        if device_type == DeviceType.MOBILE:\n            return {\n                'sidebar_state': 'collapsed',\n                'layout': 'centered',\n                'columns_config': [1],  # Single column\n                'chat_input_position': 'bottom',\n                'show_advanced_controls': False,\n                'compact_mode': True\n            }\n        elif device_type == DeviceType.TABLET:\n            return {\n                'sidebar_state': 'auto',\n                'layout': 'wide',\n                'columns_config': [2, 1] if st.session_state.get('ui_mode') == 'Split View' else [1],\n                'chat_input_position': 'bottom',\n                'show_advanced_controls': True,\n                'compact_mode': False\n            }\n        else:  # Desktop\n            return {\n                'sidebar_state': 'expanded',\n                'layout': 'wide',\n                'columns_config': [2, 1] if st.session_state.get('ui_mode') == 'Split View' else [1],\n                'chat_input_position': 'bottom',\n                'show_advanced_controls': True,\n                'compact_mode': False\n            }\n            \n    def optimize_for_mobile(self) -> None:\n        \"\"\"Apply mobile-specific optimizations to the current session.\"\"\"\n        if not hasattr(st.session_state, 'mobile_optimizations_applied'):\n            # Apply mobile-specific session state optimizations\n            if self.detect_device_type() == DeviceType.MOBILE:\n                st.session_state.ui_mode = \"Chat Only\"  # Default to single pane on mobile\n                st.session_state.compact_mode = True\n                st.session_state.show_advanced_search = False\n                st.session_state.sidebar_collapsed = True\n                \n            st.session_state.mobile_optimizations_applied = True\n            \n    def get_performance_optimizations(self, device_type: DeviceType = None) -> Dict[str, any]:\n        \"\"\"Get performance optimizations based on device type.\"\"\"\n        if device_type is None:\n            device_type = self.detect_device_type()\n            \n        optimizations = {\n            'lazy_load_images': True,\n            'compress_images': True,\n            'minimize_animations': False,\n            'reduce_javascript': False,\n            'cache_static_content': True\n        }\n        \n        if device_type == DeviceType.MOBILE:\n            optimizations.update({\n                'minimize_animations': True,\n                'reduce_javascript': True,\n                'lazy_load_threshold': 2,  # Load fewer items initially\n                'image_quality': 0.8  # Reduce image quality slightly\n            })\n            \n        return optimizations\n        \n    def generate_viewport_meta_tag(self) -> str:\n        \"\"\"Generate appropriate viewport meta tag for mobile devices.\"\"\"\n        return '<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes\">'\n        \n    def should_use_mobile_layout(self) -> bool:\n        \"\"\"Determine if mobile layout should be used.\"\"\"\n        device_type = self.detect_device_type()\n        return device_type == DeviceType.MOBILE or getattr(st.session_state, 'force_mobile_layout', False)\n        \n    def should_use_compact_mode(self) -> bool:\n        \"\"\"Determine if compact mode should be used.\"\"\"\n        device_type = self.detect_device_type()\n        return (device_type == DeviceType.MOBILE or \n                getattr(st.session_state, 'compact_mode', False))\n                \n    def get_touch_gesture_config(self) -> Dict[str, any]:\n        \"\"\"Get touch gesture configuration for mobile devices.\"\"\"\n        return {\n            'enable_swipe_navigation': self.config.enable_swipe_gestures,\n            'swipe_threshold': 50,  # pixels\n            'gestures': {\n                'swipe_left': 'next_page',\n                'swipe_right': 'previous_page',\n                'pinch_zoom': 'zoom_content',\n                'long_press': 'context_menu'\n            }\n        }
+    def get_responsive_css(self, device_type: Optional[DeviceType] = None) -> str:
+        """Get responsive CSS for the given device type."""
+        return self.generate_responsive_css(
+            compact_mode=(device_type == DeviceType.MOBILE if device_type else False),
+            font_scale=0.9 if device_type == DeviceType.MOBILE else 1.0
+        )
+
+        
+    def optimize_for_mobile(self) -> None:
+        """Optimize the service configuration for mobile devices."""
+        # This is a placeholder method for mobile optimization
+        # In a real implementation, this might adjust configuration settings
+        # or prepare mobile-specific resources
+        pass

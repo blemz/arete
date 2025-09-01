@@ -32,7 +32,7 @@ from arete.models.export_models import ExportFormat, ExportOptions
 from arete.models.sharing_models import ShareType, ExpirationPeriod, SharePermissions
 
 # Import document viewer components
-from .document_viewer import (
+from arete.ui.document_viewer import (
     SplitViewLayout, DocumentRenderer, CitationNavigator, DocumentSearchInterface,
     DocumentContent, Citation, create_sample_documents, create_sample_citations
 )
@@ -53,8 +53,8 @@ class AreteStreamlitInterface:
         self.document_search_interface = DocumentSearchInterface()
         
         # Initialize accessibility and responsive design services
-        from src.arete.services.accessibility_service import AccessibilityService, AccessibilityConfig
-        from src.arete.services.responsive_design_service import ResponsiveDesignService, ResponsiveConfig
+        from arete.services.accessibility_service import AccessibilityService, AccessibilityConfig
+        from arete.services.responsive_design_service import ResponsiveDesignService, ResponsiveConfig
         
         self.accessibility_service = AccessibilityService(AccessibilityConfig())
         self.responsive_service = ResponsiveDesignService(ResponsiveConfig())

@@ -47,7 +47,9 @@ class UserPreferencesService:
             # Record access
             preferences = self._preferences[user_id]
             return preferences
-        else:\n            # Create default preferences for new user\n            return self.create_user_preferences(user_id)
+        else:
+            # Create default preferences for new user
+            return self.create_user_preferences(user_id)
     
     def update_user_preferences(self, user_id: str, preferences: UserPreferences) -> bool:
         """Update complete user preferences."""
