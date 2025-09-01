@@ -9,6 +9,7 @@ langchain-community>=0.3.2
 langchain-experimental>=0.0.51
 langchain-google-genai>=2.1.9
 langchain-anthropic>=0.3.18
+langchain_openai
 llama-index>=0.9.48
 ollama>=0.5.0
 langchain>=0.1.6

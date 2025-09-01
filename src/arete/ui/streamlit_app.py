@@ -42,7 +42,7 @@ class AreteStreamlitInterface:
     """Main Streamlit interface for Arete philosophical tutoring."""
     
     def __init__(self):
-        """Initialize the Streamlit interface."""
+        """Initialize the Streamlit interface with accessibility and responsive design support."""
         self.chat_service = ChatService()
         self.preferences_service = UserPreferencesService()
         self.export_service = ConversationExportService()
@@ -52,54 +52,170 @@ class AreteStreamlitInterface:
         self.split_view_layout = SplitViewLayout()
         self.document_search_interface = DocumentSearchInterface()
         
+        # Initialize accessibility and responsive design services
+        from src.arete.services.accessibility_service import AccessibilityService, AccessibilityConfig
+        from src.arete.services.responsive_design_service import ResponsiveDesignService, ResponsiveConfig
+        
+        self.accessibility_service = AccessibilityService(AccessibilityConfig())
+        self.responsive_service = ResponsiveDesignService(ResponsiveConfig())
+        
         # Load sample documents for demonstration
         self.document_search_interface.set_available_documents(create_sample_documents())
         
         self.setup_page_config()
         self.initialize_session_state()
         
+        # Apply responsive optimizations
+        self.responsive_service.optimize_for_mobile()
+        
         # Apply user theme after session state is initialized
         self.apply_user_theme()
     
     def setup_page_config(self):
-        """Configure Streamlit page settings."""
+        """Configure Streamlit page settings with accessibility and responsive design support."""
+        # Detect device type for responsive configuration
+        device_type = None
+        if hasattr(self, 'responsive_service'):
+            device_type = self.responsive_service.detect_device_type()
+            layout_config = self.responsive_service.get_responsive_layout_config(device_type)
+            sidebar_state = layout_config['sidebar_state']
+            layout = layout_config['layout']
+        else:
+            sidebar_state = "expanded"
+            layout = "wide"
+        
         st.set_page_config(
             page_title="Arete - Philosophical Tutoring Assistant",
             page_icon="🏛️",
-            layout="wide",
-            initial_sidebar_state="expanded"
+            layout=layout,
+            initial_sidebar_state=sidebar_state
         )
         
-        # Custom CSS for philosophical theme
+        # Add viewport meta tag for mobile devices
+        if hasattr(self, 'responsive_service'):
+            viewport_tag = self.responsive_service.generate_viewport_meta_tag()
+            st.markdown(viewport_tag, unsafe_allow_html=True)
+        
+        # Add skip navigation link
         st.markdown("""
-        <style>
-        .main {
-            padding-top: 2rem;
-        }
-        .stChatMessage[data-testid="message"] {
-            background-color: #f8f9fa;
-            border-left: 4px solid #007bff;
-            padding: 1rem;
-            margin: 0.5rem 0;
-            border-radius: 0.5rem;
-        }
-        .citation {
-            background-color: #e9ecef;
-            border-left: 3px solid #6c757d;
-            padding: 0.5rem;
-            margin: 0.25rem 0;
-            font-size: 0.9em;
-            font-style: italic;
-        }
-        .philosophical-quote {
-            border-left: 4px solid #17a2b8;
-            padding-left: 1rem;
-            margin: 1rem 0;
-            font-style: italic;
-            color: #495057;
-        }
-        </style>
+        <a href="#main-content" class="skip-link">Skip to main content</a>
         """, unsafe_allow_html=True)
+        
+        # Apply WCAG compliant and responsive CSS
+        if hasattr(self, 'accessibility_service') and hasattr(self, 'responsive_service'):
+            # Get user preferences or use defaults
+            theme = getattr(st.session_state, 'theme', Theme.LIGHT)
+            font_size = getattr(st.session_state, 'font_size', 'medium')
+            compact_mode = getattr(st.session_state, 'compact_mode', False)
+            animations_enabled = getattr(st.session_state, 'animations_enabled', True)
+            
+            # Generate combined CSS
+            wcag_css = self.accessibility_service.generate_wcag_compliant_css(
+                theme=theme,
+                font_size=font_size,
+                compact_mode=compact_mode,
+                animations_enabled=animations_enabled
+            )
+            
+            responsive_css = self.responsive_service.get_responsive_css(device_type)
+            
+            # Combine CSS
+            combined_css = wcag_css + "\n" + responsive_css
+            st.markdown(combined_css, unsafe_allow_html=True)
+            
+        elif hasattr(self, 'accessibility_service'):
+            # Accessibility only
+            theme = getattr(st.session_state, 'theme', Theme.LIGHT)
+            font_size = getattr(st.session_state, 'font_size', 'medium')
+            compact_mode = getattr(st.session_state, 'compact_mode', False)
+            animations_enabled = getattr(st.session_state, 'animations_enabled', True)
+            
+            wcag_css = self.accessibility_service.generate_wcag_compliant_css(
+                theme=theme,
+                font_size=font_size,
+                compact_mode=compact_mode,
+                animations_enabled=animations_enabled
+            )
+            
+            st.markdown(wcag_css, unsafe_allow_html=True)
+        else:
+            # Fallback CSS with basic accessibility and responsiveness
+            st.markdown("""
+            <style>
+            /* Basic accessibility and responsive fallback */
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            
+            .main {
+                padding-top: 2rem;
+                max-width: 100% !important;
+                overflow-x: hidden !important;
+            }
+            .skip-link {
+                position: absolute;
+                top: -40px;
+                left: 6px;
+                background: #000000;
+                color: #ffffff;
+                padding: 8px;
+                text-decoration: none;
+                border-radius: 3px;
+                z-index: 1000;
+            }
+            .skip-link:focus {
+                top: 6px;
+            }
+            *:focus {
+                outline: 3px solid #4A90E2 !important;
+                outline-offset: 2px !important;
+            }
+            button, .stButton > button {
+                min-height: 44px !important;
+                min-width: 44px !important;
+            }
+            
+            /* Basic responsive design */
+            @media (max-width: 768px) {
+                .main {
+                    padding: 1rem 0.5rem !important;
+                }
+                button, .stButton > button {
+                    min-height: 48px !important;
+                    font-size: 1.1rem !important;
+                }
+                .stTextInput input, .stTextArea textarea {
+                    font-size: 16px !important;
+                }
+            }
+            
+            img {
+                max-width: 100% !important;
+                height: auto !important;
+            }
+            
+            .stChatMessage[data-testid="message"] {
+                background-color: #f8f9fa;
+                border-left: 4px solid #007bff;
+                padding: 1rem;
+                margin: 0.5rem 0;
+                border-radius: 0.5rem;
+            }
+            .citation {
+                background-color: #e9ecef;
+                border-left: 3px solid #6c757d;
+                padding: 0.5rem;
+                margin: 0.25rem 0;
+                font-size: 0.9em;
+                font-style: italic;
+            }
+            .philosophical-quote {
+                border-left: 4px solid #17a2b8;
+                padding-left: 1rem;
+                margin: 1rem 0;
+                font-style: italic;
+                color: #495057;
+            }
+            </style>
+            """, unsafe_allow_html=True)
     
     def initialize_session_state(self):
         """Initialize Streamlit session state variables."""
@@ -545,21 +661,222 @@ class AreteStreamlitInterface:
         )
     
     def render_preferences_panel(self):
-        """Render user preferences panel."""
-        st.markdown("**🎨 Interface Theme**")
+        """Render enhanced user preferences panel with comprehensive accessibility controls."""
         
-        # Theme selection
+        # Accessibility section - moved to top for prominence
+        st.markdown("**♿ Accessibility Settings**")
+        
+        # High contrast and theme selection
         current_theme = st.session_state.user_preferences.theme.value
         theme_options = ["light", "dark", "high_contrast", "sepia"]
-        theme_labels = ["Light", "Dark", "High Contrast", "Sepia"]
+        theme_labels = ["Light", "Dark", "High Contrast (WCAG AAA)", "Sepia (Eye Comfort)"]
+        theme_descriptions = {
+            "light": "Standard light theme with good contrast",
+            "dark": "Dark theme for low-light environments", 
+            "high_contrast": "Maximum contrast for visual accessibility (WCAG AAA compliant)",
+            "sepia": "Warm sepia tones to reduce eye strain"
+        }
         
         selected_theme = st.selectbox(
-            "Theme",
+            "Visual Theme",
             options=theme_options,
             format_func=lambda x: dict(zip(theme_options, theme_labels))[x],
             index=theme_options.index(current_theme),
-            key="theme_selector"
+            key="theme_selector",
+            help="Choose a visual theme. High Contrast mode provides maximum accessibility."
         )
+        
+        # Display theme description
+        if selected_theme in theme_descriptions:
+            st.caption(f"ℹ️ {theme_descriptions[selected_theme]}")
+        
+        # Enhanced font size controls
+        st.markdown("**📝 Text and Font Settings**")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            font_size_options = ["small", "medium", "large", "extra_large"]
+            font_size_labels = ["Small (0.9rem)", "Medium (1rem)", "Large (1.25rem)", "Extra Large (1.5rem)"]
+            
+            selected_font_size = st.selectbox(
+                "Font Size",
+                options=font_size_options,
+                format_func=lambda x: dict(zip(font_size_options, font_size_labels))[x],
+                index=font_size_options.index(st.session_state.user_preferences.display_settings.font_size),
+                key="font_size_selector",
+                help="Larger fonts improve readability for users with visual impairments"
+            )
+        
+        with col2:
+            # Font family selection (if supported)
+            font_family_options = ["system", "serif", "sans_serif", "dyslexia_friendly"]
+            font_family_labels = ["System Default", "Serif (Traditional)", "Sans-Serif (Modern)", "Dyslexia-Friendly"]
+            
+            selected_font_family = st.selectbox(
+                "Font Family",
+                options=font_family_options,
+                format_func=lambda x: dict(zip(font_family_options, font_family_labels))[x],
+                index=0,  # Default to system font
+                key="font_family_selector",
+                help="Choose a font family optimized for your reading needs"
+            )
+        
+        # Motion and animation controls
+        st.markdown("**🎬 Motion and Animation**")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            animations_enabled = st.checkbox(
+                "Enable animations",
+                value=st.session_state.user_preferences.display_settings.animations_enabled,
+                key="animations_checkbox",
+                help="Disable animations to reduce motion for users with vestibular disorders"
+            )
+        
+        with col2:
+            reduce_motion = st.checkbox(
+                "Reduce motion (Accessibility)",
+                value=not st.session_state.user_preferences.display_settings.animations_enabled,
+                key="reduce_motion_checkbox",
+                help="Minimize all motion and transitions for accessibility"
+            )
+        
+        # Visual display options
+        st.markdown("**👁️ Visual Display Options**")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            compact_mode = st.checkbox(
+                "Compact mode",
+                value=st.session_state.user_preferences.display_settings.compact_mode,
+                key="compact_mode_checkbox",
+                help="Reduce spacing and padding for more content on screen"
+            )
+            
+            show_timestamps = st.checkbox(
+                "Show timestamps",
+                value=st.session_state.user_preferences.display_settings.show_timestamps,
+                key="show_timestamps_checkbox",
+                help="Display message timestamps for reference"
+            )
+            
+            focus_indicators = st.checkbox(
+                "Enhanced focus indicators",
+                value=True,  # Default to enabled
+                key="focus_indicators_checkbox",
+                help="Show clear visual indicators for keyboard navigation"
+            )
+        
+        with col2:
+            show_citations = st.checkbox(
+                "Show citations",
+                value=st.session_state.user_preferences.display_settings.show_citations,
+                key="show_citations_checkbox",
+                help="Display source citations with responses"
+            )
+            
+            high_contrast_images = st.checkbox(
+                "High contrast images",
+                value=False,
+                key="high_contrast_images_checkbox",
+                help="Increase contrast for images and graphics"
+            )
+            
+            large_click_targets = st.checkbox(
+                "Large click targets",
+                value=False,
+                key="large_click_targets_checkbox",
+                help="Make buttons and links larger for easier interaction"
+            )
+        
+        # Keyboard and interaction settings
+        st.markdown("**⌨️ Keyboard and Interaction**")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            keyboard_navigation = st.checkbox(
+                "Enhanced keyboard navigation",
+                value=True,
+                key="keyboard_navigation_checkbox",
+                help="Enable comprehensive keyboard navigation support"
+            )
+            
+            screen_reader_support = st.checkbox(
+                "Screen reader support",
+                value=True,
+                key="screen_reader_support_checkbox",
+                help="Optimize interface for screen readers"
+            )
+        
+        with col2:
+            show_keyboard_shortcuts = st.checkbox(
+                "Show keyboard shortcuts",
+                value=False,
+                key="show_keyboard_shortcuts_checkbox", 
+                help="Display keyboard shortcuts in tooltips"
+            )
+            
+            sticky_focus = st.checkbox(
+                "Sticky focus mode",
+                value=False,
+                key="sticky_focus_checkbox",
+                help="Keep focus visible longer for easier navigation"
+            )
+        
+        # Live preview of accessibility settings
+        if selected_theme == "high_contrast" or focus_indicators:
+            st.markdown("**🔍 Accessibility Preview**")
+            
+            # Create font size mapping
+            font_size_map = {
+                'small': '0.9rem', 
+                'medium': '1rem', 
+                'large': '1.25rem', 
+                'extra_large': '1.5rem'
+            }
+            
+            button_font_size_map = {
+                'small': '0.9rem', 
+                'medium': '1rem', 
+                'large': '1.1rem', 
+                'extra_large': '1.2rem'
+            }
+            
+            current_font_size = font_size_map.get(selected_font_size, '1rem')
+            current_button_font_size = button_font_size_map.get(selected_font_size, '1rem')
+            
+            with st.container():
+                # Show preview with current settings
+                preview_css = f"""
+                <div style="
+                    background: {'#000000' if selected_theme == 'high_contrast' else '#f8f9fa'};
+                    color: {'#ffffff' if selected_theme == 'high_contrast' else '#212529'};
+                    padding: 1rem;
+                    border: {'3px solid #ffffff' if selected_theme == 'high_contrast' else '1px solid #ddd'};
+                    border-radius: 4px;
+                    font-size: {current_font_size};
+                    margin: 0.5rem 0;
+                ">
+                    <strong>Preview:</strong> This is how text will appear with your current settings.
+                    <br>
+                    <button style="
+                        background: {'#ffffff' if selected_theme == 'high_contrast' else '#007bff'};
+                        color: {'#000000' if selected_theme == 'high_contrast' else '#ffffff'};
+                        border: {'2px solid #000000' if selected_theme == 'high_contrast' else '1px solid #007bff'};
+                        padding: {'12px 20px' if large_click_targets else '8px 16px'};
+                        margin: 0.25rem;
+                        border-radius: 4px;
+                        font-size: {current_button_font_size};
+                    ">Sample Button</button>
+                </div>
+                """
+                st.markdown(preview_css, unsafe_allow_html=True)
+        
+        st.divider()
         
         # Citation style selection
         st.markdown("**📚 Citation Style**")
@@ -572,50 +889,8 @@ class AreteStreamlitInterface:
             options=citation_options,
             format_func=lambda x: dict(zip(citation_options, citation_labels))[x],
             index=citation_options.index(current_citation_style),
-            key="citation_style_selector"
-        )
-        
-        # Display settings
-        st.markdown("**📱 Display Options**")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            show_timestamps = st.checkbox(
-                "Show timestamps",
-                value=st.session_state.user_preferences.display_settings.show_timestamps,
-                key="show_timestamps_checkbox"
-            )
-            
-            compact_mode = st.checkbox(
-                "Compact mode",
-                value=st.session_state.user_preferences.display_settings.compact_mode,
-                key="compact_mode_checkbox"
-            )
-        
-        with col2:
-            show_citations = st.checkbox(
-                "Show citations",
-                value=st.session_state.user_preferences.display_settings.show_citations,
-                key="show_citations_checkbox"
-            )
-            
-            animations_enabled = st.checkbox(
-                "Enable animations",
-                value=st.session_state.user_preferences.display_settings.animations_enabled,
-                key="animations_checkbox"
-            )
-        
-        # Font size
-        font_size_options = ["small", "medium", "large", "extra_large"]
-        font_size_labels = ["Small", "Medium", "Large", "Extra Large"]
-        
-        selected_font_size = st.selectbox(
-            "Font Size",
-            options=font_size_options,
-            format_func=lambda x: dict(zip(font_size_options, font_size_labels))[x],
-            index=font_size_options.index(st.session_state.user_preferences.display_settings.font_size),
-            key="font_size_selector"
+            key="citation_style_selector",
+            help="Choose your preferred academic citation format"
         )
         
         # Language and other settings
@@ -624,46 +899,124 @@ class AreteStreamlitInterface:
         auto_save = st.checkbox(
             "Auto-save conversations",
             value=st.session_state.user_preferences.auto_save,
-            key="auto_save_checkbox"
+            key="auto_save_checkbox",
+            help="Automatically save your conversations"
         )
         
         # Notification settings
         st.markdown("**🔔 Notifications**")
         
-        email_notifications = st.checkbox(
-            "Email notifications",
-            value=st.session_state.user_preferences.notification_settings.email_notifications,
-            key="email_notifications_checkbox"
-        )
+        col1, col2 = st.columns(2)
         
-        philosophical_quotes = st.checkbox(
-            "Daily philosophical quotes",
-            value=st.session_state.user_preferences.notification_settings.philosophical_quotes,
-            key="philosophical_quotes_checkbox"
-        )
-        
-        # Save preferences button
-        if st.button("💾 Save Preferences", key="save_preferences"):
-            self.save_user_preferences(
-                theme=selected_theme,
-                citation_style=selected_citation_style,
-                show_timestamps=show_timestamps,
-                compact_mode=compact_mode,
-                show_citations=show_citations,
-                animations_enabled=animations_enabled,
-                font_size=selected_font_size,
-                auto_save=auto_save,
-                email_notifications=email_notifications,
-                philosophical_quotes=philosophical_quotes
+        with col1:
+            email_notifications = st.checkbox(
+                "Email notifications",
+                value=st.session_state.user_preferences.notification_settings.email_notifications,
+                key="email_notifications_checkbox"
             )
-            st.success("✅ Preferences saved!")
-            st.rerun()
         
-        # Reset to defaults button
-        if st.button("🔄 Reset to Defaults", key="reset_preferences"):
-            if self.preferences_service.reset_user_preferences_to_defaults(st.session_state.user_id):
-                st.session_state.user_preferences = self.preferences_service.get_user_preferences(st.session_state.user_id)
-                st.success("✅ Preferences reset to defaults!")
+        with col2:
+            philosophical_quotes = st.checkbox(
+                "Daily philosophical quotes",
+                value=st.session_state.user_preferences.notification_settings.philosophical_quotes,
+                key="philosophical_quotes_checkbox"
+            )
+        
+        # Save preferences button with enhanced accessibility
+        st.divider()
+        
+        col1, col2, col3 = st.columns([1, 1, 1])
+        
+        with col1:
+            if st.button("💾 Save Preferences", 
+                        key="save_preferences",
+                        help="Save all your accessibility and interface preferences",
+                        type="primary"):
+                # Include all accessibility settings in save
+                accessibility_settings = {
+                    'font_family': selected_font_family,
+                    'reduce_motion': reduce_motion,
+                    'focus_indicators': focus_indicators,
+                    'high_contrast_images': high_contrast_images,
+                    'large_click_targets': large_click_targets,
+                    'keyboard_navigation': keyboard_navigation,
+                    'screen_reader_support': screen_reader_support,
+                    'show_keyboard_shortcuts': show_keyboard_shortcuts,
+                    'sticky_focus': sticky_focus
+                }
+                
+                self.save_user_preferences(
+                    theme=selected_theme,
+                    citation_style=selected_citation_style,
+                    show_timestamps=show_timestamps,
+                    compact_mode=compact_mode,
+                    show_citations=show_citations,
+                    animations_enabled=animations_enabled and not reduce_motion,
+                    font_size=selected_font_size,
+                    auto_save=auto_save,
+                    email_notifications=email_notifications,
+                    philosophical_quotes=philosophical_quotes,
+                    accessibility_settings=accessibility_settings
+                )
+                st.success("✅ Preferences saved!")
+                st.rerun()
+        
+        with col2:
+            if st.button("🔄 Reset to Defaults", 
+                        key="reset_preferences",
+                        help="Reset all preferences to default values"):
+                if self.preferences_service.reset_user_preferences_to_defaults(st.session_state.user_id):
+                    st.session_state.user_preferences = self.preferences_service.get_user_preferences(st.session_state.user_id)
+                    st.success("✅ Preferences reset to defaults!")
+                    st.rerun()
+        
+        with col3:
+            if st.button("📋 Accessibility Report", 
+                        key="accessibility_report",
+                        help="View accessibility compliance report"):
+                st.session_state.show_accessibility_report = True
+                st.rerun()
+        
+        # Show accessibility report if requested
+        if getattr(st.session_state, 'show_accessibility_report', False):
+            st.markdown("**♿ Accessibility Compliance Report**")
+            
+            # Generate compliance report
+            if hasattr(self, 'accessibility_service'):
+                compliance = self.accessibility_service.validate_wcag_compliance(
+                    Theme(selected_theme)
+                )
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.metric("WCAG Level", "AA" if compliance.get('contrast_ratio_normal') else "Partial")
+                    st.metric("Color Contrast", "✅ Pass" if compliance.get('contrast_ratio_normal') else "⚠️ Needs Review")
+                
+                with col2:
+                    st.metric("Keyboard Navigation", "✅ Enabled" if keyboard_navigation else "❌ Disabled")
+                    st.metric("Screen Reader Support", "✅ Enabled" if screen_reader_support else "❌ Disabled")
+                
+                # Recommendations
+                recommendations = []
+                if not compliance.get('contrast_ratio_normal'):
+                    recommendations.append("Consider using High Contrast theme for better text visibility")
+                if not keyboard_navigation:
+                    recommendations.append("Enable keyboard navigation for full accessibility")
+                if not screen_reader_support:
+                    recommendations.append("Enable screen reader support for assistive technologies")
+                if animations_enabled and not reduce_motion:
+                    recommendations.append("Consider reducing motion for users with vestibular disorders")
+                
+                if recommendations:
+                    st.markdown("**📝 Recommendations:**")
+                    for rec in recommendations:
+                        st.write(f"• {rec}")
+                else:
+                    st.success("🎉 Your settings meet accessibility best practices!")
+            
+            if st.button("❌ Close Report", key="close_accessibility_report"):
+                st.session_state.show_accessibility_report = False
                 st.rerun()
     
     def save_user_preferences(self, **kwargs):
@@ -718,36 +1071,58 @@ class AreteStreamlitInterface:
         st.markdown(theme_css, unsafe_allow_html=True)
     
     def get_theme_css(self, theme, font_size, compact_mode, animations_enabled):
-        """Get CSS for the selected theme and preferences."""
-        # Font size mapping
+        """Get CSS for the selected theme and preferences with WCAG compliance."""
+        if hasattr(self, 'accessibility_service'):
+            return self.accessibility_service.generate_wcag_compliant_css(
+                theme=theme,
+                font_size=font_size,
+                compact_mode=compact_mode,
+                animations_enabled=animations_enabled
+            )
+        
+        # Fallback implementation with basic accessibility
         font_sizes = {
-            "small": "0.8rem",
+            "small": "0.9rem",
             "medium": "1rem", 
-            "large": "1.2rem",
-            "extra_large": "1.4rem"
+            "large": "1.25rem",
+            "extra_large": "1.5rem"
         }
         
-        # Base CSS
+        # Base CSS with accessibility
         css = f"""
         <style>
         .main {{
             font-size: {font_sizes.get(font_size, "1rem")};
+            line-height: 1.5 !important;
+        }}
+        
+        /* Focus indicators */
+        *:focus {{
+            outline: 3px solid #4A90E2 !important;
+            outline-offset: 2px !important;
+        }}
+        
+        /* Minimum touch targets */
+        button, .stButton > button {{
+            min-height: 44px !important;
+            min-width: 44px !important;
         }}
         """
         
-        # Theme-specific CSS
+        # Theme-specific CSS with WCAG compliant colors
         if theme == Theme.DARK:
             css += """
             .stApp {
-                background-color: #1e1e1e;
-                color: #ffffff;
+                background-color: #212529;
+                color: #f8f9fa;
             }
             .stSidebar {
-                background-color: #2d2d2d;
+                background-color: #343a40;
             }
             .stChatMessage[data-testid="message"] {
-                background-color: #3d3d3d;
-                border-left: 4px solid #4a90e2;
+                background-color: #343a40;
+                border-left: 4px solid #17a2b8;
+                color: #f8f9fa;
             }
             """
         elif theme == Theme.HIGH_CONTRAST:
@@ -755,22 +1130,33 @@ class AreteStreamlitInterface:
             .stApp {
                 background-color: #000000;
                 color: #ffffff;
-                font-weight: bold;
+            }
+            .stSidebar {
+                background-color: #000000;
+                border-right: 3px solid #ffffff;
             }
             .stChatMessage[data-testid="message"] {
-                background-color: #333333;
-                border: 2px solid #ffffff;
+                background-color: #000000;
+                border: 3px solid #ffffff;
+                color: #ffffff;
+            }
+            *:focus {
+                outline: 4px solid #ffff00 !important;
             }
             """
         elif theme == Theme.SEPIA:
             css += """
             .stApp {
                 background-color: #f4f3e7;
-                color: #5c4b37;
+                color: #3d3020;
+            }
+            .stSidebar {
+                background-color: #ede7d3;
             }
             .stChatMessage[data-testid="message"] {
                 background-color: #ede7d3;
                 border-left: 4px solid #8b7355;
+                color: #3d3020;
             }
             """
         
@@ -779,16 +1165,16 @@ class AreteStreamlitInterface:
             css += """
             .stChatMessage {
                 margin: 0.25rem 0 !important;
-                padding: 0.5rem !important;
+                padding: 0.75rem !important;
             }
             """
         
-        # Disable animations if requested
+        # Animation control
         if not animations_enabled:
             css += """
-            * {
-                transition: none !important;
-                animation: none !important;
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
             }
             """
         
