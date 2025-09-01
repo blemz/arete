@@ -24,6 +24,12 @@ if str(root_path) not in sys.path:
 from arete.models.chat_session import ChatSession, ChatMessage, ChatContext, MessageType, SessionStatus
 from arete.services.chat_service import ChatService
 
+# Import document viewer components
+from .document_viewer import (
+    SplitViewLayout, DocumentRenderer, CitationNavigator, DocumentSearchInterface,
+    DocumentContent, Citation, create_sample_documents, create_sample_citations
+)
+
 
 class AreteStreamlitInterface:
     """Main Streamlit interface for Arete philosophical tutoring."""
@@ -31,6 +37,14 @@ class AreteStreamlitInterface:
     def __init__(self):
         """Initialize the Streamlit interface."""
         self.chat_service = ChatService()
+        
+        # Initialize document viewer components
+        self.split_view_layout = SplitViewLayout()
+        self.document_search_interface = DocumentSearchInterface()
+        
+        # Load sample documents for demonstration
+        self.document_search_interface.set_available_documents(create_sample_documents())
+        
         self.setup_page_config()
         self.initialize_session_state()
     
@@ -87,6 +101,19 @@ class AreteStreamlitInterface:
         
         if "session_context" not in st.session_state:
             st.session_state.session_context = ChatContext()
+            
+        # Document viewer session state
+        if "current_document" not in st.session_state:
+            st.session_state.current_document = None
+            
+        if "selected_citation" not in st.session_state:
+            st.session_state.selected_citation = None
+            
+        if "ui_mode" not in st.session_state:
+            st.session_state.ui_mode = "Split View"  # Default to split view
+            
+        if "document_search_expanded" not in st.session_state:
+            st.session_state.document_search_expanded = False
     
     def render_sidebar(self):
         """Render the sidebar with session management and context settings."""
@@ -161,6 +188,35 @@ class AreteStreamlitInterface:
             
             st.divider()
             
+            # Document Viewer Controls
+            st.subheader("📚 Document Viewer")
+            
+            # UI Mode selector
+            ui_mode = st.selectbox(
+                "Interface Mode",
+                ["Split View", "Chat Only", "Document Only"],
+                index=["Split View", "Chat Only", "Document Only"].index(st.session_state.ui_mode),
+                key="ui_mode_selector"
+            )
+            
+            if ui_mode != st.session_state.ui_mode:
+                st.session_state.ui_mode = ui_mode
+                st.rerun()
+            
+            # Document selection
+            with st.expander("📖 Select Document", expanded=st.session_state.document_search_expanded):
+                selected_document = self.document_search_interface.render_document_selector()
+                if selected_document and selected_document != st.session_state.current_document:
+                    st.session_state.current_document = selected_document
+                    # Load sample citations for the selected document
+                    if selected_document.doc_id == "plato_republic":
+                        sample_citations = create_sample_citations()
+                        self.split_view_layout.citation_navigator.set_citations(sample_citations[:1])  # First citation
+                    st.success(f"Loaded: {selected_document.title}")
+                    st.rerun()
+            
+            st.divider()
+            
             # Statistics
             if st.session_state.current_session:
                 st.subheader("📊 Session Stats")
@@ -170,6 +226,13 @@ class AreteStreamlitInterface:
                 if message_count > 0:
                     citation_count = sum(len(msg.citations) for msg in st.session_state.current_session.messages)
                     st.metric("Citations", citation_count)
+                    
+            # Document stats
+            if st.session_state.current_document:
+                st.subheader("📄 Document Stats")
+                st.metric("Characters", len(st.session_state.current_document.content))
+                citations_count = len(self.split_view_layout.citation_navigator.citations)
+                st.metric("Citations Available", citations_count)
     
     def create_new_session(self):
         """Create a new chat session."""
@@ -431,11 +494,63 @@ class AreteStreamlitInterface:
         # Render sidebar
         self.render_sidebar()
         
-        # Render main content
+        # Render main content based on UI mode
+        if st.session_state.ui_mode == "Split View":
+            self._render_split_view_interface()
+        elif st.session_state.ui_mode == "Chat Only":
+            self._render_chat_only_interface() 
+        elif st.session_state.ui_mode == "Document Only":
+            self._render_document_only_interface()
+        else:
+            # Default to split view
+            self._render_split_view_interface()
+    
+    def _render_split_view_interface(self):
+        """Render split view interface with chat and document panels."""
+        # Use the split view layout component
+        self.split_view_layout.render_split_view(self, st.session_state.current_document)
+    
+    def _render_chat_only_interface(self):
+        """Render chat-only interface."""
         if st.session_state.current_session or st.session_state.messages:
             self.render_chat_interface()
         else:
             self.render_welcome_message()
+            
+    def _render_document_only_interface(self):
+        """Render document-only interface."""
+        if st.session_state.current_document:
+            st.markdown("### 📄 Document Viewer")
+            
+            # Set up document renderer
+            self.split_view_layout.document_renderer.set_document(st.session_state.current_document)
+            
+            # Load citations if available
+            if st.session_state.current_document.doc_id == "plato_republic":
+                sample_citations = create_sample_citations()[:1]  # First citation
+                self.split_view_layout.document_renderer.set_citations(sample_citations)
+                self.split_view_layout.citation_navigator.set_citations(sample_citations)
+            
+            # Render document components
+            self.split_view_layout.document_renderer.render_document_header()
+            self.split_view_layout.document_renderer.render_search_controls()
+            self.split_view_layout.document_renderer.render_document_content()
+            
+        else:
+            st.info("👈 Please select a document from the sidebar to view it.")
+            
+            # Show welcome message for document viewer
+            st.markdown("""
+            ### 📚 Document Viewer Mode
+            
+            In this mode, you can:
+            - **Browse classical philosophical texts**
+            - **Search within documents** 
+            - **Navigate citations and references**
+            - **Highlight and annotate passages**
+            
+            Select a document from the sidebar to get started!
+            """)
 
 
 def main():

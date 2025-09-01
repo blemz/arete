@@ -37,7 +37,8 @@
       "Bash(set SELECTED_LLM_PROVIDER=ollama)",
       "Bash(set SELECTED_LLM_MODEL=gemma3:4b)",
       "Bash(timeout:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "mcp__serena__write_memory"
     ],
     "deny": []
   },
