@@ -287,6 +287,45 @@ class RetrievalRepository:
         
         return results
     
+    async def hybrid_search(
+        self,
+        query: str,
+        limit: int = 10,
+        sparse_weight: float = 0.3,
+        dense_weight: float = 0.7,
+        graph_weight: float = 0.0,
+        **kwargs
+    ) -> List["SearchResult"]:
+        """
+        Public async method for hybrid search as expected by RAG pipeline.
+        
+        Args:
+            query: Search query text
+            limit: Maximum number of results
+            sparse_weight: Weight for sparse retrieval results
+            dense_weight: Weight for dense retrieval results
+            graph_weight: Weight for graph retrieval results (unused for now)
+            **kwargs: Additional parameters
+            
+        Returns:
+            List of SearchResult objects sorted by relevance
+        """
+        # Create hybrid config with the provided weights
+        hybrid_config = HybridRetrievalConfig(
+            dense_weight=dense_weight,
+            sparse_weight=sparse_weight,
+            strategy=HybridStrategy.WEIGHTED_AVERAGE
+        )
+        
+        # Call the sync search method with hybrid retrieval
+        return self.search(
+            query=query,
+            method=RetrievalMethod.HYBRID,
+            limit=limit,
+            hybrid_config=hybrid_config,
+            **kwargs
+        )
+    
     def _hybrid_search(
         self,
         query: str,

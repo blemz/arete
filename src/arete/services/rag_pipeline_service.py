@@ -705,6 +705,28 @@ def create_rag_pipeline_service(
     Returns:
         Configured RAGPipelineService instance
     """
+    from arete.services.dense_retrieval_service import DenseRetrievalService
+    from arete.services.sparse_retrieval_service import SparseRetrievalService
+    from arete.repositories.retrieval import RetrievalRepository
+    
+    # Initialize settings
+    if settings is None:
+        settings = get_settings()
+    
+    # Initialize services if not provided
+    if 'dense_retrieval_service' not in service_kwargs:
+        service_kwargs['dense_retrieval_service'] = DenseRetrievalService(settings=settings)
+    
+    if 'sparse_retrieval_service' not in service_kwargs:
+        service_kwargs['sparse_retrieval_service'] = SparseRetrievalService(settings=settings)
+    
+    if 'retrieval_repository' not in service_kwargs:
+        service_kwargs['retrieval_repository'] = RetrievalRepository(
+            dense_service=service_kwargs.get('dense_retrieval_service'),
+            sparse_service=service_kwargs.get('sparse_retrieval_service'),
+            settings=settings
+        )
+    
     return RAGPipelineService(
         config=config,
         settings=settings,

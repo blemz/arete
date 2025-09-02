@@ -258,7 +258,73 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
     
     # Semantic Search Methods
     
+    def semantic_search(
+        self,
+        query_text: str,
+        limit: int = 10,
+        similarity_threshold: float = 0.7,
+        min_certainty: float = None,
+        document_ids: Optional[List[UUID]] = None,
+        chunk_types: Optional[List[str]] = None,
+        **kwargs
+    ) -> List[SearchResultWithScore]:
+        """
+        Semantic search method expected by the updated code.
+        
+        Args:
+            query_text: Text to search for
+            limit: Maximum number of results
+            similarity_threshold: Minimum relevance threshold (0.0-1.0)
+            min_certainty: Alternative name for similarity_threshold
+            document_ids: Optional filter by document IDs
+            chunk_types: Optional filter by chunk types
+            
+        Returns:
+            List of SearchResultWithScore objects
+        """
+        # Use min_certainty if provided, otherwise similarity_threshold
+        threshold = min_certainty if min_certainty is not None else similarity_threshold
+        
+        # Call the actual search method
+        results = self._search_by_text_impl(
+            query_text=query_text,
+            limit=limit,
+            min_certainty=threshold,
+            document_ids=document_ids,
+            chunk_types=chunk_types
+        )
+        
+        # Convert to SearchResultWithScore objects
+        from dataclasses import dataclass
+        
+        @dataclass
+        class SearchResultWithScore:
+            chunk: Chunk
+            similarity_score: float
+        
+        return [
+            SearchResultWithScore(chunk=chunk, similarity_score=score)
+            for chunk, score in results
+        ]
+    
     def search_by_text(
+        self,
+        query_text: str,
+        limit: int = 10,
+        min_certainty: float = 0.7,
+        document_ids: Optional[List[UUID]] = None,
+        chunk_types: Optional[List[str]] = None
+    ) -> List[Tuple[Chunk, float]]:
+        """Legacy search_by_text method."""
+        return self._search_by_text_impl(
+            query_text=query_text,
+            limit=limit,
+            min_certainty=min_certainty,
+            document_ids=document_ids,
+            chunk_types=chunk_types
+        )
+    
+    def _search_by_text_impl(
         self,
         query_text: str,
         limit: int = 10,
@@ -493,6 +559,109 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
             # Rollback transaction
             logger.error(f"Embedding transaction failed, rolling back: {e}")
             raise
+    
+    # Implement required abstract methods from BaseRepository
+    
+    async def create(self, entity: Chunk) -> Chunk:
+        """Create a new chunk with embedding."""
+        return self.generate_and_store_embedding(entity, store_immediately=True)
+    
+    async def get_by_id(self, entity_id: Union[UUID, str]) -> Optional[Chunk]:
+        """Get chunk by ID from Neo4j."""
+        # This would need actual implementation with Neo4j query
+        logger.warning(f"get_by_id not fully implemented for chunk {entity_id}")
+        return None
+    
+    async def update(self, entity: Chunk) -> Chunk:
+        """Update an existing chunk."""
+        return self.generate_and_store_embedding(entity, store_immediately=True)
+    
+    async def delete(self, entity_id: Union[UUID, str]) -> bool:
+        """Delete a chunk by ID."""
+        logger.warning(f"delete not fully implemented for chunk {entity_id}")
+        return False
+    
+    async def list_all(
+        self, 
+        limit: int = 100, 
+        offset: int = 0,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> List[Chunk]:
+        """List all chunks."""
+        logger.warning("list_all not fully implemented")
+        return []
+    
+    async def count(self, filters: Optional[Dict[str, Any]] = None) -> int:
+        """Count chunks matching filters."""
+        logger.warning("count not fully implemented")
+        return 0
+    
+    async def exists(self, entity_id: Union[UUID, str]) -> bool:
+        """Check if chunk exists by ID."""
+        logger.warning(f"exists not fully implemented for chunk {entity_id}")
+        return False
+    
+    def search_by_text(
+        self,
+        query_text: str = None,
+        query: str = None,
+        limit: int = 10,
+        similarity_threshold: float = 0.7,
+        min_certainty: float = None,
+        **kwargs
+    ) -> List[Tuple[Chunk, float]]:
+        """Search chunks by text similarity - synchronous version."""
+        # Handle both parameter names for compatibility
+        search_query = query_text or query
+        if not search_query:
+            raise ValueError("Either query_text or query must be provided")
+        
+        # Use min_certainty if provided, otherwise use similarity_threshold
+        threshold = min_certainty if min_certainty is not None else similarity_threshold
+        
+        # Delegate to semantic search
+        results = self.semantic_search(
+            query_text=search_query,
+            limit=limit,
+            similarity_threshold=threshold,
+            **kwargs
+        )
+        # Return tuples of (chunk, score) as expected by dense_retrieval_service
+        return [(result.chunk, result.similarity_score) for result in results]
+    
+    async def search_by_text_async(
+        self,
+        query_text: str = None,
+        query: str = None,
+        limit: int = 10,
+        similarity_threshold: float = 0.7,
+        min_certainty: float = None,
+        **kwargs
+    ) -> List[Tuple[Chunk, float]]:
+        """Search chunks by text similarity - async version."""
+        # Just delegate to sync version for now
+        return self.search_by_text(
+            query_text=query_text,
+            query=query,
+            limit=limit,
+            similarity_threshold=similarity_threshold,
+            min_certainty=min_certainty,
+            **kwargs
+        )
+    
+    async def search_by_embedding(
+        self,
+        embedding: List[float],
+        limit: int = 10,
+        similarity_threshold: float = 0.7
+    ) -> List[Tuple[Chunk, float]]:
+        """Search chunks by embedding similarity."""
+        results = self.similarity_search(
+            query_embedding=embedding,
+            limit=limit,
+            similarity_threshold=similarity_threshold
+        )
+        return [(result.chunk, result.similarity_score) for result in results]
     
     # Cleanup Methods
     
