@@ -18,15 +18,15 @@ from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 
-from ..config import Settings, get_settings
-from ..services.dense_retrieval_service import DenseRetrievalService, SearchResult
-from ..services.sparse_retrieval_service import SparseRetrievalService
-from ..services.graph_traversal_service import GraphTraversalService
-from ..services.reranking_service import RerankingService
-from ..services.diversity_service import DiversityService
-from ..services.context_composition_service import ContextCompositionService, ContextResult
-from ..services.response_generation_service import ResponseGenerationService, ResponseResult
-from ..repositories.retrieval import RetrievalRepository
+from arete.config import Settings, get_settings
+from arete.services.dense_retrieval_service import DenseRetrievalService, SearchResult
+from arete.services.sparse_retrieval_service import SparseRetrievalService
+from arete.services.graph_traversal_service import GraphTraversalService
+from arete.services.reranking_service import RerankingService
+from arete.services.diversity_service import DiversityService
+from arete.services.context_composition_service import ContextCompositionService, ContextResult
+from arete.services.response_generation_service import ResponseGenerationService, ResponseResult
+from arete.repositories.retrieval import RetrievalRepository
 from .base import ServiceError
 
 logger = logging.getLogger(__name__)
@@ -476,7 +476,7 @@ class RAGPipelineService:
             raise RAGPipelineError("Context composition service not available")
         
         try:
-            from ..services.context_composition_service import (
+            from arete.services.context_composition_service import (
                 ContextCompositionConfig, CompositionStrategy
             )
             
@@ -516,7 +516,7 @@ class RAGPipelineService:
             raise RAGPipelineError("Response generation service not available")
         
         try:
-            from ..services.response_generation_service import ResponseGenerationConfig
+            from arete.services.response_generation_service import ResponseGenerationConfig
             
             generation_config = ResponseGenerationConfig(
                 max_response_tokens=config.max_response_tokens,
@@ -574,7 +574,7 @@ class RAGPipelineService:
         warnings: Optional[List[str]] = None
     ) -> RAGPipelineResult:
         """Create empty result for error cases."""
-        from ..services.response_generation_service import (
+        from arete.services.response_generation_service import (
             ResponseResult, ResponseValidation
         )
         

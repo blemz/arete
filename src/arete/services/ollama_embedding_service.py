@@ -183,14 +183,18 @@ class OllamaEmbeddingService:
         self,
         text: str,
         normalize: bool = True,
+        max_retries: int = 3,
+        retry_delay: float = 2.0,
         **kwargs
     ) -> List[float]:
         """
-        Generate embedding for a single text using Ollama.
+        Generate embedding for a single text using Ollama with retry logic.
         
         Args:
             text: Input text to embed
             normalize: Whether to normalize the embedding (if supported)
+            max_retries: Maximum number of retry attempts
+            retry_delay: Delay between retries in seconds
             **kwargs: Additional parameters for the model
             
         Returns:
@@ -212,48 +216,70 @@ class OllamaEmbeddingService:
             logger.debug(f"Cache hit for text: {text[:50]}...")
             return self._embedding_cache[cache_key]
         
-        try:
-            # Make request to Ollama embeddings endpoint
-            response = requests.post(
-                f"{self.base_url}/api/embeddings",
-                json={
-                    "model": self.model_name,
-                    "prompt": text.strip(),
-                    **kwargs
-                },
-                timeout=60  # 1 minute timeout for embedding generation
-            )
-            
-            if response.status_code != 200:
-                raise OllamaModelError(f"Ollama returned HTTP {response.status_code}: {response.text}")
-            
-            data = response.json()
-            embedding = data.get("embedding")
-            
-            if not embedding:
-                raise OllamaModelError("No embedding returned from Ollama")
-            
-            # Normalize if requested (basic L2 normalization)
-            if normalize:
-                import math
-                norm = math.sqrt(sum(x*x for x in embedding))
-                if norm > 0:
-                    embedding = [x / norm for x in embedding]
-            
-            # Cache the result
-            self._embedding_cache[cache_key] = embedding
-            self._embedding_count += 1
-            
-            logger.debug(f"Generated Ollama embedding: {len(embedding)} dimensions")
-            return embedding
-            
-        except requests.exceptions.ConnectionError as e:
-            raise OllamaConnectionError(f"Cannot connect to Ollama at {self.base_url}: {e}")
-        except requests.exceptions.Timeout as e:
-            raise OllamaModelError(f"Ollama request timed out: {e}")
-        except Exception as e:
-            logger.error(f"Failed to generate Ollama embedding: {e}")
-            raise OllamaModelError(f"Embedding generation failed: {e}")
+        last_exception = None
+        
+        # Retry logic with exponential backoff
+        for attempt in range(max_retries + 1):
+            try:
+                # Make request to Ollama embeddings endpoint
+                response = requests.post(
+                    f"{self.base_url}/api/embeddings",
+                    json={
+                        "model": self.model_name,
+                        "prompt": text.strip(),
+                        **kwargs
+                    },
+                    timeout=180  # 3 minute timeout for embedding generation (increased)
+                )
+                
+                if response.status_code != 200:
+                    raise OllamaModelError(f"Ollama returned HTTP {response.status_code}: {response.text}")
+                
+                data = response.json()
+                embedding = data.get("embedding")
+                
+                if not embedding:
+                    raise OllamaModelError("No embedding returned from Ollama")
+                
+                # Normalize if requested (basic L2 normalization)
+                if normalize:
+                    import math
+                    norm = math.sqrt(sum(x*x for x in embedding))
+                    if norm > 0:
+                        embedding = [x / norm for x in embedding]
+                
+                # Cache the result
+                self._embedding_cache[cache_key] = embedding
+                self._embedding_count += 1
+                
+                # Log successful retry if this wasn't the first attempt
+                if attempt > 0:
+                    logger.info(f"Successfully generated embedding after {attempt + 1} attempts")
+                
+                logger.debug(f"Generated Ollama embedding: {len(embedding)} dimensions")
+                return embedding
+                
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                last_exception = e
+                if attempt < max_retries:
+                    wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
+                    logger.warning(f"Embedding attempt {attempt + 1} failed, retrying in {wait_time}s: {e}")
+                    time.sleep(wait_time)
+                else:
+                    logger.error(f"All {max_retries + 1} embedding attempts failed")
+            except Exception as e:
+                last_exception = e
+                logger.error(f"Non-retryable error in embedding generation: {e}")
+                break
+        
+        # If we get here, all retries failed
+        if isinstance(last_exception, requests.exceptions.ConnectionError):
+            raise OllamaConnectionError(f"Cannot connect to Ollama at {self.base_url}: {last_exception}")
+        elif isinstance(last_exception, requests.exceptions.Timeout):
+            raise OllamaModelError(f"Ollama request timed out after {max_retries + 1} attempts: {last_exception}")
+        else:
+            logger.error(f"Failed to generate Ollama embedding: {last_exception}")
+            raise OllamaModelError(f"Embedding generation failed: {last_exception}")
     
     def generate_embeddings_batch(
         self,
@@ -290,7 +316,7 @@ class OllamaEmbeddingService:
                     logger.info(f"Generated {i + 1}/{len(texts)} embeddings")
                     
             except Exception as e:
-                logger.error(f"Failed to generate embedding for text {i}: {e}")
+                logger.error(f"Failed to generate embedding for text {i} after retries: {e}")
                 # Return zero vector of appropriate dimension
                 embeddings.append([0.0] * 8192)
         

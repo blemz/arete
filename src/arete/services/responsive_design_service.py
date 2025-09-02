@@ -52,7 +52,7 @@ class ResponsiveDesignService:
         font_scale: float = 1.0
     ) -> str:
         """Generate responsive CSS for the Streamlit app."""
-        css_parts = [
+        css_methods = [
             self._get_base_responsive_css(),
             self._get_mobile_css(),
             self._get_tablet_css(),
@@ -60,12 +60,25 @@ class ResponsiveDesignService:
         ]
         
         if compact_mode:
-            css_parts.append(self._get_compact_mode_css())
+            css_methods.append(self._get_compact_mode_css())
             
         if font_scale != 1.0:
-            css_parts.append(self._get_font_scale_css(font_scale))
+            css_methods.append(self._get_font_scale_css(font_scale))
         
-        return "\n".join(filter(None, css_parts))
+        # Extract CSS content from each method (remove <style> tags)
+        css_content_parts = []
+        for css_block in filter(None, css_methods):
+            # Remove <style> and </style> tags and extract content
+            content = css_block.strip()
+            if content.startswith('<style>'):
+                content = content[7:]  # Remove <style>
+            if content.endswith('</style>'):
+                content = content[:-8]  # Remove </style>
+            css_content_parts.append(content.strip())
+        
+        # Combine all CSS content into a single <style> block
+        combined_css = "\n".join(css_content_parts)
+        return f"<style>\n{combined_css}\n</style>"
     
     def _get_base_responsive_css(self) -> str:
         """Get base responsive CSS that applies to all screen sizes."""

@@ -662,9 +662,7 @@ class ConversationExportService:
                 include_citations=True,
                 include_timestamps=True,
                 format_philosophical_quotes=True
-            ),
-            is_system_template=True,
-            is_default=True
+            )
         )
         self.templates[markdown_template.template_id] = markdown_template
         
@@ -679,8 +677,6 @@ class ConversationExportService:
                 include_citations=True,
                 include_timestamps=True,
                 highlight_citations=True
-            ),
-            is_system_template=True,
-            is_default=True
+            )
         )
         self.templates[html_template.template_id] = html_template

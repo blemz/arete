@@ -59,6 +59,10 @@ class AreteStreamlitInterface:
         self.accessibility_service = AccessibilityService(AccessibilityConfig())
         self.responsive_service = ResponsiveDesignService(ResponsiveConfig())
         
+        # Initialize graph analytics
+        from arete.ui.graph_analytics_viz import GraphAnalyticsVisualizer
+        self.analytics_visualizer = GraphAnalyticsVisualizer()
+        
         # Load sample documents for demonstration
         self.document_search_interface.set_available_documents(create_sample_documents())
         
@@ -119,8 +123,18 @@ class AreteStreamlitInterface:
             
             responsive_css = self.responsive_service.get_responsive_css(device_type)
             
-            # Combine CSS
-            combined_css = wcag_css + "\n" + responsive_css
+            # Extract and combine CSS content from both services
+            def extract_css_content(css_block):
+                content = css_block.strip()
+                if content.startswith('<style>'):
+                    content = content[7:]  # Remove <style>
+                if content.endswith('</style>'):
+                    content = content[:-8]  # Remove </style>
+                return content.strip()
+            
+            wcag_content = extract_css_content(wcag_css)
+            responsive_content = extract_css_content(responsive_css)
+            combined_css = f"<style>\n{wcag_content}\n{responsive_content}\n</style>"
             st.markdown(combined_css, unsafe_allow_html=True)
             
         elif hasattr(self, 'accessibility_service'):
@@ -259,6 +273,10 @@ class AreteStreamlitInterface:
             
         if "search_results" not in st.session_state:
             st.session_state.search_results = []
+            
+        # Analytics session state
+        if "show_analytics" not in st.session_state:
+            st.session_state.show_analytics = False
     
     def render_sidebar(self):
         """Render the sidebar with session management and context settings."""
@@ -299,14 +317,14 @@ class AreteStreamlitInterface:
             
             student_level = st.selectbox(
                 "Academic Level",
-                ["undergraduate", "graduate", "advanced", "general"],
+                ["Select level...", "undergraduate", "graduate", "advanced", "general"],
                 index=0,
                 key="student_level"
             )
             
             philosophical_period = st.selectbox(
                 "Philosophical Period",
-                ["ancient", "medieval", "modern", "contemporary", "all"],
+                ["Select period...", "ancient", "medieval", "modern", "contemporary", "all"],
                 index=0,
                 key="phil_period"
             )
@@ -317,14 +335,18 @@ class AreteStreamlitInterface:
                 key="current_topic"
             )
             
+            # Clean up placeholder values
+            clean_student_level = student_level if not student_level.startswith("Select") else None
+            clean_philosophical_period = philosophical_period if not philosophical_period.startswith("Select") else None
+            
             # Update context when changed
-            if (student_level != st.session_state.session_context.student_level or
-                philosophical_period != st.session_state.session_context.philosophical_period or
+            if (clean_student_level != st.session_state.session_context.student_level or
+                clean_philosophical_period != st.session_state.session_context.philosophical_period or
                 current_topic != st.session_state.session_context.current_topic):
                 
                 st.session_state.session_context = ChatContext(
-                    student_level=student_level,
-                    philosophical_period=philosophical_period,
+                    student_level=clean_student_level,
+                    philosophical_period=clean_philosophical_period,
                     current_topic=current_topic
                 )
                 
@@ -339,8 +361,8 @@ class AreteStreamlitInterface:
             # UI Mode selector
             ui_mode = st.selectbox(
                 "Interface Mode",
-                ["Split View", "Chat Only", "Document Only"],
-                index=["Split View", "Chat Only", "Document Only"].index(st.session_state.ui_mode),
+                ["Split View", "Chat Only", "Document Only", "Graph Analytics"],
+                index=["Split View", "Chat Only", "Document Only", "Graph Analytics"].index(st.session_state.ui_mode) if st.session_state.ui_mode in ["Split View", "Chat Only", "Document Only", "Graph Analytics"] else 0,
                 key="ui_mode_selector"
             )
             
@@ -365,7 +387,7 @@ class AreteStreamlitInterface:
             # User Preferences
             st.subheader("⚙️ Preferences")
             
-            if st.button("🎨 Customize Interface", key="show_preferences"):
+            if st.button("🎨 Customize Interface"):
                 st.session_state.show_preferences = not st.session_state.show_preferences
             
             if st.session_state.show_preferences:
@@ -373,7 +395,7 @@ class AreteStreamlitInterface:
             
             # Export Functionality
             if st.session_state.current_session and len(st.session_state.current_session.messages) > 0:
-                if st.button("📥 Export Conversation", key="show_export"):
+                if st.button("📥 Export Conversation"):
                     st.session_state.show_export = not st.session_state.get("show_export", False)
                 
                 if st.session_state.get("show_export", False):
@@ -382,7 +404,7 @@ class AreteStreamlitInterface:
             # Enhanced Search
             st.subheader("🔍 Search Conversations")
             
-            if st.button("🔎 Advanced Search", key="show_search"):
+            if st.button("🔎 Advanced Search"):
                 st.session_state.show_search = not st.session_state.show_search
             
             # Quick search
@@ -409,7 +431,7 @@ class AreteStreamlitInterface:
             if st.session_state.current_session and len(st.session_state.current_session.messages) > 0:
                 st.subheader("🤝 Share Conversation")
                 
-                if st.button("🔗 Share & Collaborate", key="show_sharing"):
+                if st.button("🔗 Share & Collaborate"):
                     st.session_state.show_sharing = not st.session_state.get("show_sharing", False)
                 
                 if st.session_state.get("show_sharing", False):
@@ -547,7 +569,7 @@ class AreteStreamlitInterface:
     def generate_assistant_response(self, user_input: str):
         """Generate assistant response using RAG pipeline."""
         import asyncio
-        from ..services.rag_pipeline_service import RAGPipelineService, RAGPipelineConfig, create_rag_pipeline_service
+        from arete.services.rag_pipeline_service import RAGPipelineService, RAGPipelineConfig, create_rag_pipeline_service
         
         with st.chat_message("assistant"):
             # Show typing indicator
@@ -1608,6 +1630,8 @@ class AreteStreamlitInterface:
             self._render_chat_only_interface() 
         elif st.session_state.ui_mode == "Document Only":
             self._render_document_only_interface()
+        elif st.session_state.ui_mode == "Graph Analytics":
+            self._render_graph_analytics_interface()
         else:
             # Default to split view
             self._render_split_view_interface()
@@ -1875,6 +1899,13 @@ class AreteStreamlitInterface:
             
             Select a document from the sidebar to get started!
             """)
+
+    def _render_graph_analytics_interface(self):
+        """Render the graph analytics dashboard interface."""
+        from arete.ui.graph_analytics_viz import render_graph_analytics
+        
+        # Call the analytics rendering function
+        render_graph_analytics()
 
 
 def main():

@@ -57,7 +57,7 @@ class AccessibilityService:
         animations_enabled: bool = True
     ) -> str:
         """Generate WCAG 2.1 AA compliant CSS."""
-        css_parts = [
+        css_methods = [
             self._get_base_accessibility_css(),
             self._get_theme_specific_css(theme),
             self._get_font_accessibility_css(font_size),
@@ -68,7 +68,20 @@ class AccessibilityService:
             self._get_responsive_css(compact_mode)
         ]
         
-        return "\n".join(filter(None, css_parts))
+        # Extract CSS content from each method (remove <style> tags)
+        css_content_parts = []
+        for css_block in filter(None, css_methods):
+            # Remove <style> and </style> tags and extract content
+            content = css_block.strip()
+            if content.startswith('<style>'):
+                content = content[7:]  # Remove <style>
+            if content.endswith('</style>'):
+                content = content[:-8]  # Remove </style>
+            css_content_parts.append(content.strip())
+        
+        # Combine all CSS content into a single <style> block
+        combined_css = "\n".join(css_content_parts)
+        return f"<style>\n{combined_css}\n</style>"
     
     def _get_base_accessibility_css(self) -> str:
         """Get base accessibility CSS that applies to all themes."""
@@ -87,15 +100,21 @@ class AccessibilityService:
             position: absolute;
             top: -40px;
             left: 6px;
-            background: #000000;
-            color: #ffffff;
-            padding: 8px;
-            text-decoration: none;
-            border-radius: 3px;
-            z-index: 1000;
+            background: #0066cc !important;
+            color: #ffffff !important;
+            padding: 12px 16px !important;
+            text-decoration: none !important;
+            border-radius: 4px !important;
+            border: 2px solid #ffffff !important;
+            font-weight: bold !important;
+            font-size: 14px !important;
+            z-index: 10000 !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
         }
         .skip-link:focus {
-            top: 6px;
+            top: 6px !important;
+            outline: 3px solid #ffdd00 !important;
+            outline-offset: 2px !important;
         }
         
         /* Ensure minimum touch target size (44px) */
