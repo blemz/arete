@@ -25,9 +25,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 import hashlib
 import logging
 
-from src.arete.services.dense_retrieval_service import SearchResult
-from src.arete.models.chunk import Chunk
-from src.arete.config import Settings
+from arete.services.dense_retrieval_service import SearchResult
+from arete.models.chunk import Chunk
+from arete.config import Settings
 
 logger = logging.getLogger(__name__)
 
