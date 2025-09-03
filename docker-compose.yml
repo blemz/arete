@@ -31,6 +31,7 @@ services:
     container_name: arete-weaviate
     ports:
       - "8080:8080"
+      - "50051:50051"
     environment:
       QUERY_DEFAULTS_LIMIT: 25
       AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'

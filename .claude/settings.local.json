@@ -43,7 +43,8 @@
       "Bash(streamlit run:*)",
       "mcp__playwright__browser_resize",
       "Bash(taskkill:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(docker-compose:*)"
     ],
     "deny": []
   },
