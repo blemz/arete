@@ -10,6 +10,7 @@ from typing import List, Optional, Dict, Any, Union, Tuple
 from uuid import UUID
 import asyncio
 from contextlib import contextmanager
+from dataclasses import dataclass
 
 from .base import SearchableRepository, RepositoryError
 from ..models.chunk import Chunk
@@ -38,6 +39,13 @@ class EmbeddingStorageError(EmbeddingRepositoryError):
 class SemanticSearchError(EmbeddingRepositoryError):
     """Raised when semantic search fails."""
     pass
+
+
+@dataclass
+class SearchResultWithScore:
+    """Represents a search result with its similarity score."""
+    chunk: Chunk
+    similarity_score: float
 
 
 class EmbeddingRepository(SearchableRepository[Chunk]):
@@ -295,13 +303,6 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
         )
         
         # Convert to SearchResultWithScore objects
-        from dataclasses import dataclass
-        
-        @dataclass
-        class SearchResultWithScore:
-            chunk: Chunk
-            similarity_score: float
-        
         return [
             SearchResultWithScore(chunk=chunk, similarity_score=score)
             for chunk, score in results
@@ -692,6 +693,19 @@ def create_embedding_repository(
     Returns:
         Configured EmbeddingRepository instance
     """
+    # Get settings if not provided
+    if settings is None:
+        settings = get_settings()
+    
+    # Create clients if not provided
+    if neo4j_client is None:
+        from ..database.client import Neo4jClient
+        neo4j_client = Neo4jClient()  # Uses default settings
+    
+    if weaviate_client is None:
+        from ..database.weaviate_client import WeaviateClient
+        weaviate_client = WeaviateClient()
+    
     return EmbeddingRepository(
         neo4j_client=neo4j_client,
         weaviate_client=weaviate_client,

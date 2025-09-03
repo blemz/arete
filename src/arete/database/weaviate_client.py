@@ -10,6 +10,7 @@ from uuid import UUID
 from urllib.parse import urlparse
 
 import weaviate
+import weaviate.classes.config as wvc
 from weaviate.exceptions import (
     AuthenticationFailedException,
     WeaviateConnectionError,
@@ -401,3 +402,74 @@ class WeaviateClient:
             
         except WeaviateBaseError as e:
             raise DatabaseQueryError(f"Failed to batch create {class_name} objects: {str(e)}") from e
+
+    def search_by_vector(
+        self,
+        collection_name: str,
+        query_vector: List[float],
+        limit: int = 10,
+        min_certainty: float = 0.7,
+        where_filter: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search for objects using a vector query.
+        
+        Args:
+            collection_name: Name of the collection to search
+            query_vector: Query vector
+            limit: Maximum number of results
+            min_certainty: Minimum certainty threshold
+            where_filter: Optional where filter
+            
+        Returns:
+            List of search results with metadata
+            
+        Raises:
+            DatabaseQueryError: If search fails
+        """
+        try:
+            if not self.client:
+                self.connect()
+            
+            # Get collection
+            collection = self.client.collections.get(collection_name)
+            
+            # Build query with proper Weaviate v4 syntax
+            if where_filter:
+                query = collection.query.near_vector(
+                    near_vector=query_vector,
+                    limit=limit,
+                    certainty=min_certainty,
+                    return_metadata=['certainty']
+                ).where(where_filter)
+            else:
+                query = collection.query.near_vector(
+                    near_vector=query_vector,
+                    limit=limit,
+                    certainty=min_certainty,
+                    return_metadata=['certainty']
+                )
+            
+            # Execute query
+            response = query.objects
+            
+            # Format results
+            results = []
+            for obj in response:
+                result = {
+                    "id": str(obj.uuid),
+                    "properties": obj.properties,
+                    "vector": obj.vector,
+                    "_additional": {
+                        "certainty": obj.metadata.certainty if obj.metadata else min_certainty
+                    },
+                    "metadata": {
+                        "certainty": obj.metadata.certainty if obj.metadata else min_certainty
+                    }
+                }
+                results.append(result)
+            
+            return results
+            
+        except Exception as e:
+            raise DatabaseQueryError(f"Vector search failed for {collection_name}: {str(e)}") from e
