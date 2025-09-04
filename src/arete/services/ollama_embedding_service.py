@@ -327,6 +327,37 @@ class OllamaEmbeddingService:
         
         return embeddings
     
+    async def generate_embeddings(
+        self,
+        texts: List[str],
+        normalize: bool = True,
+        show_progress: bool = True,
+        **kwargs
+    ) -> List[List[float]]:
+        """
+        Generate embeddings for multiple texts (async interface).
+        
+        This method provides the async interface expected by the ingestion pipeline
+        while wrapping the synchronous Ollama API calls.
+        
+        Args:
+            texts: List of input texts
+            normalize: Whether to normalize embeddings
+            show_progress: Whether to show progress
+            **kwargs: Additional model parameters
+            
+        Returns:
+            List of embedding vectors
+        """
+        # For now, just wrap the synchronous batch method
+        # In the future, this could be made truly async with asyncio.gather
+        return self.generate_embeddings_batch(
+            texts=texts,
+            normalize=normalize, 
+            show_progress=show_progress,
+            **kwargs
+        )
+    
     def generate_chunk_embedding(
         self,
         chunk: Chunk,
