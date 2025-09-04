@@ -47,13 +47,17 @@ class Settings(BaseSettings):
     )
     
     # Embedding Configuration
+    embedding_provider: str = Field(
+        default="sentence-transformers",
+        description="Embedding provider (sentence-transformers, ollama, openai, openrouter, gemini, anthropic)"
+    )
     embedding_model: str = Field(
         default="paraphrase-multilingual-mpnet-base-v2",
-        description="Default sentence-transformer model for embeddings"
+        description="Embedding model name for the selected provider"
     )
     embedding_device: str = Field(
         default="auto",
-        description="Device for embedding generation (auto, cuda, cpu, mps)"
+        description="Device for embedding generation (auto, cuda, cpu, mps) - only for sentence-transformers"
     )
     embedding_batch_size: int = Field(
         default=32,
@@ -225,6 +229,15 @@ class Settings(BaseSettings):
         if v >= 1000:  # Default chunk_size
             raise ValueError("chunk_overlap must be smaller than chunk_size")
         return v
+    
+    @field_validator("embedding_provider")
+    @classmethod
+    def validate_embedding_provider(cls, v: str) -> str:
+        """Validate embedding provider setting."""
+        valid_providers = {"sentence-transformers", "ollama", "openai", "openrouter", "gemini", "anthropic"}
+        if v.lower() not in valid_providers:
+            raise ValueError(f"embedding_provider must be one of: {valid_providers}")
+        return v.lower()
     
     @field_validator("embedding_device")
     @classmethod
