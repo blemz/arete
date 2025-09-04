@@ -939,17 +939,98 @@ async def store_in_databases(result_data: Dict[str, Any]) -> bool:
         
         # Store chunks with embeddings
         print(f"2. Storing {len(chunks)} semantic chunks with embeddings...")
+        print(f"   DEBUG: First chunk details:")
+        if chunks:
+            first_chunk = chunks[0]
+            print(f"   - Text length: {len(first_chunk.text)}")
+            print(f"   - Has embedding: {first_chunk.embedding_vector is not None}")
+            print(f"   - Embedding dimensions: {len(first_chunk.embedding_vector) if first_chunk.embedding_vector else 'None'}")
+            print(f"   - Document ID before update: {first_chunk.document_id}")
+        
         chunks_stored = 0
+        chunks_failed = 0
         
-        for chunk in chunks:
-            chunk.document_id = stored_document.id
-            # Repository would handle chunk storage here
-            chunks_stored += 1
+        # Batch store chunks for efficiency
+        try:
+            # Update all chunk document IDs first
+            for chunk in chunks:
+                chunk.document_id = stored_document.id
             
-            if chunks_stored % 25 == 0:
-                print(f"   Progress: {chunks_stored}/{len(chunks)} chunks stored")
-        
-        print(f"   SUCCESS: All {chunks_stored} chunks stored with embeddings")
+            print(f"   Storing chunks in Neo4j using batch method...")
+            # Store chunks in Neo4j using efficient batch operation
+            try:
+                result = await neo4j_client.async_batch_save_chunks(chunks)
+                neo4j_chunks_stored = len(result)
+                print(f"   SUCCESS: {neo4j_chunks_stored} chunks stored in Neo4j (batch)")
+                        
+            except Exception as neo4j_error:
+                print(f"   Neo4j batch ERROR: {neo4j_error}")
+                print(f"   Falling back to individual chunk storage...")
+                
+                # Fallback to individual storage
+                neo4j_chunks_stored = 0
+                for i, chunk in enumerate(chunks):
+                    try:
+                        await neo4j_client.async_save_chunk(chunk)
+                        neo4j_chunks_stored += 1
+                        
+                        if (i + 1) % 25 == 0:
+                            print(f"   Neo4j progress: {neo4j_chunks_stored}/{len(chunks)} chunks stored")
+                            
+                    except Exception as individual_error:
+                        print(f"   Neo4j ERROR for chunk {i+1}: {individual_error}")
+                
+                print(f"   SUCCESS: {neo4j_chunks_stored} chunks stored in Neo4j (individual)")
+            
+            # Store chunks in Weaviate (with embeddings)
+            print(f"   Storing chunks in Weaviate with embeddings...")
+            weaviate_chunks_stored = 0
+            
+            # Prepare batch data for Weaviate
+            weaviate_objects = []
+            for chunk in chunks:
+                if chunk.embedding_vector:  # Only store chunks with embeddings
+                    chunk_dict = chunk.to_weaviate_dict()
+                    weaviate_objects.append({
+                        'properties': chunk_dict,
+                        'vector': chunk.embedding_vector
+                    })
+            
+            if weaviate_objects:
+                # Use batch creation for efficiency
+                try:
+                    weaviate_client.create_objects_batch('Chunk', weaviate_objects)
+                    weaviate_chunks_stored = len(weaviate_objects)
+                    print(f"   SUCCESS: {weaviate_chunks_stored} chunks stored in Weaviate with embeddings")
+                except Exception as batch_error:
+                    print(f"   Batch storage failed, trying individual storage: {batch_error}")
+                    # Fallback to individual storage
+                    for i, obj in enumerate(weaviate_objects):
+                        try:
+                            weaviate_client.create_object(
+                                'Chunk', 
+                                obj['properties'], 
+                                obj['vector']
+                            )
+                            weaviate_chunks_stored += 1
+                            
+                            if (i + 1) % 25 == 0:
+                                print(f"   Weaviate progress: {weaviate_chunks_stored}/{len(weaviate_objects)} chunks stored")
+                                
+                        except Exception as individual_error:
+                            chunks_failed += 1
+                            print(f"   Weaviate ERROR for chunk {i+1}: {individual_error}")
+                            
+            else:
+                print(f"   WARNING: No chunks had embeddings for Weaviate storage")
+            
+            chunks_stored = min(neo4j_chunks_stored, weaviate_chunks_stored)
+            print(f"   SUMMARY: {chunks_stored} chunks successfully stored in both databases, {chunks_failed} failed")
+            
+        except Exception as storage_error:
+            print(f"   CRITICAL ERROR: Chunk storage system failed: {storage_error}")
+            print(f"   Error type: {type(storage_error).__name__}")
+            chunks_failed = len(chunks)
         
         # Store entities
         print(f"3. Storing {len(entities)} enhanced entities...")

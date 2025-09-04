@@ -21,6 +21,7 @@ from neo4j.exceptions import (
 from ..config import get_settings
 from ..models.document import Document
 from ..models.entity import Entity
+from ..models.chunk import Chunk
 from .exceptions import DatabaseConnectionError, DatabaseQueryError, DatabaseTransactionError
 
 
@@ -395,6 +396,85 @@ class Neo4jClient:
         
         async with self.async_session() as session:
             result = await session.run(query, entities=entity_data)
+            return await result.data()
+            
+    # Chunk Operations
+    def save_chunk(self, chunk: Chunk) -> Dict[str, Any]:
+        """Save chunk to Neo4j synchronously."""
+        query = """
+        CREATE (c:Chunk $chunk_data)
+        RETURN c
+        """
+        
+        with self.session() as session:
+            result = session.run(query, chunk_data=chunk.to_neo4j_dict())
+            record = result.single()
+            return record["c"] if record else {}
+            
+    async def async_save_chunk(self, chunk: Chunk) -> Dict[str, Any]:
+        """Save chunk to Neo4j asynchronously."""
+        query = """
+        CREATE (c:Chunk $chunk_data)
+        RETURN c
+        """
+        
+        async with self.async_session() as session:
+            result = await session.run(query, chunk_data=chunk.to_neo4j_dict())
+            record = await result.single()
+            return record["c"] if record else {}
+            
+    def get_chunk(self, chunk_id: UUID) -> Optional[Dict[str, Any]]:
+        """Get chunk by ID synchronously."""
+        query = """
+        MATCH (c:Chunk {id: $chunk_id})
+        RETURN c
+        """
+        
+        with self.session() as session:
+            result = session.run(query, chunk_id=str(chunk_id))
+            record = result.single()
+            return record["c"] if record else None
+            
+    async def async_get_chunk(self, chunk_id: UUID) -> Optional[Dict[str, Any]]:
+        """Get chunk by ID asynchronously."""
+        query = """
+        MATCH (c:Chunk {id: $chunk_id})
+        RETURN c
+        """
+        
+        async with self.async_session() as session:
+            result = await session.run(query, chunk_id=str(chunk_id))
+            record = await result.single()
+            return record["c"] if record else None
+            
+    def batch_save_chunks(self, chunks: List[Chunk]) -> List[Dict[str, Any]]:
+        """Batch save multiple chunks synchronously."""
+        query = """
+        UNWIND $chunks AS chunk
+        CREATE (c:Chunk)
+        SET c += chunk
+        RETURN {id: c.id} AS result
+        """
+        
+        chunk_data = [chunk.to_neo4j_dict() for chunk in chunks]
+        
+        with self.session() as session:
+            result = session.run(query, chunks=chunk_data)
+            return result.data()
+            
+    async def async_batch_save_chunks(self, chunks: List[Chunk]) -> List[Dict[str, Any]]:
+        """Batch save multiple chunks asynchronously."""
+        query = """
+        UNWIND $chunks AS chunk
+        CREATE (c:Chunk)
+        SET c += chunk
+        RETURN {id: c.id} AS result
+        """
+        
+        chunk_data = [chunk.to_neo4j_dict() for chunk in chunks]
+        
+        async with self.async_session() as session:
+            result = await session.run(query, chunks=chunk_data)
             return await result.data()
             
     # Transaction-based operations

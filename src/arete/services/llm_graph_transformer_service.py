@@ -241,17 +241,19 @@ class PhilosophicalLLMGraphTransformer:
                 
                 # Transform to graph document with timeout
                 try:
-                    # Increased timeout for complex graph extraction
+                    # Increased timeout for complex philosophical graph extraction
                     graph_docs = await asyncio.wait_for(
                         asyncio.get_event_loop().run_in_executor(
                             None, self.transformer.convert_to_graph_documents, [doc]
                         ),
-                        timeout=120.0  # Increased to 120 seconds for gpt-5-mini model
+                        timeout=180.0  # Increased to 180 seconds for complex philosophical texts
                     )
                 except asyncio.TimeoutError:
-                    print(f"    [ERROR] LLM transform timed out for chunk {i+1} after 120s")
+                    print(f"    [ERROR] LLM transform timed out for chunk {i+1} after 180s")
                     print(f"    [DEBUG] This may be due to rate limits (500 RPM) or API issues")
-                    print(f"    [DEBUG] Model: {self.llm_model}, Provider: {self.llm_provider}")
+                    kg_provider = (self.config.kg_llm_provider or self.config.selected_llm_provider)
+                    kg_model = self.config.kg_llm_model or self.config.selected_llm_model
+                    print(f"    [DEBUG] Model: {kg_model}, Provider: {kg_provider}")
                     continue
                 except Exception as transform_error:
                     error_msg = str(transform_error).lower()
@@ -265,7 +267,7 @@ class PhilosophicalLLMGraphTransformer:
                                 asyncio.get_event_loop().run_in_executor(
                                     None, self.transformer.convert_to_graph_documents, [doc]
                                 ),
-                                timeout=120.0
+                                timeout=180.0
                             )
                         except Exception as retry_error:
                             print(f"    [ERROR] Retry failed: {retry_error}")
