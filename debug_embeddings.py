@@ -81,10 +81,14 @@ async def fetch_chunks_from_neo4j(
             params = {}
         
         logger.info(f"Executing query: {query[:100]}...")
-        result = await neo4j_client.async_read(query, params)
+        
+        # Execute query and get data
+        async with neo4j_client.async_session() as session:
+            result = await session.run(query, params)
+            records = await result.data()
         
         chunks = []
-        for record in result:
+        for record in records:
             chunk_node = record['c']
             chunk_dict = dict(chunk_node)
             chunks.append(chunk_dict)
@@ -112,12 +116,23 @@ async def test_embedding_generation(chunks_data: List[Dict[str, Any]]) -> List[C
     chunks = []
     for chunk_data in chunks_data:
         try:
+            # Handle metadata field - it might be stored as JSON string in Neo4j
+            if 'metadata' in chunk_data and isinstance(chunk_data['metadata'], str):
+                import json
+                try:
+                    chunk_data['metadata'] = json.loads(chunk_data['metadata'])
+                except json.JSONDecodeError:
+                    logger.warning(f"Failed to parse metadata JSON, using empty dict")
+                    chunk_data['metadata'] = {}
+            
             # Create Chunk from Neo4j data
             chunk = Chunk.from_neo4j_dict(chunk_data)
             chunks.append(chunk)
         except Exception as e:
             logger.error(f"Failed to create chunk from data: {e}")
-            logger.debug(f"Problematic chunk data: {chunk_data}")
+            logger.debug(f"Problematic chunk data keys: {list(chunk_data.keys())}")
+            if 'text' in chunk_data:
+                logger.debug(f"Text preview: {chunk_data['text'][:100]}...")
     
     logger.info(f"Created {len(chunks)} Chunk objects")
     
@@ -352,7 +367,11 @@ async def main():
     config = get_settings()
     logger.info(f"Embedding Provider: {config.embedding_provider}")
     logger.info(f"Embedding Model: {config.embedding_model}")
-    logger.info(f"Embedding Dimensions: {config.embedding_dimension}")
+    # Note: embedding_dimensions is provider-specific and may not always be set
+    if hasattr(config, 'embedding_dimensions'):
+        logger.info(f"Embedding Dimensions: {config.embedding_dimensions}")
+    else:
+        logger.info(f"Embedding Dimensions: Will be determined by provider/model")
     
     # Step 1: Fetch chunks from Neo4j
     logger.info("\n=== Step 1: Fetching Chunks from Neo4j ===")
