@@ -91,13 +91,16 @@ class OpenAIProvider(LLMProvider):
         if not self.api_key:
             raise AuthenticationError("OpenAI API key not provided", "openai")
         
-        # Create HTTP client
+        # Create HTTP client with extended timeout for reasoning models
         headers = self.get_headers()
+        
+        # Use longer timeout to accommodate reasoning models like GPT-5-mini
+        extended_timeout = max(self.timeout, 120)  # At least 2 minutes for reasoning models
         
         self.client = httpx.AsyncClient(
             base_url=self.base_url,
             headers=headers,
-            timeout=self.timeout
+            timeout=extended_timeout
         )
         
         self._initialized = True
@@ -151,11 +154,34 @@ class OpenAIProvider(LLMProvider):
             "stream": kwargs.get("stream", False)
         }
         
-        # Add optional parameters
+        # Add optional parameters - use max_completion_tokens for newer OpenAI models
         if max_tokens is not None:
-            payload["max_tokens"] = max_tokens
+            # Most newer OpenAI models require max_completion_tokens instead of max_tokens
+            # This includes gpt-4o, gpt-4-turbo, and all o1- models
+            # For safety, we'll use max_completion_tokens for all models except older ones
+            legacy_models = ["gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-4-0613", "gpt-4-32k"]
+            if model and model in legacy_models:
+                payload["max_tokens"] = max_tokens
+            else:
+                # Reasoning models like gpt-5-mini use reasoning_tokens internally
+                # but we don't need to limit their actual response length
+                reasoning_models = ["gpt-5-", "o1-"]
+                is_reasoning_model = model and any(reasoning_model in model for reasoning_model in reasoning_models)
+                if is_reasoning_model:
+                    # For reasoning models, set a high but reasonable max_completion_tokens limit
+                    # to allow complete responses without cutting off citations
+                    # The reasoning tokens are separate and don't count toward this limit
+                    payload["max_completion_tokens"] = 20000  # Balance between completeness and performance
+                else:
+                    payload["max_completion_tokens"] = max_tokens
         if temperature is not None:
-            payload["temperature"] = max(0, min(2, temperature))
+            # Some newer models only support default temperature (1.0)
+            # This includes o1- models and gpt-5- models
+            models_with_fixed_temp = ["o1-preview", "o1-mini", "o1-", "gpt-5-"]
+            has_fixed_temp = model and any(fixed_temp_model in model for fixed_temp_model in models_with_fixed_temp)
+            
+            if not has_fixed_temp:
+                payload["temperature"] = max(0, min(2, temperature))
         
         # Add advanced parameters
         if "top_p" in kwargs and kwargs["top_p"] is not None:
@@ -175,7 +201,9 @@ class OpenAIProvider(LLMProvider):
         
         choice = choices[0]
         message = choice.get("message", {})
-        return message.get("content", "")
+        content = message.get("content", "")
+        
+        return content
     
     async def _fetch_available_models(self) -> List[str]:
         """Fetch available models from OpenAI API."""
@@ -280,8 +308,10 @@ class OpenAIProvider(LLMProvider):
         except httpx.HTTPStatusError as e:
             await self._handle_http_error(e)
         except Exception as e:
+            import traceback
             logger.error(f"Unexpected error in OpenAI generation: {e}")
-            raise LLMProviderError(f"OpenAI generation failed: {e}")
+            logger.error(f"Full traceback: {traceback.format_exc()}")
+            raise LLMProviderError(f"OpenAI generation failed: {str(e)}")
     
     async def _generate_standard_response(self, payload: Dict[str, Any]) -> LLMResponse:
         """Generate standard (non-streaming) response."""

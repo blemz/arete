@@ -12,9 +12,16 @@ Tests the full RAG system using your ingested Plato dialogues with:
 import sys
 import asyncio
 import argparse
+import logging
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+
+# Configure logging 
+logging.basicConfig(
+    level=logging.INFO,  # Temporarily increased for debugging
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -137,7 +144,7 @@ class AreteRAGCLI:
                 citations.append({
                     'chunk_position': position,
                     'relevance_score': certainty,
-                    'preview': content[:200] + '...' if len(content) > 200 else content
+                    'preview': content[:5000] + '...' if len(content) > 5000 else content
                 })
         
         # Step 5: Generate response using LLM (with context-based fallback)
@@ -376,6 +383,18 @@ Answer:"""
     def _clean_text_for_display(self, text: str) -> str:
         """Clean text for safe console display."""
         try:
+            import re
+            
+            # Remove XML/entity markup tags for cleaner citations
+            # Remove <entity type="...">content</entity> patterns
+            text = re.sub(r'<entity[^>]*>(.*?)</entity>', r'\1', text)
+            
+            # Remove <concept ...>content</concept> patterns  
+            text = re.sub(r'<concept[^>]*>(.*?)</concept>', r'\1', text)
+            
+            # Remove any other XML-style tags
+            text = re.sub(r'<[^>]+>', '', text)
+            
             # Replace common Greek characters with ASCII equivalents
             replacements = {
                 'ō': 'o', 'ē': 'e', 'ā': 'a', 'ī': 'i', 'ū': 'u',
