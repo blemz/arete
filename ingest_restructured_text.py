@@ -771,9 +771,9 @@ class RestructuredTextParser:
             text=text,
             chunk_type=ChunkType.SEMANTIC,
             document_id=document_id,
-            sequence_number=chunk_index,  # Sequential position in document
-            start_position=start_char,  # Starting character position
-            end_position=end_char,  # Ending character position
+            position=chunk_index,  # Sequential position in document
+            start_char=start_char,  # Starting character position
+            end_char=end_char,  # Ending character position
             word_count=len(text.split()),
             metadata={
                 'section_title': section_title,
