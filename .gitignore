@@ -78,6 +78,8 @@ data/raw_pdfs/*.pdf
 data/tei_xml/*.xml
 logs/
 *.log
+src/arete/ui/reflex_app/node_modules/
+src/arete/ui/reflex_app/
 
 # Model files
 models/
