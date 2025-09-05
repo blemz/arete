@@ -1,0 +1,7 @@
+assets/external/
+*.py[cod]
+__pycache__/
+*.db
+.web
+.states
+src\arete\ui\reflex_app\node_modules
