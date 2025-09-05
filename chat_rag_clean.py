@@ -17,9 +17,9 @@ from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
-# Configure logging 
+# Configure logging - minimal output for clean user experience
 logging.basicConfig(
-    level=logging.INFO,  # Temporarily increased for debugging
+    level=logging.WARNING,  # Only show warnings and errors
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
@@ -186,7 +186,6 @@ Answer:"""
                 )
                 
                 raw_response = response.content if response else ''
-                print(f"  DEBUG: Raw response length: {len(raw_response)}")
                 
                 # Post-process response to extract actual answer from thinking process
                 llm_answer = self._extract_answer_from_response(raw_response)
