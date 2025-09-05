@@ -4,4 +4,8 @@ __pycache__/
 *.db
 .web
 .states
+<<<<<<< HEAD
 src/arete/ui/reflex_app/node_modules
+=======
+src\arete\ui\reflex_app\node_modules
+>>>>>>> 634316e9cc5adc4c66f044a89f66efb4a7d6fb5c
