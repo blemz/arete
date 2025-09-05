@@ -44,7 +44,9 @@
       "mcp__playwright__browser_resize",
       "Bash(taskkill:*)",
       "Bash(pkill:*)",
-      "Bash(docker-compose:*)"
+      "Bash(docker-compose:*)",
+      "mcp__serena__read_memory",
+      "WebSearch"
     ],
     "deny": []
   },
