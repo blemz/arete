@@ -1,0 +1,239 @@
+/* Global styles for Arete Reflex Application */
+
+/* Import Inter font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* Custom scrollbar styles */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--b2));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--bc) / 0.2);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--bc) / 0.3);
+}
+
+/* Custom focus styles */
+.focus-visible:focus {
+  outline: 2px solid hsl(var(--p));
+  outline-offset: 2px;
+}
+
+/* Chat message animations */
+.chat-bubble {
+  animation: messageSlideIn 0.3s ease-out;
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Loading animation enhancements */
+.loading-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
+}
+
+/* Citation highlight styles */
+.citation-highlight {
+  background-color: hsl(var(--p) / 0.1);
+  border-left: 3px solid hsl(var(--p));
+  padding: 0.5rem;
+  margin: 0.5rem 0;
+  border-radius: 0.25rem;
+}
+
+/* Philosophy-specific typography */
+.philosophical-text {
+  line-height: 1.7;
+  font-size: 1.1rem;
+  color: hsl(var(--bc) / 0.9);
+}
+
+.greek-text {
+  font-style: italic;
+  font-weight: 500;
+  color: hsl(var(--p));
+}
+
+/* Network visualization container */
+.network-viz {
+  border: 1px solid hsl(var(--b3));
+  border-radius: 0.5rem;
+  background: hsl(var(--b1));
+  min-height: 400px;
+}
+
+/* Analytics card hover effects */
+.analytics-card {
+  transition: all 0.2s ease-in-out;
+}
+
+.analytics-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px hsl(var(--b3) / 0.3);
+}
+
+/* Document viewer styles */
+.document-content {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  line-height: 1.8;
+}
+
+.document-content h1,
+.document-content h2,
+.document-content h3 {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  color: hsl(var(--bc));
+}
+
+/* Navigation enhancements */
+.nav-link {
+  transition: all 0.2s ease-in-out;
+  position: relative;
+}
+
+.nav-link:hover {
+  color: hsl(var(--p));
+}
+
+.nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: hsl(var(--p));
+  border-radius: 1px;
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .chat-bubble {
+    border: 2px solid currentColor;
+  }
+  
+  .card {
+    border: 1px solid hsl(var(--bc) / 0.3);
+  }
+}
+
+/* Print styles */
+@media print {
+  .navbar,
+  .btn,
+  .chat-input,
+  .sidebar {
+    display: none !important;
+  }
+  
+  .document-content,
+  .chat-message {
+    color: black !important;
+    background: white !important;
+  }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .chat-bubble {
+    max-width: 85% !important;
+  }
+  
+  .analytics-card {
+    margin-bottom: 1rem;
+  }
+  
+  .document-content {
+    font-size: 1rem;
+    padding: 1rem;
+  }
+}
+
+/* Error state styles */
+.error-message {
+  background: hsl(var(--er) / 0.1);
+  color: hsl(var(--er));
+  border: 1px solid hsl(var(--er) / 0.3);
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+}
+
+/* Success state styles */
+.success-message {
+  background: hsl(var(--su) / 0.1);
+  color: hsl(var(--su));
+  border: 1px solid hsl(var(--su) / 0.3);
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+}
+
+/* Loading skeleton styles */
+.skeleton {
+  background: linear-gradient(90deg, hsl(var(--b2)) 25%, hsl(var(--b3)) 50%, hsl(var(--b2)) 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

@@ -5,207 +5,96 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "arete"
 version = "0.1.0"
-description = "A Graph-RAG system for AI tutoring of classical philosophical texts"
-readme = "README.md"
-requires-python = ">=3.9"
-license = {text = "MIT"}
+description = "Graph-RAG AI tutoring system for classical philosophy"
 authors = [
-    {name = "Arete Development Team", email = "dev@arete.ai"},
+    {name = "Arete Development Team", email = "dev@arete.philosophy.edu"}
 ]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+keywords = ["philosophy", "ai", "education", "graph-rag", "reflex"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Education",
+    "Intended Audience :: Researchers", 
     "Topic :: Education",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
+    "Framework :: Reflex",
 ]
-keywords = ["philosophy", "education", "graph-rag", "ai-tutor", "knowledge-graph"]
+
 dependencies = [
-    # Core Graph-RAG Dependencies
-    "neo4j>=5.15.0",
-    "py2neo>=2021.2.4",
-    "weaviate-client>=4.4.1",
-    
-    # LLM and RAG Framework
-    "langchain>=0.1.6",
-    "langchain-community>=0.3.2",
-    "sentence-transformers>=2.3.1",
-    "ollama>=0.5.0",
-    
-    # Core Web Interface
-    "streamlit>=1.31.0",
-    
-    # Environment Management
-    "pydantic>=2.5.3",
-    "pydantic-settings>=2.4.0",
+    "reflex>=0.3.0",
+    "neo4j>=5.11.0",
+    "weaviate-client>=3.24.0",
+    "openai>=1.0.0",
+    "langchain>=0.1.0",
+    "pydantic>=2.0.0",
     "python-dotenv>=1.0.0",
-    
-    # Core Utilities
-    "loguru>=0.7.2",
-    "requests>=2.31.0",
-    "click>=8.1.7",
-    "pyyaml>=6.0.1",
+    "redis>=5.0.0",
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.12.0",
 ]
 
 [project.optional-dependencies]
-web = [
-    "gradio>=4.15.0",
-    "fastapi>=0.109.0",
-    "uvicorn>=0.27.0",
-    "httpx>=0.26.0",
-    "aiohttp>=3.9.3",
-]
-ui = [
-    # Modern Web UI Framework (Reflex + DaisyUI + Tailwind)
-    "reflex>=0.8.9",
-    "redis>=6.4.0", 
-    "psutil>=7.0.0",
-    "python-socketio>=5.13.0",
-    "python-engineio>=4.12.2",
-    "sqlmodel>=0.0.24",
-    # Note: DaisyUI and Tailwind CSS are Node.js dependencies
-    # They will be installed via npm/yarn in the Reflex project
-]
-ml = [
-    "langchain-experimental>=0.0.51",
-    "langchain-google-genai>=2.1.9",
-    "langchain-anthropic>=0.3.18",
-    "llama-index>=0.9.48",
-    "transformers>=4.37.2",
-    "torch>=2.1.2",
-    "spacy>=3.7.2",
-    "datasets>=2.16.1",
-]
-document = [
-    "pymupdf4llm>=0.0.5",
-    "marker-pdf>=0.2.1",
-    "beautifulsoup4>=4.12.3",
-    "lxml>=5.1.0",
-]
-vector = [
-    "faiss-cpu>=1.7.4",
-    "chromadb>=0.4.22",
-]
-data = [
-    "pandas>=2.2.0",
-    "numpy>=1.26.3",
-    "scipy>=1.12.0",
-    "tqdm>=4.66.1",
-]
-database = [
-    "sqlalchemy>=2.0.25",
-    "alembic>=1.13.1",
-]
-monitoring = [
-    "rich>=13.7.0",
-]
 dev = [
-    "pytest>=7.4.4",
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.1.0",
-    "pytest-asyncio>=0.23.5",
-    "pytest-mock>=3.12.0",
-    "pytest-xdist>=3.5.0",
-    "black>=24.1.1",
-    "flake8>=7.0.0",
-    "isort>=5.13.2",
-    "mypy>=1.8.0",
-    "pre-commit>=3.6.0",
+    "black>=23.7.0",
+    "isort>=5.12.0", 
+    "flake8>=6.1.0",
+    "mypy>=1.5.0",
+    "bandit>=1.7.5",
+    "pre-commit>=3.4.0",
 ]
+
+test = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.11.0",
+    "factory-boy>=3.3.0",
+    "faker>=19.6.0",
+]
+
 docs = [
     "sphinx>=7.1.0",
     "sphinx-rtd-theme>=1.3.0",
     "myst-parser>=2.0.0",
 ]
-all = [
-    "arete[web,ui,ml,document,vector,data,database,monitoring,dev,docs]",
-]
 
 [project.urls]
-Homepage = "https://github.com/arete-ai/arete"
-Documentation = "https://docs.arete.ai"
-Repository = "https://github.com/arete-ai/arete.git"
-"Bug Tracker" = "https://github.com/arete-ai/arete/issues"
+Homepage = "https://github.com/arete-org/arete"
+Repository = "https://github.com/arete-org/arete.git"
+Documentation = "https://arete.readthedocs.io"
+"Bug Tracker" = "https://github.com/arete-org/arete/issues"
 
-[project.scripts]
-arete = "arete.cli:main"
+# Tool configurations
 
 [tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-data]
-arete = ["py.typed", "*.yaml", "*.yml", "*.json"]
-
-[tool.pytest.ini_options]
-minversion = "7.0"
-addopts = [
-    "-ra",
-    "--strict-markers",
-    "--strict-config",
-    "--cov=arete",
-    "--cov-branch",
-    "--cov-report=term-missing",
-    "--cov-report=html:htmlcov",
-    "--cov-report=xml",
-]
-testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "unit: marks tests as unit tests",
-]
-filterwarnings = [
-    "error",
-    "ignore::UserWarning",
-    "ignore::DeprecationWarning",
-]
-
-[tool.coverage.run]
-source = ["src"]
-omit = [
-    "*/tests/*",
-    "*/test_*.py",
-    "*/__pycache__/*",
-    "*/venv/*",
-    "*/env/*",
-]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "if self.debug:",
-    "if settings.DEBUG",
-    "raise AssertionError",
-    "raise NotImplementedError",
-    "if 0:",
-    "if __name__ == .__main__.:",
-    "class .*\\bProtocol\\):",
-    "@(abc\\.)?abstractmethod",
-]
+where = ["."]
+include = ["arete*"]
+exclude = ["tests*", "docs*"]
 
 [tool.black]
 line-length = 88
-target-version = ["py39", "py310", "py311", "py312"]
+target-version = ['py311']
 include = '\.pyi?$'
-extend-exclude = '''
+exclude = '''
 /(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
+    \.git
   | \.venv
+  | \.env
+  | venv
+  | env
+  | _build
+  | buck-out
   | build
   | dist
+  | migrations
 )/
 '''
 
@@ -217,11 +106,14 @@ force_grid_wrap = 0
 use_parentheses = true
 ensure_newline_before_comments = true
 line_length = 88
-src_paths = ["src", "tests"]
+skip_gitignore = true
+skip_glob = ["migrations/*.py"]
 
 [tool.flake8]
 max-line-length = 88
-extend-ignore = ["E203", "W503"]
+extend-ignore = ["E203", "W503", "E501"]
+max-complexity = 10
+select = ["C", "E", "F", "W", "B", "B950"]
 exclude = [
     ".git",
     "__pycache__",
@@ -231,31 +123,179 @@ exclude = [
     "dist",
     ".venv",
     "venv",
-    ".env",
-    "env",
+    "migrations",
+]
+per-file-ignores = [
+    "__init__.py:F401",
+    "tests/*.py:S101,D",
 ]
 
 [tool.mypy]
-python_version = "3.9"
-check_untyped_defs = true
-disallow_any_generics = true
-disallow_incomplete_defs = true
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
 disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
 no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
-warn_return_any = true
+warn_no_return = true
+warn_unreachable = true
 strict_equality = true
-show_error_codes = true
+exclude = [
+    "migrations/",
+    "tests/",
+    ".venv/",
+    "venv/",
+]
 
 [[tool.mypy.overrides]]
 module = [
-    "neo4j.*",
+    "reflex.*",
+    "neo4j.*", 
     "weaviate.*",
-    "ollama.*",
-    "streamlit.*",
-    "spacy.*",
-    "transformers.*",
-    "sentence_transformers.*",
+    "langchain.*",
 ]
 ignore_missing_imports = true
+
+[tool.bandit]
+exclude_dirs = ["tests", "migrations", ".venv", "venv"]
+skips = ["B101", "B601"]  # Skip assert_used and shell_injection_subprocess
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--verbose",
+    "--tb=short",
+    "--cov=arete",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml",
+    "--cov-fail-under=80",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "e2e: marks tests as end-to-end tests",
+    "unit: marks tests as unit tests",
+    "reflex: marks tests as Reflex component tests",
+    "performance: marks tests as performance tests",
+    "accessibility: marks tests as accessibility tests",
+    "security: marks tests as security tests",
+]
+filterwarnings = [
+    "error",
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["arete"]
+omit = [
+    "tests/*",
+    "migrations/*",
+    "*/venv/*",
+    "*/.venv/*",
+    "setup.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError", 
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\bProtocol\):",
+    "@(abc\.)?abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+    "ARG001", # unused-function-args
+    "SIM",    # flake8-simplify
+    "TCH",    # flake8-type-checking
+    "TID",    # flake8-tidy-imports
+    "Q",      # flake8-quotes
+    "UP",     # pyupgrade
+    "PTH",    # flake8-use-pathlib
+    "ERA",    # eradicate
+    "PD",     # pandas-vet
+    "PGH",    # pygrep-hooks
+    "PLC",    # pylint convention
+    "PLE",    # pylint error
+    "PLW",    # pylint warning
+    "PIE",    # flake8-pie
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+    "W191",  # indentation contains tabs
+]
+exclude = [
+    ".git",
+    ".venv",
+    "venv", 
+    "__pycache__",
+    "docs/",
+    "build/",
+    "dist/",
+    "migrations/",
+]
+
+[tool.ruff.mccabe]
+max-complexity = 10
+
+[tool.ruff.isort]
+known-first-party = ["arete"]
+known-third-party = ["reflex", "neo4j", "weaviate", "openai"]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.1.0"
+tag_format = "v$version"
+version_files = [
+    "pyproject.toml:version",
+    "arete/__init__.py:__version__",
+]
+
+[tool.semantic_release]
+version_variable = [
+    "arete/__init__.py:__version__",
+    "pyproject.toml:version",
+]
+build_command = "pip install build && python -m build"
+upload_to_release = true
+upload_to_pypi = false
+remove_dist = false
+
+# Reflex specific configuration
+[tool.reflex]
+app_name = "arete"
+compile_timeout = 60
+debug = false

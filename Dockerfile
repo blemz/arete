@@ -1,51 +1,111 @@
-FROM python:3.11-slim
+# Multi-stage Docker build for Arete Reflex application
+# Optimized for production deployment
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app/src
+# Build stage - Frontend assets
+FROM node:20-alpine AS frontend-builder
 
-# Set work directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        build-essential \
-        curl \
-        git \
-        gcc \
-        g++ \
-        libffi-dev \
-        libssl-dev \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# Copy package files first for better caching
+COPY package.json package-lock.json* ./
 
-# Copy requirements first for better caching
-COPY requirements.txt .
-
-# Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+# Install Node.js dependencies
+RUN npm ci --only=production && npm cache clean --force
 
 # Copy source code
-COPY src/ src/
-COPY config/ config/
-COPY scripts/ scripts/
-COPY pyproject.toml .
+COPY . .
 
-# Install package in development mode
-RUN pip install -e .
+# Build frontend assets (if they exist)
+RUN npm run build 2>/dev/null || echo "No npm build script found"
 
-# Create directories for data and logs
-RUN mkdir -p data logs
+# Python build stage
+FROM python:3.11-slim AS python-builder
 
-# Expose port for Streamlit
-EXPOSE 8501
+# Install system dependencies for building
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    git \
+    gcc \
+    g++ \
+    libffi-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8501/_stcore/health || exit 1
+# Create virtual environment and install dependencies
+WORKDIR /app
+COPY requirements.txt ./
 
-# Command to run the application
-CMD ["streamlit", "run", "src/arete/ui/streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+# Create virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir reflex gunicorn
+
+# Production stage
+FROM python:3.11-slim AS production
+
+# Install runtime system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    nginx \
+    supervisor \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Create application user for security
+RUN groupadd --gid 1000 appuser && \
+    useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash appuser
+
+# Set up application directory
+WORKDIR /app
+
+# Copy virtual environment from builder
+COPY --from=python-builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy built frontend assets (if they exist)
+COPY --from=frontend-builder /app/.web/public /app/.web/public 2>/dev/null || true
+
+# Copy application code
+COPY --chown=appuser:appuser . .
+
+# Copy configuration files
+COPY --chown=appuser:appuser config/ config/
+
+# Create necessary directories with proper permissions
+RUN mkdir -p /app/logs /app/tmp /var/log/arete \
+    && chown -R appuser:appuser /app /var/log/arete
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV ENVIRONMENT=production
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Copy Docker configuration files
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Pre-compile Reflex application
+RUN cd /app && reflex init --template=blank 2>/dev/null || echo "Reflex init completed"
+
+# Expose ports
+# 3000 - Frontend
+# 8000 - Backend API
+# 80   - Nginx proxy
+EXPOSE 3000 8000 80
+
+# Health check for the application
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/health || curl -f http://localhost:3000 || exit 1
+
+# Switch to non-root user for security
+USER appuser
+
+# Set entrypoint and default command
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["reflex", "run", "--env", "prod", "--backend-only"]

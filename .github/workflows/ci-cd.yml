@@ -1,0 +1,459 @@
+name: CI/CD Pipeline for Arete Reflex Application
+
+on:
+  push:
+    branches: [ main, develop, staging ]
+  pull_request:
+    branches: [ main, develop ]
+  release:
+    types: [ published ]
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '20'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Code Quality and Security Checks
+  code-quality:
+    name: Code Quality & Security
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for better analysis
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Code formatting with Black
+      run: |
+        black --check --diff .
+      continue-on-error: true
+
+    - name: Import sorting with isort
+      run: |
+        isort --check-only --diff .
+      continue-on-error: true
+
+    - name: Linting with flake8
+      run: |
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+
+    - name: Type checking with mypy
+      run: |
+        mypy arete/ --ignore-missing-imports
+      continue-on-error: true
+
+    - name: Security scan with bandit
+      run: |
+        bandit -r arete/ -f json -o bandit-report.json
+        bandit -r arete/ -f txt
+      continue-on-error: true
+
+    - name: Upload security scan results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-scan-results
+        path: bandit-report.json
+
+    - name: Dependency vulnerability scan
+      run: |
+        pip install safety
+        safety check --json --output safety-report.json
+        safety check
+      continue-on-error: true
+
+    - name: Upload vulnerability scan results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: vulnerability-scan-results
+        path: safety-report.json
+
+  # Unit and Integration Tests
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test-type: [unit, integration, reflex-components]
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: arete_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip install reflex
+
+    - name: Set up test environment
+      run: |
+        cp .env.example .env.testing
+        echo "ENVIRONMENT=testing" >> .env.testing
+        echo "DATABASE_URL=postgresql://test_user:test_password@localhost:5432/arete_test" >> .env.testing
+        echo "REDIS_URL=redis://localhost:6379/0" >> .env.testing
+
+    - name: Run unit tests
+      if: matrix.test-type == 'unit'
+      run: |
+        python -m pytest tests/ -k "not integration and not e2e" \
+          --cov=arete \
+          --cov-report=xml \
+          --cov-report=html \
+          --junit-xml=pytest-unit.xml \
+          -v
+
+    - name: Run integration tests
+      if: matrix.test-type == 'integration'
+      run: |
+        python -m pytest tests/reflex/test_integration.py \
+          --junit-xml=pytest-integration.xml \
+          -v
+
+    - name: Run Reflex component tests
+      if: matrix.test-type == 'reflex-components'
+      run: |
+        python -m pytest tests/reflex/test_components.py \
+          --junit-xml=pytest-components.xml \
+          -v
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ matrix.test-type }}
+        path: |
+          pytest-*.xml
+          htmlcov/
+          .coverage
+
+  # End-to-End Tests
+  e2e-test:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install reflex playwright pytest-playwright
+
+    - name: Install Playwright browsers
+      run: playwright install --with-deps chromium
+
+    - name: Build Reflex application
+      run: |
+        reflex init --template=blank
+        reflex export --frontend-only
+
+    - name: Start application for E2E tests
+      run: |
+        reflex run --env testing &
+        sleep 30  # Wait for application to start
+      env:
+        ENVIRONMENT: testing
+
+    - name: Run E2E tests
+      run: |
+        python -m pytest tests/e2e/ \
+          --junit-xml=pytest-e2e.xml \
+          --html=e2e-report.html \
+          -v
+
+    - name: Upload E2E test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: e2e-test-results
+        path: |
+          pytest-e2e.xml
+          e2e-report.html
+          test-results/
+
+  # Performance Tests
+  performance-test:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'release'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install locust
+
+    - name: Run performance tests
+      run: |
+        # Add performance test command here
+        echo "Performance tests would run here"
+
+  # Accessibility Tests
+  accessibility-test:
+    name: Accessibility Tests
+    runs-on: ubuntu-latest
+    needs: [test]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Install accessibility testing tools
+      run: |
+        npm install -g @axe-core/cli
+        npm install -g pa11y-ci
+
+    - name: Set up Python and start app
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Start application
+      run: |
+        pip install -r requirements.txt
+        pip install reflex
+        reflex run --env testing &
+        sleep 30
+
+    - name: Run accessibility tests
+      run: |
+        axe http://localhost:3000 --save accessibility-report.json
+        pa11y-ci --sitemap http://localhost:3000/sitemap.xml || true
+
+    - name: Upload accessibility results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: accessibility-results
+        path: accessibility-report.json
+
+  # Build Docker Image
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [code-quality, test]
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        target: production
+
+    - name: Output image
+      id: image
+      run: |
+        echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" >> $GITHUB_OUTPUT
+
+  # Security Scan Docker Image
+  security-scan:
+    name: Security Scan Docker Image
+    runs-on: ubuntu-latest
+    needs: [build]
+
+    steps:
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ needs.build.outputs.image }}@${{ needs.build.outputs.digest }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # Deploy to Staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build, security-scan]
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment:
+      name: staging
+      url: https://staging.arete.philosophy.edu
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy to staging
+      run: |
+        echo "Deploying to staging environment"
+        # Add actual deployment commands here
+        # Example: kubectl apply -f k8s/staging/
+        # Example: docker-compose -f docker-compose.staging.yml up -d
+
+  # Deploy to Production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build, security-scan, e2e-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: https://arete.philosophy.edu
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production environment"
+        # Add actual deployment commands here
+        # Example: kubectl apply -f k8s/production/
+        # Example: docker-compose -f docker-compose.prod.yml up -d
+
+  # Notification
+  notify:
+    name: Notify Results
+    runs-on: ubuntu-latest
+    needs: [code-quality, test, e2e-test, build]
+    if: always()
+
+    steps:
+    - name: Notify success
+      if: ${{ needs.code-quality.result == 'success' && needs.test.result == 'success' && needs.build.result == 'success' }}
+      run: |
+        echo "✅ All checks passed successfully!"
+
+    - name: Notify failure
+      if: ${{ needs.code-quality.result == 'failure' || needs.test.result == 'failure' || needs.build.result == 'failure' }}
+      run: |
+        echo "❌ Some checks failed. Please review the logs."
+
+    # Uncomment to add Slack/Discord notifications
+    # - name: Slack Notification
+    #   uses: 8398a7/action-slack@v3
+    #   with:
+    #     status: ${{ job.status }}
+    #     channel: '#arete-ci'
+    #   env:
+    #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    #   if: always()
