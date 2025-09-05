@@ -849,8 +849,8 @@
 | ✅ Write tests for citation tracking and provenance system | 🚨 High | M | Citation validation | **COMPLETED** |
 | ✅ Implement citation tracking and relationship management | 🚨 High | L | Tests written | **COMPLETED** |
 | ✅ Integrate citation system with response generation pipeline | 🚨 High | L | Citation services | **COMPLETED** |
-| 🔄 Add interactive citation previews | ⚠️ Medium | M | Citation system | **DEFERRED TO 5.2** |
-| 🔄 Implement citation export functionality | ⚠️ Medium | M | Citation formatting | **DEFERRED TO 5.3** |
+| 🎯 Add interactive citation previews | ⚠️ Medium | M | Citation system | **DEFERRED TO REFLEX MIGRATION** - Phase 3.2 (Components ready: `citation_preview.py`) |
+| 🎯 Implement citation export functionality | ⚠️ Medium | M | Citation formatting | **DEFERRED TO REFLEX MIGRATION** - Phase 3.2 (Components ready: `citation_export.py`) |
 
 **Milestone 4.5**: ✅ **100% ACHIEVED** - Complete citation system with extraction, validation, tracking, and response generation integration
 

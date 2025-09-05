@@ -37,6 +37,10 @@ from arete.ui.document_viewer import (
     DocumentContent, Citation, create_sample_documents, create_sample_citations
 )
 
+# Import new citation components
+from arete.ui.citation_preview import InteractiveCitationPreview, CitationDetails, create_sample_citations as create_citation_samples
+from arete.ui.citation_export import CitationExportUI
+
 
 class AreteStreamlitInterface:
     """Main Streamlit interface for Arete philosophical tutoring."""
@@ -62,6 +66,10 @@ class AreteStreamlitInterface:
         # Initialize graph analytics
         from arete.ui.graph_analytics_viz import GraphAnalyticsVisualizer
         self.analytics_visualizer = GraphAnalyticsVisualizer()
+        
+        # Initialize citation components
+        self.citation_preview = InteractiveCitationPreview()
+        self.citation_export_ui = CitationExportUI()
         
         # Load sample documents for demonstration
         self.document_search_interface.set_available_documents(create_sample_documents())
@@ -491,18 +499,42 @@ class AreteStreamlitInterface:
             st.success("Session deleted")
             st.rerun()
     
+    def _convert_citations_to_details(self, citations: List[str]) -> List[CitationDetails]:
+        """Convert citation strings to CitationDetails objects."""
+        citation_details = []
+        for i, citation_str in enumerate(citations):
+            # Try to parse citation string - this is a simple implementation
+            # In production, you'd want more sophisticated parsing
+            citation_id = f"cite_{i}_{hash(citation_str) % 10000}"
+            citation_details.append(CitationDetails(
+                citation_id=citation_id,
+                text=citation_str[:500] if len(citation_str) > 500 else citation_str,  # Truncate if too long
+                source=citation_str,
+                confidence=0.85,  # Default confidence
+                relevance_score=0.75  # Default relevance
+            ))
+        return citation_details
+    
     def display_message(self, message: ChatMessage):
         """Display a single chat message with proper formatting."""
         with st.chat_message(message.message_type.value):
             # Message content
             st.write(message.content)
             
-            # Citations display
+            # Citations display with interactive preview
             if message.citations:
                 st.markdown("**Sources:**")
-                for citation in message.citations:
-                    st.markdown(f'<div class="citation">📜 {citation}</div>', 
-                               unsafe_allow_html=True)
+                
+                # Convert citations to CitationDetails format
+                citation_details = self._convert_citations_to_details(message.citations)
+                
+                # Use interactive citation preview
+                self.citation_preview.render_citation_list(citation_details)
+                
+                # Add export functionality
+                if len(citation_details) > 0:
+                    with st.container():
+                        self.citation_export_ui.render_export_controls(citation_details)
             
             # Metadata (timestamp, etc.)
             if message.message_type == MessageType.ASSISTANT and message.metadata:

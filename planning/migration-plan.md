@@ -82,13 +82,20 @@ Migration of Arete's philosophical tutoring system from Streamlit to a modern we
    - Advanced search with result highlighting
    - Export functionality with modal dialogs
 
-2. **Graph Analytics Dashboard**
+2. **Interactive Citation System** ⭐ *NEW*
+   - Interactive citation previews with hover/click expansion
+   - Citation export in multiple formats (JSON, BibTeX, Markdown, Chicago, MLA, Classical, CSV)
+   - Confidence and relevance scoring display with color-coded indicators
+   - Citation grouping by work/author with DaisyUI collapse components
+   - Enhanced citation cards with DaisyUI styling and smooth animations
+
+3. **Graph Analytics Dashboard**
    - Migrate visualization components to Reflex
    - Use DaisyUI stats components for metrics
    - Interactive network visualizations
    - Philosophy-specific data presentations
 
-3. **User Experience Enhancements**
+4. **User Experience Enhancements**
    - Accessibility improvements with semantic HTML
    - Keyboard navigation optimization
    - High contrast mode toggle
@@ -188,6 +195,22 @@ Migration of Arete's philosophical tutoring system from Streamlit to a modern we
 - **Customization**: Greater flexibility for UI/UX improvements
 - **Modern Standards**: Compliance with current web development practices
 - **Community**: Access to larger React/Tailwind ecosystem
+
+## Pre-Migration Work Completed
+
+### Citation System Foundation ✅
+**Location**: `src/arete/ui/citation_preview.py` and `src/arete/ui/citation_export.py`
+
+- **Interactive Citation Preview Component**: Complete with hover/click interactions, expandable details, confidence/relevance indicators
+- **Multi-Format Export System**: JSON, BibTeX, Markdown, Chicago, MLA, Classical, CSV formats ready
+- **Citation Data Models**: `CitationDetails` class with full metadata support
+- **Export Configuration**: Flexible export options with grouping, sorting, and filtering
+
+**Migration Benefits**:
+- Core logic is framework-agnostic and ready to port
+- Data structures proven and tested
+- Export functionality can be directly integrated with DaisyUI modals
+- Interactive patterns map perfectly to modern web component patterns
 
 ## Dependencies
 
