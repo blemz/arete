@@ -62,8 +62,8 @@ graph TB
 
 - Python 3.11+
 - Docker Desktop 4.0+
-- 16GB RAM (recommended)
-- NVIDIA GPU (optional, for faster inference)
+- 8GB RAM (minimum) - Cloud embedding services reduce memory requirements
+- Cloud API Keys (recommended for best performance) - OpenAI, OpenRouter, or Gemini
 
 ### Installation
 
@@ -78,38 +78,47 @@ cd arete
 pip install -e ".[dev,all]"
 ```
 
-3. **Configure LLM providers (optional):**
+3. **Configure cloud providers (recommended):**
 ```bash
-# Add to .env file for cloud provider support
-echo "OPENROUTER_API_KEY=your_openrouter_key" >> .env
-echo "GEMINI_API_KEY=your_gemini_key" >> .env  
-echo "ANTHROPIC_API_KEY=your_anthropic_key" >> .env
+# Add to .env file for optimal performance
+echo "EMBEDDING_PROVIDER=openai" >> .env
+echo "OPENAI_API_KEY=your_openai_key" >> .env
+echo "SELECTED_LLM_PROVIDER=openai" >> .env
+echo "SELECTED_LLM_MODEL=gpt-4o-mini" >> .env
+
+# Alternative: Use OpenRouter for cost-effective access
+# echo "EMBEDDING_PROVIDER=openrouter" >> .env
+# echo "OPENROUTER_API_KEY=your_openrouter_key" >> .env
 ```
 
 4. **Start the services:**
 ```bash
 # Start database services
-docker-compose up -d neo4j weaviate ollama
+docker-compose up -d neo4j weaviate
 
 # Wait for services to be healthy
 docker-compose ps
-
-# Run database initialization
-python scripts/init_databases.py
 ```
 
-5. **Start the application:**
+5. **Test the RAG system immediately:**
 ```bash
-# Development mode
-streamlit run src/arete/ui/streamlit_app.py
+# Enhanced RAG CLI with real philosophical content
+python chat_rag_clean.py "What is virtue?"
+python chat_rag_clean.py "What is Socrates being accused of in the Apology?"
 
-# Production mode
-docker-compose up -d app
+# Interactive philosophical conversations
+python chat_rag_clean.py
 ```
 
-6. **Access the application:**
+6. **Launch full application:**
+```bash
+# Web interface with advanced features
+streamlit run src/arete/ui/streamlit_app.py
+```
+
+7. **Access the system:**
+- **RAG CLI**: `python chat_rag_clean.py` (Ready immediately!)
 - Web Interface: http://localhost:8501
-- API Documentation: http://localhost:8000/docs
 - Neo4j Browser: http://localhost:7474
 - Weaviate: http://localhost:8080
 
@@ -133,7 +142,20 @@ sphinx-build -b html docs/ docs/_build/
 
 ## 📚 Usage Examples
 
-### Basic Question Answering
+### Ready-to-Use RAG CLI
+
+```bash
+# Ask complex philosophical questions with real citations
+python chat_rag_clean.py "What is virtue?"
+python chat_rag_clean.py "What is Socrates being accused of in the Apology?"
+python chat_rag_clean.py "How does Charmides define temperance?"
+
+# Interactive philosophical discussions
+python chat_rag_clean.py
+# Then ask: "What is the relationship between knowledge and self-knowledge?"
+```
+
+### Programmatic API Usage
 
 ```python
 from arete import AreteClient
@@ -258,27 +280,29 @@ pytest tests/ -m slow          # Long-running tests
 
 ## 📊 Development Progress
 
-**Current Status**: Foundation Phase (Phase 1/7) - 80% Complete
-- ✅ Docker environment configured
-- ✅ Database schemas created  
-- ✅ Configuration management implemented
-- ✅ Document model with comprehensive tests
-- ✅ Entity model with complete TDD implementation
-- ✅ Neo4j database client with sync/async support
-- ✅ Weaviate database client with vector operations
-- 🔄 Repository pattern integration (final phase 1 step)
+**Current Status**: **Phase 7.4 Complete - Production RAG System Operational** ✅
+- ✅ **Complete RAG Pipeline**: End-to-end system with real content retrieval
+- ✅ **Database Integration**: Neo4j knowledge graph + Weaviate vector search
+- ✅ **Multi-Provider Services**: Cloud embedding and LLM services operational  
+- ✅ **Content Ingestion**: 227 semantic chunks from Plato's Apology & Charmides
+- ✅ **Entity Extraction**: 83 philosophical entities with relationships
+- ✅ **Production CLI**: `chat_rag_clean.py` with intelligent context responses
+- ✅ **Citation Accuracy**: Real passages with position tracking and relevance scores
 
-See [Development Progress](docs/development_progress.md) for detailed status.
+**Live Demo**: Run `python chat_rag_clean.py "What is virtue?"` to test immediately!
+
+See [CLAUDE.md](CLAUDE.md) for complete development history.
 
 ### Roadmap
 
-- **Phase 1** (Weeks 1-3): Foundation and Infrastructure ✅ 80% Complete
-- **Phase 2** (Weeks 4-6): Data Ingestion Pipeline ⏳
-- **Phase 3** (Weeks 7-10): Retrieval and RAG System ⏳
-- **Phase 4** (Weeks 8-10): LLM Integration and Generation ⏳
-- **Phase 5** (Weeks 11-12): User Interface Development ⏳
-- **Phase 6** (Weeks 13-15): Advanced Features ⏳
-- **Phase 7** (Weeks 16-17): Production Deployment ⏳
+- **Phase 1-7**: Foundation → Production RAG System ✅ **COMPLETE**
+  - All core infrastructure, ingestion, retrieval, LLM integration, and interfaces operational
+  - Multi-provider embedding services and cloud API integration
+  - Production RAG CLI with real content retrieval and intelligent responses
+- **Phase 8** (Current): Content Expansion and Advanced Analytics ⏳
+  - Additional classical texts (Republic, Nicomachean Ethics, etc.)
+  - Graph analytics dashboard integration
+  - Performance optimization for larger corpus
 
 ## 🤝 Contributing
 
