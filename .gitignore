@@ -73,7 +73,6 @@ Thumbs.db
 # Project specific
 data/raw_pdfs/*.pdf
 data/tei_xml/*.xml
-data/processed/
 logs/
 *.log
 
