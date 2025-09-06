@@ -99,5 +99,4 @@ app.add_page(library_page, route="/library", title="Library - Arete")
 app.add_page(analytics_page, route="/analytics", title="Analytics - Arete")
 app.add_page(about_page, route="/about", title="About - Arete")
 
-# Compile the app
-app.compile()
+# App is automatically compiled by Reflex

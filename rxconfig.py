@@ -1,4 +1,5 @@
 import reflex as rx
+from reflex.constants import LogLevel
 
 # Reflex configuration for Arete Classical Philosophy Chat
 config = rx.Config(
@@ -75,5 +76,5 @@ config = rx.Config(
     max_upload_size="50MB",
     
     # Logging
-    loglevel="INFO"
+    loglevel=LogLevel.INFO
 )
