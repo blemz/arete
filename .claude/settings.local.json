@@ -46,7 +46,8 @@
       "Bash(pkill:*)",
       "Bash(docker-compose:*)",
       "mcp__serena__read_memory",
-      "WebSearch"
+      "WebSearch",
+      "Bash(reflex run:*)"
     ],
     "deny": []
   },

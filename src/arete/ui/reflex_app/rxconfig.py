@@ -6,7 +6,6 @@ import reflex as rx
 
 config = rx.Config(
     app_name="arete",
-    module_name="src.arete.ui.reflex_app.reflex_app",
     
     # Development settings
     port=3000,
@@ -105,5 +104,8 @@ config = rx.Config(
     timeout=120,
     
     # Security settings
-    secret_key="arete-graph-rag-philosophical-ai-tutor-2024"
+    secret_key="arete-graph-rag-philosophical-ai-tutor-2024",
+    
+    # Disable sitemap plugin to avoid warnings
+    disable_plugins=["reflex.plugins.sitemap.SitemapPlugin"]
 )
