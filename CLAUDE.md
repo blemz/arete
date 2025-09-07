@@ -10,7 +10,6 @@
 - **Complete System Status**: All phases 1-8.0 operational with modern Reflex web interface and full RAG functionality
 - **Live Systems**: 
   - **NEW** Modern Reflex Interface: `cd src/arete/ui/reflex_app && reflex run` (Production-ready web app)
-  - Streamlit Interface: `streamlit run src/arete/ui/streamlit_app.py` (Legacy interface)
   - **ENHANCED** Production RAG CLI: `python chat_rag_clean.py "What is virtue?"` (GPT-5-mini support)
   - Legacy CLI Interface: `python chat_fast.py "What is virtue?"`
 - **New Capabilities**: 
@@ -264,5 +263,4 @@
 **Launch Options**: 
 - **NEW Modern Web Interface**: `cd src/arete/ui/reflex_app && reflex run` (Production Reflex app)
 - **Enhanced RAG CLI**: `python chat_rag_clean.py "What is virtue?"` (Production RAG system)
-- Legacy Streamlit UI: `streamlit run src/arete/ui/streamlit_app.py`
 - Legacy CLI: `python chat_fast.py "What is virtue?"` (Mock responses)

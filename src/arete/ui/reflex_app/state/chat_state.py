@@ -62,40 +62,61 @@ class ChatState(rx.State):
         self.current_input = ""
         self.is_loading = True
         
-        # Process message asynchronously (would integrate with RAG system)
-        self._process_message_async(message)
+        # Process message asynchronously with RAG system
+        import asyncio
+        asyncio.create_task(self._process_message_async(message))
     
-    def _process_message_async(self, message: str):
-        """Process message with RAG system (async simulation)."""
-        # This would integrate with the actual RAG pipeline
-        # For now, simulate with mock response
-        
-        import time
-        time.sleep(1)  # Simulate processing time
-        
-        # Mock assistant response with citations
-        assistant_message = ChatMessage(
-            id=f"msg_{len(self.messages)}_{datetime.now().timestamp()}",
-            content=f"Here's a response to your question about: {message}...",
-            role="assistant",
-            timestamp=datetime.now(),
-            citations=[
-                {
-                    "id": "cite_1",
-                    "document_id": "doc_plato_apology",
-                    "text": "Sample citation text from Plato's Apology...",
-                    "position": 0.25,
-                    "relevance_score": 0.85
+    async def _process_message_async(self, message: str):
+        """Process message with RAG system."""
+        try:
+            from ..services.chat_service import get_chat_service
+            
+            # Get chat service and process message
+            chat_service = get_chat_service()
+            result = await chat_service.send_message(message)
+            
+            # Create assistant response with real RAG data
+            assistant_message = ChatMessage(
+                id=f"msg_{len(self.messages)}_{datetime.now().timestamp()}",
+                content=result.get("response", "I apologize, but I couldn't generate a response."),
+                role="assistant",
+                timestamp=datetime.now(),
+                citations=[
+                    {
+                        "id": f"cite_{i}",
+                        "document_id": cite.get("document_id", "unknown"),
+                        "text": cite.get("content", ""),
+                        "position": cite.get("position", 0),
+                        "relevance_score": cite.get("score", 0.0)
+                    }
+                    for i, cite in enumerate(result.get("citations", []))
+                ],
+                metadata={
+                    "entities": result.get("entities", []),
+                    "success": result.get("success", False)
                 }
-            ]
-        )
+            )
+            
+            self.messages.append(assistant_message)
+            
+        except Exception as e:
+            # Fallback error message
+            error_message = ChatMessage(
+                id=f"msg_{len(self.messages)}_{datetime.now().timestamp()}",
+                content=f"I apologize, but I encountered an error: {str(e)}",
+                role="assistant",
+                timestamp=datetime.now(),
+                citations=[],
+                metadata={"error": True}
+            )
+            self.messages.append(error_message)
         
-        self.messages.append(assistant_message)
-        self.is_loading = False
-        
-        # Trigger auto-scroll if enabled
-        if self.auto_scroll_enabled:
-            self.scroll_to_bottom()
+        finally:
+            self.is_loading = False
+            
+            # Trigger auto-scroll if enabled
+            if self.auto_scroll_enabled:
+                self.scroll_to_bottom()
     
     def set_citation_context(self, citation_id: str):
         """Set citation context from document panel interaction."""

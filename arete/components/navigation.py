@@ -69,102 +69,16 @@ def theme_toggle_button() -> rx.Component:
 
 
 def user_profile_dropdown() -> rx.Component:
-    """User profile dropdown menu."""
-    return rx.popover(
-        rx.popover_trigger(
-            rx.button(
-                rx.flex(
-                    rx.avatar(
-                        src=NavigationState.user_avatar,
-                        fallback=NavigationState.user_name[0],
-                        size="2"
-                    ),
-                    rx.text(NavigationState.user_name, font_weight="medium"),
-                    rx.icon("chevron-down", size=16),
-                    align_items="center",
-                    gap="2"
-                ),
-                variant="ghost",
-                size="3"
-            )
+    """User profile dropdown menu (simplified for compatibility)."""
+    return rx.button(
+        rx.flex(
+            rx.text("👤", font_size="lg"),
+            rx.text(NavigationState.user_name, font_weight="medium"),
+            align_items="center",
+            gap="2"
         ),
-        rx.popover_content(
-            rx.flex(
-                rx.flex(
-                    rx.avatar(
-                        src=NavigationState.user_avatar,
-                        fallback=NavigationState.user_name[0],
-                        size="3"
-                    ),
-                    rx.box(
-                        rx.text(NavigationState.user_name, font_weight="semibold"),
-                        rx.text("Classical Philosophy Scholar", 
-                                font_size="sm", 
-                                color=rx.color("gray", 10))
-                    ),
-                    align_items="center",
-                    gap="3",
-                    padding="3",
-                    border_bottom=f"1px solid {rx.color('gray', 6)}"
-                ),
-                rx.flex(
-                    rx.button(
-                        rx.flex(
-                            rx.icon("user", size=16),
-                            rx.text("Profile Settings"),
-                            align_items="center",
-                            gap="2"
-                        ),
-                        variant="ghost",
-                        justify="start",
-                        width="100%"
-                    ),
-                    rx.button(
-                        rx.flex(
-                            rx.icon("book", size=16),
-                            rx.text("Study Progress"),
-                            align_items="center",
-                            gap="2"
-                        ),
-                        variant="ghost",
-                        justify="start",
-                        width="100%"
-                    ),
-                    rx.button(
-                        rx.flex(
-                            rx.icon("settings", size=16),
-                            rx.text("Preferences"),
-                            align_items="center",
-                            gap="2"
-                        ),
-                        variant="ghost",
-                        justify="start",
-                        width="100%"
-                    ),
-                    rx.separator(),
-                    rx.button(
-                        rx.flex(
-                            rx.icon("log-out", size=16),
-                            rx.text("Sign Out"),
-                            align_items="center",
-                            gap="2"
-                        ),
-                        variant="ghost",
-                        justify="start",
-                        width="100%",
-                        color=rx.color("red", 10)
-                    ),
-                    direction="column",
-                    gap="1",
-                    padding="2"
-                ),
-                direction="column",
-                gap="0"
-            ),
-            max_width="280px"
-        ),
-        open=NavigationState.is_user_dropdown_open,
-        on_open_change=NavigationState.toggle_user_dropdown
+        variant="ghost",
+        size="3"
     )
 
 

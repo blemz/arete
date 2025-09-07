@@ -15,6 +15,11 @@ class State(rx.State):
     user_query: str = ""
     chat_messages: List[str] = []
     
+    # Document state
+    current_document: str = ""
+    document_content: str = ""
+    is_reading: bool = False
+    
     def set_user_query(self, query: str):
         """Set the user query."""
         self.user_query = query
@@ -23,8 +28,75 @@ class State(rx.State):
         """Send a chat message."""
         if self.user_query.strip():
             self.chat_messages.append(f"You: {self.user_query}")
-            self.chat_messages.append(f"Arete: Thanks for asking about '{self.user_query}'. I'm a philosophy tutor!")
+            # Store query for async processing
+            query = self.user_query
             self.user_query = ""
+            
+            # Try to get RAG response, fallback to simple response
+            try:
+                from ..services.rag_service import get_rag_service
+                import asyncio
+                
+                # Get RAG service and process query
+                rag_service = get_rag_service()
+                
+                # Run async function synchronously (Reflex handles this)
+                async def process():
+                    result = await rag_service.process_query(query)
+                    return result.get("response", f"I'm processing your question about '{query}'...")
+                
+                # Create async task
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                response = loop.run_until_complete(process())
+                loop.close()
+                
+                self.chat_messages.append(f"Arete: {response}")
+            except Exception as e:
+                # Fallback response
+                self.chat_messages.append(f"Arete: Thank you for asking about '{query}'. Let me think about that philosophical question.")
+    
+    def read_document(self, document_id: str):
+        """Load and display a document."""
+        self.current_document = document_id
+        self.is_reading = True
+        
+        # Mock document content for now
+        if document_id == "apology":
+            self.document_content = """# Plato's Apology
+            
+The Apology is Plato's account of the speech given by Socrates in his defense during his trial for allegedly corrupting the youth and introducing new gods.
+
+**Key Themes:**
+- The unexamined life is not worth living
+- Socratic wisdom and knowing that one knows nothing  
+- The role of the philosopher in society
+- Divine mission and the pursuit of wisdom
+
+**Main Arguments:**
+Socrates argues that his philosophical questioning serves Athens by exposing ignorance and encouraging virtue..."""
+            
+        elif document_id == "charmides":
+            self.document_content = """# Plato's Charmides
+
+The Charmides is a dialogue exploring the nature of temperance (sophrosyne) through Socratic questioning.
+
+**Key Themes:**
+- Definition of temperance/self-control
+- Knowledge and self-knowledge
+- The relationship between virtue and knowledge
+- The limits of human wisdom
+
+**Main Arguments:**
+Through examining various definitions, Socrates shows the difficulty of defining temperance while highlighting its importance..."""
+        else:
+            self.document_content = "Document not found."
+    
+    def close_document(self):
+        """Close the current document."""
+        self.is_reading = False
+        self.current_document = ""
+        self.document_content = ""
 
 
 def index() -> rx.Component:
@@ -117,46 +189,77 @@ def chat() -> rx.Component:
 def documents() -> rx.Component:
     """Document library."""
     return rx.container(
-        rx.vstack(
-            rx.heading("📚 Document Library", size="7", color="green.600"),
-            rx.text("Browse classical philosophical texts"),
-            
-            rx.grid(
-                rx.box(
-                    rx.vstack(
-                        rx.heading("Plato's Apology", size="5"),
-                        rx.text("Socrates' defense in court", color="gray.600"),
-                        rx.button("Read", color_scheme="green", size="2"),
-                        spacing="2"
+        rx.cond(
+            State.is_reading,
+            # Document viewer
+            rx.vstack(
+                rx.hstack(
+                    rx.button(
+                        "← Back to Library",
+                        on_click=State.close_document,
+                        color_scheme="gray",
+                        size="2"
                     ),
+                    rx.heading(f"Reading: {State.current_document.title()}", size="6", color="green.600"),
+                    justify="between",
+                    width="100%"
+                ),
+                rx.box(
+                    rx.markdown(State.document_content),
                     bg="white",
-                    p="4",
+                    p="6",
                     border_radius="lg",
                     border="1px solid",
                     border_color="gray.200",
-                    _hover={"shadow": "lg"}
+                    height="70vh",
+                    overflow_y="auto",
+                    width="100%"
                 ),
-                rx.box(
-                    rx.vstack(
-                        rx.heading("Charmides", size="5"),
-                        rx.text("On temperance and self-knowledge", color="gray.600"),
-                        rx.button("Read", color_scheme="green", size="2"),
-                        spacing="2"
-                    ),
-                    bg="white",
-                    p="4", 
-                    border_radius="lg",
-                    border="1px solid",
-                    border_color="gray.200",
-                    _hover={"shadow": "lg"}
-                ),
-                columns="2",
                 spacing="4",
                 width="100%"
             ),
-            
-            spacing="4",
-            align="center"
+            # Document library
+            rx.vstack(
+                rx.heading("📚 Document Library", size="7", color="green.600"),
+                rx.text("Browse classical philosophical texts"),
+                
+                rx.grid(
+                    rx.box(
+                        rx.vstack(
+                            rx.heading("Plato's Apology", size="5"),
+                            rx.text("Socrates' defense in court", color="gray.600"),
+                            rx.button("Read", on_click=lambda: State.read_document("apology"), color_scheme="green", size="2"),
+                            spacing="2"
+                        ),
+                        bg="white",
+                        p="4",
+                        border_radius="lg",
+                        border="1px solid",
+                        border_color="gray.200",
+                        _hover={"shadow": "lg"}
+                    ),
+                    rx.box(
+                        rx.vstack(
+                            rx.heading("Charmides", size="5"),
+                            rx.text("On temperance and self-knowledge", color="gray.600"),
+                            rx.button("Read", on_click=lambda: State.read_document("charmides"), color_scheme="green", size="2"),
+                            spacing="2"
+                        ),
+                        bg="white",
+                        p="4", 
+                        border_radius="lg",
+                        border="1px solid",
+                        border_color="gray.200",
+                        _hover={"shadow": "lg"}
+                    ),
+                    columns="2",
+                    spacing="4",
+                    width="100%"
+                ),
+                
+                spacing="4",
+                align="center"
+            )
         ),
         size="4"
     )
