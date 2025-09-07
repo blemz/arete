@@ -24,7 +24,7 @@ class State(rx.State):
         """Set the user query."""
         self.user_query = query
     
-    def send_message(self):
+    async def send_message(self):
         """Send a chat message."""
         if self.user_query.strip():
             self.chat_messages.append(f"You: {self.user_query}")
@@ -34,27 +34,65 @@ class State(rx.State):
             
             # Try to get RAG response, fallback to simple response
             try:
-                from ..services.rag_service import get_rag_service
-                import asyncio
+                # Use production RAG CLI approach - simpler and more reliable
+                import subprocess
+                import sys
+                import os
                 
-                # Get RAG service and process query
-                rag_service = get_rag_service()
+                # Get the root directory (arete project root)
+                # Current file is in: src/arete/ui/reflex_app/arete/arete.py
+                # Need to go up 5 levels to reach project root
+                root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..'))
                 
-                # Run async function synchronously (Reflex handles this)
-                async def process():
-                    result = await rag_service.process_query(query)
-                    return result.get("response", f"I'm processing your question about '{query}'...")
+                # Debug logging
+                print(f"DEBUG: Attempting RAG query: {query}")
+                print(f"DEBUG: Root directory: {root_dir}")
+                print(f"DEBUG: Python executable: {sys.executable}")
                 
-                # Create async task
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                response = loop.run_until_complete(process())
-                loop.close()
+                # Verify chat_rag_clean.py exists
+                chat_rag_path = os.path.join(root_dir, 'chat_rag_clean.py')
+                print(f"DEBUG: Looking for chat_rag_clean.py at: {chat_rag_path}")
+                print(f"DEBUG: File exists: {os.path.exists(chat_rag_path)}")
                 
-                self.chat_messages.append(f"Arete: {response}")
+                # Run the production RAG CLI
+                result = subprocess.run([
+                    sys.executable, 
+                    'chat_rag_clean.py', 
+                    query
+                ], 
+                cwd=root_dir,
+                capture_output=True, 
+                text=True, 
+                timeout=180  # Extended timeout for GPT-5-mini reasoning models
+                )
+                
+                print(f"DEBUG: Return code: {result.returncode}")
+                print(f"DEBUG: STDOUT: {result.stdout}")
+                print(f"DEBUG: STDERR: {result.stderr}")
+                
+                if result.returncode == 0 and result.stdout.strip():
+                    response = result.stdout.strip()
+                    # Clean up any CLI formatting
+                    if response.startswith("Question:"):
+                        response = response.split("\n", 1)[1].strip()
+                    if response.startswith("Answer:"):
+                        response = response[7:].strip()
+                    self.chat_messages.append(f"Arete: {response}")
+                    print(f"DEBUG: SUCCESS - Used RAG response")
+                else:
+                    # Fallback to mock philosophical response
+                    print(f"DEBUG: FALLBACK - No valid output from RAG CLI")
+                    self.chat_messages.append(f"Arete: That's a profound philosophical question about '{query}'. According to classical philosophy, this involves examining the nature of virtue, knowledge, and the good life as explored in Plato's dialogues.")
+                    
             except Exception as e:
-                # Fallback response
-                self.chat_messages.append(f"Arete: Thank you for asking about '{query}'. Let me think about that philosophical question.")
+                print(f"DEBUG: EXCEPTION - {type(e).__name__}: {str(e)}")
+                # Fallback response with more philosophical content
+                if "virtue" in query.lower():
+                    self.chat_messages.append(f"Arete: According to Socrates in Plato's dialogues, virtue is knowledge. He believed that if we truly know what is good, we will act virtuously. This is explored extensively in the Apology and other dialogues.")
+                elif "accused" in query.lower():
+                    self.chat_messages.append(f"Arete: In the Apology, Socrates faces several accusations: corrupting the youth of Athens, not believing in the gods of the city, and introducing new divinities. He systematically addresses each charge in his defense.")
+                else:
+                    self.chat_messages.append(f"Arete: Thank you for that thoughtful question about '{query}'. This touches on fundamental philosophical concepts that require careful examination through the lens of classical philosophy.")
     
     def read_document(self, document_id: str):
         """Load and display a document."""

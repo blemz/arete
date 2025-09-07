@@ -1,303 +1,205 @@
-"""Chat state management with split-view integration."""
+"""
+Advanced Chat State for Reflex UI with RAG Integration
 
-import reflex as rx
-from typing import List, Dict, Any, Optional
+Provides comprehensive chat functionality with direct RAG pipeline integration,
+citation management, and advanced features.
+"""
+
+import asyncio
+import logging
+from typing import List, Dict, Optional
 from datetime import datetime
+import reflex as rx
 
+from services.rag_service import get_rag_service
+from src.arete.data.models import ChatMessage, CitationWithScore
 
-class ChatMessage(rx.Base):
-    """Chat message model."""
-    id: str
-    content: str
-    role: str  # "user" or "assistant"
-    timestamp: datetime
-    citations: List[Dict[str, Any]] = []
-    metadata: Dict[str, Any] = {}
-
+logger = logging.getLogger(__name__)
 
 class ChatState(rx.State):
-    """State management for chat interface with split-view coordination."""
+    """Advanced chat state with full RAG integration."""
     
     # Chat messages
     messages: List[ChatMessage] = []
-    current_input: str = ""
+    current_message: str = ""
     is_loading: bool = False
     
-    # Conversation management
-    conversation_id: Optional[str] = None
-    conversation_title: str = "New Conversation"
+    # Citations and context
+    current_citations: List[CitationWithScore] = []
+    selected_citation: Optional[CitationWithScore] = None
+    show_citation_modal: bool = False
     
-    # Citation context
-    active_citation_context: Optional[str] = None
-    citation_highlights: List[str] = []
+    # Chat history and search
+    chat_history: List[Dict] = []
+    search_query: str = ""
+    filtered_messages: List[ChatMessage] = []
     
-    # Search context
-    search_context: str = ""
-    search_results: List[Dict[str, Any]] = []
+    # UI state
+    chat_panel_width: str = "60%"
+    document_panel_width: str = "40%"
+    show_document_panel: bool = True
     
-    # Compact mode for split view
-    compact_mode: bool = False
+    # Analytics
+    response_time: Optional[float] = None
+    rag_status: str = "ready"  # ready, processing, error, unavailable
     
-    # Auto-scroll behavior
-    auto_scroll_enabled: bool = True
-    scroll_position: float = 0.0
-    
-    # Performance optimization
-    message_limit: int = 100
-    
-    def send_message(self, message: str):
-        """Send a chat message."""
-        if not message.strip():
+    async def send_message(self):
+        """Send a message and get RAG response asynchronously."""
+        if not self.current_message.strip():
             return
         
-        # Create user message
-        user_message = ChatMessage(
-            id=f"msg_{len(self.messages)}_{datetime.now().timestamp()}",
-            content=message.strip(),
+        # Add user message
+        user_msg = ChatMessage(
             role="user",
-            timestamp=datetime.now()
+            content=self.current_message,
+            timestamp=datetime.now(),
+            citations=[]
         )
+        self.messages.append(user_msg)
         
-        self.messages.append(user_message)
-        self.current_input = ""
+        # Clear input and set loading
+        query = self.current_message
+        self.current_message = ""
         self.is_loading = True
+        self.rag_status = "processing"
+        self.current_citations = []
         
-        # Process message asynchronously with RAG system
-        import asyncio
-        asyncio.create_task(self._process_message_async(message))
-    
-    async def _process_message_async(self, message: str):
-        """Process message with RAG system."""
         try:
-            from ..services.chat_service import get_chat_service
+            start_time = datetime.now()
             
-            # Get chat service and process message
-            chat_service = get_chat_service()
-            result = await chat_service.send_message(message)
+            # Get RAG service and response
+            rag_service = await get_rag_service()
+            response_text, citations = await rag_service.get_rag_response(query)
             
-            # Create assistant response with real RAG data
-            assistant_message = ChatMessage(
-                id=f"msg_{len(self.messages)}_{datetime.now().timestamp()}",
-                content=result.get("response", "I apologize, but I couldn't generate a response."),
+            # Calculate response time
+            self.response_time = (datetime.now() - start_time).total_seconds()
+            
+            # Create assistant message
+            assistant_msg = ChatMessage(
                 role="assistant",
+                content=response_text,
                 timestamp=datetime.now(),
-                citations=[
-                    {
-                        "id": f"cite_{i}",
-                        "document_id": cite.get("document_id", "unknown"),
-                        "text": cite.get("content", ""),
-                        "position": cite.get("position", 0),
-                        "relevance_score": cite.get("score", 0.0)
-                    }
-                    for i, cite in enumerate(result.get("citations", []))
-                ],
-                metadata={
-                    "entities": result.get("entities", []),
-                    "success": result.get("success", False)
-                }
+                citations=citations
             )
+            self.messages.append(assistant_msg)
+            self.current_citations = citations
+            self.rag_status = "ready"
             
-            self.messages.append(assistant_message)
+            # Update chat history
+            self.chat_history.append({
+                "timestamp": datetime.now().isoformat(),
+                "query": query,
+                "response": response_text,
+                "citations_count": len(citations),
+                "response_time": self.response_time
+            })
             
         except Exception as e:
-            # Fallback error message
-            error_message = ChatMessage(
-                id=f"msg_{len(self.messages)}_{datetime.now().timestamp()}",
-                content=f"I apologize, but I encountered an error: {str(e)}",
+            logger.error(f"Chat error: {e}")
+            error_msg = ChatMessage(
                 role="assistant",
+                content="I apologize, but I encountered an error processing your question. Please try again.",
                 timestamp=datetime.now(),
-                citations=[],
-                metadata={"error": True}
+                citations=[]
             )
-            self.messages.append(error_message)
-        
+            self.messages.append(error_msg)
+            self.rag_status = "error"
+            
         finally:
             self.is_loading = False
-            
-            # Trigger auto-scroll if enabled
-            if self.auto_scroll_enabled:
-                self.scroll_to_bottom()
     
-    def set_citation_context(self, citation_id: str):
-        """Set citation context from document panel interaction."""
-        self.active_citation_context = citation_id
+    def update_message(self, value: str):
+        """Update the current message input."""
+        self.current_message = value
+    
+    def clear_chat(self):
+        """Clear all chat messages and state."""
+        self.messages = []
+        self.current_citations = []
+        self.selected_citation = None
+        self.show_citation_modal = False
+        self.rag_status = "ready"
+        self.response_time = None
+    
+    def select_citation(self, citation: CitationWithScore):
+        """Select a citation for detailed view."""
+        self.selected_citation = citation
+        self.show_citation_modal = True
+    
+    def close_citation_modal(self):
+        """Close the citation detail modal."""
+        self.show_citation_modal = False
+        self.selected_citation = None
+    
+    def toggle_document_panel(self):
+        """Toggle the document panel visibility."""
+        if self.show_document_panel:
+            self.show_document_panel = False
+            self.chat_panel_width = "100%"
+            self.document_panel_width = "0%"
+        else:
+            self.show_document_panel = True
+            self.chat_panel_width = "60%"
+            self.document_panel_width = "40%"
+    
+    def resize_panels(self, chat_width: str, doc_width: str):
+        """Resize the chat and document panels."""
+        self.chat_panel_width = chat_width
+        self.document_panel_width = doc_width
+    
+    def search_messages(self, query: str):
+        """Search through chat messages."""
+        self.search_query = query
+        if not query:
+            self.filtered_messages = self.messages
+            return
         
-        # Find related messages with this citation
-        related_messages = [
+        query_lower = query.lower()
+        self.filtered_messages = [
             msg for msg in self.messages
-            if any(cite["id"] == citation_id for cite in msg.citations)
-        ]
-        
-        if related_messages:
-            # Scroll to the most recent related message
-            last_message = related_messages[-1]
-            self.scroll_to_message(last_message.id)
-    
-    def set_search_context(self, query: str):
-        """Set search context from document panel search."""
-        self.search_context = query
-        
-        # Highlight relevant messages
-        self.search_results = [
-            {
-                "message_id": msg.id,
-                "relevance": self._calculate_relevance(msg.content, query),
-                "highlights": self._extract_highlights(msg.content, query)
-            }
-            for msg in self.messages
-            if self._calculate_relevance(msg.content, query) > 0.3
+            if query_lower in msg.content.lower()
         ]
     
-    def _calculate_relevance(self, text: str, query: str) -> float:
-        """Calculate relevance score between text and query."""
-        # Simple relevance calculation (would use proper semantic similarity)
-        query_terms = query.lower().split()
-        text_lower = text.lower()
+    def get_chat_analytics(self) -> Dict:
+        """Get chat analytics data."""
+        if not self.chat_history:
+            return {}
         
-        matches = sum(1 for term in query_terms if term in text_lower)
-        return matches / len(query_terms) if query_terms else 0.0
-    
-    def _extract_highlights(self, text: str, query: str) -> List[Dict[str, Any]]:
-        """Extract highlight positions for search query."""
-        highlights = []
-        query_terms = query.lower().split()
-        text_lower = text.lower()
+        total_queries = len(self.chat_history)
+        avg_response_time = sum(h.get("response_time", 0) for h in self.chat_history) / total_queries
+        total_citations = sum(h.get("citations_count", 0) for h in self.chat_history)
         
-        for term in query_terms:
-            start = 0
-            while True:
-                pos = text_lower.find(term, start)
-                if pos == -1:
-                    break
-                highlights.append({
-                    "start": pos,
-                    "end": pos + len(term),
-                    "text": text[pos:pos + len(term)]
-                })
-                start = pos + 1
+        return {
+            "total_queries": total_queries,
+            "average_response_time": round(avg_response_time, 2),
+            "total_citations": total_citations,
+            "success_rate": sum(1 for h in self.chat_history if h.get("citations_count", 0) > 0) / total_queries * 100
+        }
+    
+    def export_chat(self) -> str:
+        """Export chat history as text."""
+        if not self.messages:
+            return "No messages to export."
         
-        return highlights
-    
-    def scroll_to_bottom(self):
-        """Scroll chat to bottom."""
-        self.scroll_position = 1.0
-    
-    def scroll_to_message(self, message_id: str):
-        """Scroll to specific message."""
-        message_index = next(
-            (i for i, msg in enumerate(self.messages) if msg.id == message_id),
-            None
-        )
+        lines = []
+        lines.append(f"Arete Philosophy Chat Export - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        lines.append("=" * 60)
+        lines.append("")
         
-        if message_index is not None and len(self.messages) > 0:
-            self.scroll_position = message_index / len(self.messages)
-    
-    def toggle_compact_mode(self):
-        """Toggle compact mode for split view."""
-        self.compact_mode = not self.compact_mode
-    
-    def set_compact_mode(self, compact: bool):
-        """Set compact mode state."""
-        self.compact_mode = compact
-    
-    def clear_conversation(self):
-        """Clear current conversation."""
-        self.messages.clear()
-        self.conversation_id = None
-        self.conversation_title = "New Conversation"
-        self.active_citation_context = None
-        self.citation_highlights.clear()
-        self.search_context = ""
-        self.search_results.clear()
-    
-    def delete_message(self, message_id: str):
-        """Delete a specific message."""
-        self.messages = [msg for msg in self.messages if msg.id != message_id]
-    
-    def regenerate_response(self, message_id: str):
-        """Regenerate response for a specific message."""
-        message_index = next(
-            (i for i, msg in enumerate(self.messages) if msg.id == message_id),
-            None
-        )
-        
-        if message_index is not None and message_index > 0:
-            # Find the user message that prompted this response
-            user_message = self.messages[message_index - 1]
-            if user_message.role == "user":
-                # Remove the old response and regenerate
-                self.messages = self.messages[:message_index]
-                self._process_message_async(user_message.content)
-    
-    def add_citation_highlight(self, citation_id: str):
-        """Add citation highlight."""
-        if citation_id not in self.citation_highlights:
-            self.citation_highlights.append(citation_id)
-    
-    def remove_citation_highlight(self, citation_id: str):
-        """Remove citation highlight."""
-        if citation_id in self.citation_highlights:
-            self.citation_highlights.remove(citation_id)
-    
-    def clear_citation_highlights(self):
-        """Clear all citation highlights."""
-        self.citation_highlights.clear()
-    
-    def export_conversation(self) -> str:
-        """Export conversation as formatted text."""
-        export_lines = [f"# {self.conversation_title}", ""]
-        
-        for message in self.messages:
-            role_prefix = "**User:**" if message.role == "user" else "**Assistant:**"
-            export_lines.append(f"{role_prefix} {message.content}")
+        for msg in self.messages:
+            role = "You" if msg.role == "user" else "Arete"
+            timestamp = msg.timestamp.strftime("%H:%M:%S")
+            lines.append(f"[{timestamp}] {role}:")
+            lines.append(msg.content)
             
-            if message.citations:
-                export_lines.append("\n**Citations:**")
-                for cite in message.citations:
-                    export_lines.append(f"- {cite['text'][:100]}...")
+            if msg.citations:
+                lines.append(f"  Citations ({len(msg.citations)}):")
+                for i, citation in enumerate(msg.citations, 1):
+                    lines.append(f"    {i}. {citation.source_title} (Score: {citation.relevance_score:.2f})")
             
-            export_lines.append("")
+            lines.append("")
         
-        return "\n".join(export_lines)
-    
-    # Computed properties
-    
-    @rx.var
-    def message_count(self) -> int:
-        """Get total message count."""
-        return len(self.messages)
-    
-    @rx.var
-    def user_message_count(self) -> int:
-        """Get user message count."""
-        return len([msg for msg in self.messages if msg.role == "user"])
-    
-    @rx.var
-    def assistant_message_count(self) -> int:
-        """Get assistant message count."""
-        return len([msg for msg in self.messages if msg.role == "assistant"])
-    
-    @rx.var
-    def has_messages(self) -> bool:
-        """Check if conversation has messages."""
-        return len(self.messages) > 0
-    
-    @rx.var
-    def latest_message(self) -> Optional[ChatMessage]:
-        """Get latest message."""
-        return self.messages[-1] if self.messages else None
-    
-    @rx.var
-    def citation_count(self) -> int:
-        """Get total citation count across all messages."""
-        return sum(len(msg.citations) for msg in self.messages)
-    
-    @rx.var
-    def search_result_count(self) -> int:
-        """Get search result count."""
-        return len(self.search_results)
-    
-    @rx.var
-    def is_at_message_limit(self) -> bool:
-        """Check if at message limit."""
-        return len(self.messages) >= self.message_limit
+        return "\n".join(lines)
+
+# Initialize global chat state
+chat_state = ChatState()
