@@ -24,7 +24,7 @@ def message_bubble(message: dict) -> rx.Component:
     else:
         return rx.div(
             rx.div(
-                rx.text(content, class_name="text-base-content"),
+                rx.markdown(content, class_name="text-base-content prose prose-sm max-w-none"),
                 rx.text(timestamp, class_name="text-xs opacity-70 mt-1"),
                 class_name="chat-bubble chat-bubble-secondary max-w-2xl"
             ),
@@ -92,7 +92,26 @@ def chat_header() -> rx.Component:
 
 
 def chat_messages() -> rx.Component:
-    """Chat messages display area."""
+    """Chat messages display area with thinking indicator."""
+    
+    # Create thinking indicator component
+    thinking_indicator = rx.div(
+        rx.div(
+            rx.div(
+                rx.text("🏛️ Arete is thinking", class_name="text-base-content font-medium"),
+                rx.div(
+                    rx.text("●", class_name="animate-pulse"),
+                    rx.text("●", class_name="animate-pulse", style={"animation-delay": "0.2s"}),
+                    rx.text("●", class_name="animate-pulse", style={"animation-delay": "0.4s"}),
+                    class_name="flex gap-1 ml-2"
+                ),
+                class_name="flex items-center"
+            ),
+            class_name="chat-bubble chat-bubble-secondary max-w-md"
+        ),
+        class_name="chat chat-start mb-4"
+    )
+    
     return rx.div(
         rx.cond(
             AreteState.chat_history.length() > 0,
@@ -101,39 +120,51 @@ def chat_messages() -> rx.Component:
                     AreteState.chat_history,
                     message_bubble
                 ),
+                rx.cond(
+                    AreteState.is_loading,
+                    thinking_indicator,
+                    rx.fragment()
+                ),
                 class_name="space-y-4"
             ),
-            rx.div(
+            rx.cond(
+                AreteState.is_loading,
                 rx.div(
-                    rx.text(
-                        "🏛️",
-                        font_size="3rem",
-                        class_name="mb-4"
-                    ),
-                    rx.heading(
-                        "Welcome to Arete",
-                        size="xl",
-                        class_name="mb-2"
-                    ),
-                    rx.text(
-                        "Start a conversation about classical philosophy. "
-                        "I can help you explore concepts from Plato, Aristotle, and other ancient thinkers.",
-                        class_name="opacity-70 mb-4"
-                    ),
-                    rx.div(
-                        rx.text("Try asking:", class_name="font-semibold mb-2"),
-                        rx.ul(
-                            rx.li("What is virtue according to Plato?"),
-                            rx.li("How does Aristotle define justice?"),
-                            rx.li("What is the Socratic method?"),
-                            rx.li("Explain the allegory of the cave"),
-                            class_name="list-disc list-inside space-y-1 text-sm opacity-70"
-                        ),
-                        class_name="text-left"
-                    ),
-                    class_name="text-center max-w-md"
+                    thinking_indicator,
+                    class_name="space-y-4"
                 ),
-                class_name="flex items-center justify-center h-full"
+                rx.div(
+                    rx.div(
+                        rx.text(
+                            "🏛️",
+                            font_size="3rem",
+                            class_name="mb-4"
+                        ),
+                        rx.heading(
+                            "Welcome to Arete",
+                            size="xl",
+                            class_name="mb-2"
+                        ),
+                        rx.text(
+                            "Start a conversation about classical philosophy. "
+                            "I can help you explore concepts from Plato, Aristotle, and other ancient thinkers.",
+                            class_name="opacity-70 mb-4"
+                        ),
+                        rx.div(
+                            rx.text("Try asking:", class_name="font-semibold mb-2"),
+                            rx.ul(
+                                rx.li("What is virtue according to Plato?"),
+                                rx.li("How does Aristotle define justice?"),
+                                rx.li("What is the Socratic method?"),
+                                rx.li("Explain the allegory of the cave"),
+                                class_name="list-disc list-inside space-y-1 text-sm opacity-70"
+                            ),
+                            class_name="text-left"
+                        ),
+                        class_name="text-center max-w-md"
+                    ),
+                    class_name="flex items-center justify-center h-full"
+                )
             )
         ),
         class_name="flex-1 overflow-auto p-4 bg-base-200"

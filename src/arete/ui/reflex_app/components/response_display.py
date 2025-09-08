@@ -284,3 +284,54 @@ def simple_message(message: str, is_user: bool = False) -> rx.Component:
             _hover={"box_shadow": "0 2px 6px rgba(107, 114, 128, 0.12)"}
         )
     )
+
+def thinking_animation() -> rx.Component:
+    """Display thinking animation while processing queries."""
+    return rx.box(
+        rx.vstack(
+            rx.hstack(
+                rx.text("🏛️", font_size="xl", opacity="0.8"),
+                rx.heading("Arete is thinking...", size="5", color="gray.600", font_weight="500"),
+                spacing="3",
+                align="center"
+            ),
+            rx.hstack(
+                rx.box(
+                    bg="blue.500",
+                    width="8px",
+                    height="8px",
+                    border_radius="50%",
+                    animation="bounce 1.4s ease-in-out infinite both",
+                    animation_delay="0s"
+                ),
+                rx.box(
+                    bg="blue.500",
+                    width="8px", 
+                    height="8px",
+                    border_radius="50%",
+                    animation="bounce 1.4s ease-in-out infinite both",
+                    animation_delay="0.16s"
+                ),
+                rx.box(
+                    bg="blue.500",
+                    width="8px",
+                    height="8px", 
+                    border_radius="50%",
+                    animation="bounce 1.4s ease-in-out infinite both",
+                    animation_delay="0.32s"
+                ),
+                spacing="2",
+                justify="center"
+            ),
+            spacing="3",
+            align="center"
+        ),
+        bg="linear-gradient(135deg, rgba(243, 244, 246, 0.8), rgba(229, 231, 235, 0.6))",
+        border="1px solid",
+        border_color="gray.300",
+        p="4",
+        border_radius="lg",
+        box_shadow="0 2px 8px rgba(107, 114, 128, 0.08)",
+        width="100%",
+        transition="all 0.3s ease"
+    )

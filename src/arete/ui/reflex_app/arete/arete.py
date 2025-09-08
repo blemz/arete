@@ -14,7 +14,7 @@ import os
 components_path = os.path.join(os.path.dirname(__file__), '..', 'components')
 sys.path.insert(0, components_path)
 
-from response_display import formatted_response, simple_message
+from response_display import formatted_response, simple_message, thinking_animation
 
 class State(rx.State):
     """Global application state."""
@@ -22,6 +22,7 @@ class State(rx.State):
     # Chat state
     user_query: str = ""
     chat_messages: List[Dict[str, str]] = []
+    is_loading: bool = False
     
     # Document state
     current_document: str = ""
@@ -44,6 +45,9 @@ class State(rx.State):
             # Store query for async processing
             query = self.user_query
             self.user_query = ""
+            
+            # Set loading state
+            self.is_loading = True
             
             # Try to get RAG response, fallback to simple response
             try:
@@ -79,17 +83,15 @@ class State(rx.State):
                     print(f"RAG Error: {result.stderr}")
                 
                 if result.returncode == 0 and result.stdout.strip():
-                    response = result.stdout.strip()
-                    # Clean up any CLI formatting
-                    if response.startswith("Question:"):
-                        response = response.split("\n", 1)[1].strip()
-                    if response.startswith("Answer:"):
-                        response = response[7:].strip()
+                    raw_response = result.stdout.strip()
+                    
+                    # Extract clean philosophical response
+                    cleaned_response = self._clean_rag_response(raw_response)
                     
                     # Add assistant response
                     self.chat_messages.append({
                         "role": "assistant", 
-                        "content": response
+                        "content": cleaned_response
                     })
                 else:
                     # Fallback to mock philosophical response
@@ -112,6 +114,49 @@ class State(rx.State):
                     "role": "assistant",
                     "content": fallback_content
                 })
+            
+            # Always reset loading state
+            self.is_loading = False
+    
+    def _clean_rag_response(self, raw_response: str) -> str:
+        """Extract clean philosophical response from RAG output."""
+        try:
+            # Look for the response section between the delimiters
+            response_start = "Response:\n" + "-" * 80 + "\n"
+            response_end = "\n" + "-" * 80 + "\n\nCitations"
+            
+            start_idx = raw_response.find(response_start)
+            if start_idx != -1:
+                start_idx += len(response_start)
+                end_idx = raw_response.find(response_end, start_idx)
+                if end_idx != -1:
+                    # Extract the philosophical content
+                    philosophical_content = raw_response[start_idx:end_idx].strip()
+                    return philosophical_content
+            
+            # Fallback: look for content after "Response:" if delimiters not found
+            response_marker = "Response:\n"
+            start_idx = raw_response.find(response_marker)
+            if start_idx != -1:
+                start_idx += len(response_marker)
+                # Take content until citations or end
+                content = raw_response[start_idx:]
+                
+                # Stop at citations section
+                citations_idx = content.find("\nCitations from Plato's texts:")
+                if citations_idx != -1:
+                    content = content[:citations_idx]
+                
+                # Clean up any remaining formatting
+                content = content.replace("-" * 80, "").strip()
+                return content
+            
+            # Final fallback: return original response
+            return raw_response
+            
+        except Exception:
+            # If anything goes wrong, return the original response
+            return raw_response
     
     def read_document(self, document_id: str):
         """Load and display a document."""
@@ -217,6 +262,12 @@ def chat() -> rx.Component:
                         State.chat_messages,
                         render_message
                     ),
+                    # Show thinking animation when loading
+                    rx.cond(
+                        State.is_loading,
+                        thinking_animation(),
+                        rx.fragment()
+                    ),
                     spacing="4",
                     width="100%"
                 ),
@@ -231,15 +282,25 @@ def chat() -> rx.Component:
             # Input area
             rx.hstack(
                 rx.input(
-                    placeholder="Ask about philosophy...",
+                    placeholder=rx.cond(
+                        State.is_loading,
+                        "Arete is thinking...",
+                        "Ask about philosophy..."
+                    ),
                     value=State.user_query,
                     on_change=State.set_user_query,
+                    disabled=State.is_loading,
                     width="100%"
                 ),
                 rx.button(
-                    "Send",
+                    rx.cond(
+                        State.is_loading,
+                        "Thinking...",
+                        "Send"
+                    ),
                     on_click=State.send_message,
-                    color_scheme="blue"
+                    color_scheme="blue",
+                    disabled=State.is_loading
                 ),
                 width="100%"
             ),
