@@ -6,14 +6,22 @@ Built with Reflex framework for modern web interface.
 """
 
 import reflex as rx
-from typing import List
+from typing import List, Dict
+import sys
+import os
+
+# Add components directory to Python path for direct imports
+components_path = os.path.join(os.path.dirname(__file__), '..', 'components')
+sys.path.insert(0, components_path)
+
+from response_display import formatted_response, simple_message
 
 class State(rx.State):
     """Global application state."""
     
     # Chat state
     user_query: str = ""
-    chat_messages: List[str] = []
+    chat_messages: List[Dict[str, str]] = []
     
     # Document state
     current_document: str = ""
@@ -27,7 +35,12 @@ class State(rx.State):
     async def send_message(self):
         """Send a chat message."""
         if self.user_query.strip():
-            self.chat_messages.append(f"You: {self.user_query}")
+            # Add user message
+            self.chat_messages.append({
+                "role": "user",
+                "content": self.user_query
+            })
+            
             # Store query for async processing
             query = self.user_query
             self.user_query = ""
@@ -44,15 +57,10 @@ class State(rx.State):
                 # Need to go up 5 levels to reach project root
                 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..'))
                 
-                # Debug logging
-                print(f"DEBUG: Attempting RAG query: {query}")
-                print(f"DEBUG: Root directory: {root_dir}")
-                print(f"DEBUG: Python executable: {sys.executable}")
-                
                 # Verify chat_rag_clean.py exists
                 chat_rag_path = os.path.join(root_dir, 'chat_rag_clean.py')
-                print(f"DEBUG: Looking for chat_rag_clean.py at: {chat_rag_path}")
-                print(f"DEBUG: File exists: {os.path.exists(chat_rag_path)}")
+                if not os.path.exists(chat_rag_path):
+                    raise FileNotFoundError(f"chat_rag_clean.py not found at {chat_rag_path}")
                 
                 # Run the production RAG CLI
                 result = subprocess.run([
@@ -66,9 +74,9 @@ class State(rx.State):
                 timeout=180  # Extended timeout for GPT-5-mini reasoning models
                 )
                 
-                print(f"DEBUG: Return code: {result.returncode}")
-                print(f"DEBUG: STDOUT: {result.stdout}")
-                print(f"DEBUG: STDERR: {result.stderr}")
+                # Log errors only if needed for debugging
+                if result.returncode != 0:
+                    print(f"RAG Error: {result.stderr}")
                 
                 if result.returncode == 0 and result.stdout.strip():
                     response = result.stdout.strip()
@@ -77,22 +85,33 @@ class State(rx.State):
                         response = response.split("\n", 1)[1].strip()
                     if response.startswith("Answer:"):
                         response = response[7:].strip()
-                    self.chat_messages.append(f"Arete: {response}")
-                    print(f"DEBUG: SUCCESS - Used RAG response")
+                    
+                    # Add assistant response
+                    self.chat_messages.append({
+                        "role": "assistant", 
+                        "content": response
+                    })
                 else:
                     # Fallback to mock philosophical response
-                    print(f"DEBUG: FALLBACK - No valid output from RAG CLI")
-                    self.chat_messages.append(f"Arete: That's a profound philosophical question about '{query}'. According to classical philosophy, this involves examining the nature of virtue, knowledge, and the good life as explored in Plato's dialogues.")
+                    fallback_response = f"That's a profound philosophical question about '{query}'. According to classical philosophy, this involves examining the nature of virtue, knowledge, and the good life as explored in Plato's dialogues."
+                    self.chat_messages.append({
+                        "role": "assistant",
+                        "content": fallback_response
+                    })
                     
             except Exception as e:
-                print(f"DEBUG: EXCEPTION - {type(e).__name__}: {str(e)}")
                 # Fallback response with more philosophical content
                 if "virtue" in query.lower():
-                    self.chat_messages.append(f"Arete: According to Socrates in Plato's dialogues, virtue is knowledge. He believed that if we truly know what is good, we will act virtuously. This is explored extensively in the Apology and other dialogues.")
+                    fallback_content = "According to Socrates in Plato's dialogues, virtue is knowledge. He believed that if we truly know what is good, we will act virtuously. This is explored extensively in the Apology and other dialogues."
                 elif "accused" in query.lower():
-                    self.chat_messages.append(f"Arete: In the Apology, Socrates faces several accusations: corrupting the youth of Athens, not believing in the gods of the city, and introducing new divinities. He systematically addresses each charge in his defense.")
+                    fallback_content = "In the Apology, Socrates faces several accusations: corrupting the youth of Athens, not believing in the gods of the city, and introducing new divinities. He systematically addresses each charge in his defense."
                 else:
-                    self.chat_messages.append(f"Arete: Thank you for that thoughtful question about '{query}'. This touches on fundamental philosophical concepts that require careful examination through the lens of classical philosophy.")
+                    fallback_content = f"Thank you for that thoughtful question about '{query}'. This touches on fundamental philosophical concepts that require careful examination through the lens of classical philosophy."
+                
+                self.chat_messages.append({
+                    "role": "assistant",
+                    "content": fallback_content
+                })
     
     def read_document(self, document_id: str):
         """Load and display a document."""
@@ -177,6 +196,14 @@ def index() -> rx.Component:
     )
 
 
+def render_message(message: Dict[str, str]) -> rx.Component:
+    """Render a message based on its role."""
+    return rx.cond(
+        message["role"] == "user",
+        simple_message(message["content"], is_user=True),
+        formatted_response(message["content"])
+    )
+
 def chat() -> rx.Component:
     """Chat interface."""
     return rx.container(
@@ -188,9 +215,9 @@ def chat() -> rx.Component:
                 rx.vstack(
                     rx.foreach(
                         State.chat_messages,
-                        lambda msg: rx.text(msg, padding="2")
+                        render_message
                     ),
-                    spacing="2",
+                    spacing="4",
                     width="100%"
                 ),
                 bg="gray.50",
