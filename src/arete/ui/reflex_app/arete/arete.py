@@ -7,6 +7,7 @@ Built with Reflex framework for modern web interface.
 
 import reflex as rx
 from typing import List, Dict
+<<<<<<< HEAD
 import sys
 import os
 
@@ -15,6 +16,9 @@ components_path = os.path.join(os.path.dirname(__file__), '..', 'components')
 sys.path.insert(0, components_path)
 
 from response_display import formatted_response, simple_message
+=======
+from components.response_display import formatted_response, simple_message
+>>>>>>> b899d1ed61140a8de340bc7802a15c5212de2a1f
 
 class State(rx.State):
     """Global application state."""
@@ -198,11 +202,18 @@ def index() -> rx.Component:
 
 def render_message(message: Dict[str, str]) -> rx.Component:
     """Render a message based on its role."""
+<<<<<<< HEAD
     return rx.cond(
         message["role"] == "user",
         simple_message(message["content"], is_user=True),
         formatted_response(message["content"])
     )
+=======
+    if message["role"] == "user":
+        return simple_message(message["content"], is_user=True)
+    else:  # assistant
+        return formatted_response(message["content"])
+>>>>>>> b899d1ed61140a8de340bc7802a15c5212de2a1f
 
 def chat() -> rx.Component:
     """Chat interface."""
