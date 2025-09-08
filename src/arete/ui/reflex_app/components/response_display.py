@@ -7,11 +7,7 @@ from the enhanced prompt system.
 
 import reflex as rx
 from typing import List, Dict
-<<<<<<< HEAD
 from response_parser import ParsedResponse, ResponseParser
-=======
-from .response_parser import ParsedResponse, ResponseParser
->>>>>>> b899d1ed61140a8de340bc7802a15c5212de2a1f
 
 def direct_answer_card(content: str) -> rx.Component:
     """Display the direct answer section."""
@@ -203,9 +199,8 @@ def citation_item(citation: Dict[str, str]) -> rx.Component:
 def formatted_response(response_text: str) -> rx.Component:
     """Main component to display a formatted philosophical response."""
     
-<<<<<<< HEAD
-    # For now, let's simplify and just show the response as a styled box
-    # We'll enhance this with XML parsing later once the basic structure works
+    # For now, just display as a simple styled response
+    # We'll handle XML parsing on the backend before passing to UI
     return rx.box(
         rx.vstack(
             rx.hstack(
@@ -236,84 +231,14 @@ def formatted_response(response_text: str) -> rx.Component:
         transition="all 0.2s ease",
         _hover={"box_shadow": "0 4px 12px rgba(107, 114, 128, 0.12)"}
     )
-=======
-    # Parse the response
-    parsed = ResponseParser.parse_response(response_text)
-    
-    if parsed.has_xml_structure:
-        # Display structured response
-        return rx.vstack(
-            rx.box(
-                rx.hstack(
-                    rx.text("🏛️", font_size="2xl", opacity="0.9"),
-                    rx.heading("Arete Response", size="6", color="gray.700", font_weight="600"),
-                    spacing="3",
-                    align="center"
-                ),
-                mb="5"
-            ),
-            
-            # Direct Answer
-            direct_answer_card(parsed.direct_answer),
-            
-            # Detailed Explanation  
-            detailed_explanation_card(parsed.detailed_explanation),
-            
-            # Broader Connections
-            broader_connections_card(parsed.broader_connections),
-            
-            # References
-            references_card(parsed.references),
-            
-            spacing="5",
-            width="100%"
-        )
-    else:
-        # Fallback for unstructured response
-        return rx.box(
-            rx.vstack(
-                rx.hstack(
-                    rx.text("🏛️", font_size="xl", opacity="0.8"),
-                    rx.heading("Arete Response", size="5", color="gray.700", font_weight="600"),
-                    spacing="3",
-                    align="center"
-                ),
-                rx.text(
-                    parsed.detailed_explanation,
-                    font_size="md",
-                    line_height="1.7",
-                    color="gray.800",
-                    white_space="pre-wrap",
-                    font_weight="400",
-                    letter_spacing="0.01em"
-                ),
-                spacing="4",
-                align="start"
-            ),
-            bg="linear-gradient(135deg, rgba(249, 250, 251, 0.8), rgba(243, 244, 246, 0.6))",
-            border="1px solid",
-            border_color="gray.300",
-            p="6",
-            border_radius="lg",
-            box_shadow="0 2px 8px rgba(107, 114, 128, 0.08)",
-            width="100%",
-            transition="all 0.2s ease",
-            _hover={"box_shadow": "0 4px 12px rgba(107, 114, 128, 0.12)"}
-        )
->>>>>>> b899d1ed61140a8de340bc7802a15c5212de2a1f
 
 def simple_message(message: str, is_user: bool = False) -> rx.Component:
     """Simple message component for user messages and fallbacks."""
     
-<<<<<<< HEAD
     return rx.cond(
         is_user,
         # User message
         rx.box(
-=======
-    if is_user:
-        return rx.box(
->>>>>>> b899d1ed61140a8de340bc7802a15c5212de2a1f
             rx.hstack(
                 rx.text("👤", font_size="lg", opacity="0.7"),
                 rx.text(
@@ -337,15 +262,9 @@ def simple_message(message: str, is_user: bool = False) -> rx.Component:
             width="100%",
             transition="all 0.2s ease",
             _hover={"box_shadow": "0 2px 6px rgba(59, 130, 246, 0.12)"}
-<<<<<<< HEAD
         ),
         # Assistant fallback message
         rx.box(
-=======
-        )
-    else:
-        return rx.box(
->>>>>>> b899d1ed61140a8de340bc7802a15c5212de2a1f
             rx.text(
                 message,
                 font_size="md",
@@ -363,9 +282,5 @@ def simple_message(message: str, is_user: bool = False) -> rx.Component:
             width="100%",
             transition="all 0.2s ease",
             _hover={"box_shadow": "0 2px 6px rgba(107, 114, 128, 0.12)"}
-<<<<<<< HEAD
         )
     )
-=======
-        )
->>>>>>> b899d1ed61140a8de340bc7802a15c5212de2a1f
