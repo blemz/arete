@@ -8,7 +8,7 @@ config = rx.Config(
     app_name="arete",
     
     # Development settings
-    port=3001,
+    frontend_port=3000,
     backend_port=8001,
     
     # Build settings
