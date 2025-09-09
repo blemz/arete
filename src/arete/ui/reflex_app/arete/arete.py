@@ -16,12 +16,13 @@ sys.path.insert(0, components_path)
 
 from response_display import formatted_response, simple_message, thinking_animation
 
-class State(rx.State):
-    """Global application state."""
+class AreteState(rx.State):
+    """Global application state with enhanced chat integration."""
     
+    # Import enhanced chat functionality from ChatState
     # Chat state
     user_query: str = ""
-    chat_messages: List[Dict[str, str]] = []
+    chat_history: List[Dict[str, str]] = []
     is_loading: bool = False
     
     # Document state
@@ -29,18 +30,24 @@ class State(rx.State):
     document_content: str = ""
     is_reading: bool = False
     
+    # Enhanced chat features
+    rag_status: str = "ready"  # ready, processing, error, unavailable
+    response_time: float = 0.0
+    
     def set_user_query(self, query: str):
         """Set the user query."""
         self.user_query = query
     
     async def send_message(self):
-        """Send a chat message."""
+        """Send a chat message with enhanced RAG integration."""
         if self.user_query.strip():
-            # Add user message
-            self.chat_messages.append({
-                "role": "user",
-                "content": self.user_query
-            })
+            # Add user message to chat history for display
+            user_chat_msg = {
+                "content": self.user_query,
+                "is_user": True,
+                "timestamp": f"{__import__('datetime').datetime.now().strftime('%H:%M')}"
+            }
+            self.chat_history.append(user_chat_msg)
             
             # Store query for async processing
             query = self.user_query
@@ -48,13 +55,16 @@ class State(rx.State):
             
             # Set loading state
             self.is_loading = True
+            self.rag_status = "processing"
             
             # Try to get RAG response, fallback to simple response
             try:
-                # Use production RAG CLI approach - simpler and more reliable
                 import subprocess
                 import sys
                 import os
+                from datetime import datetime
+                
+                start_time = datetime.now()
                 
                 # Get the root directory (arete project root)
                 # Current file is in: src/arete/ui/reflex_app/arete/arete.py
@@ -78,45 +88,77 @@ class State(rx.State):
                 timeout=180  # Extended timeout for GPT-5-mini reasoning models
                 )
                 
-                # Log errors only if needed for debugging
-                if result.returncode != 0:
-                    print(f"RAG Error: {result.stderr}")
+                # Calculate response time
+                self.response_time = (datetime.now() - start_time).total_seconds()
                 
                 if result.returncode == 0 and result.stdout.strip():
                     raw_response = result.stdout.strip()
                     
-                    # Extract clean philosophical response
-                    cleaned_response = self._clean_rag_response(raw_response)
+                    # Parse and format the response using enhanced formatting
+                    formatted_response = self._format_enhanced_response(raw_response, query)
                     
-                    # Add assistant response
-                    self.chat_messages.append({
-                        "role": "assistant", 
-                        "content": cleaned_response
-                    })
+                    # Add assistant response to chat history for display
+                    assistant_chat_msg = {
+                        "content": formatted_response,
+                        "is_user": False,
+                        "timestamp": f"{datetime.now().strftime('%H:%M')}"
+                    }
+                    self.chat_history.append(assistant_chat_msg)
+                    self.rag_status = "ready"
                 else:
                     # Fallback to mock philosophical response
-                    fallback_response = f"That's a profound philosophical question about '{query}'. According to classical philosophy, this involves examining the nature of virtue, knowledge, and the good life as explored in Plato's dialogues."
-                    self.chat_messages.append({
-                        "role": "assistant",
-                        "content": fallback_response
-                    })
+                    fallback_response = self._get_fallback_response(query)
+                    assistant_chat_msg = {
+                        "content": fallback_response,
+                        "is_user": False,
+                        "timestamp": f"{datetime.now().strftime('%H:%M')}"
+                    }
+                    self.chat_history.append(assistant_chat_msg)
+                    self.rag_status = "unavailable"
                     
             except Exception as e:
-                # Fallback response with more philosophical content
-                if "virtue" in query.lower():
-                    fallback_content = "According to Socrates in Plato's dialogues, virtue is knowledge. He believed that if we truly know what is good, we will act virtuously. This is explored extensively in the Apology and other dialogues."
-                elif "accused" in query.lower():
-                    fallback_content = "In the Apology, Socrates faces several accusations: corrupting the youth of Athens, not believing in the gods of the city, and introducing new divinities. He systematically addresses each charge in his defense."
-                else:
-                    fallback_content = f"Thank you for that thoughtful question about '{query}'. This touches on fundamental philosophical concepts that require careful examination through the lens of classical philosophy."
-                
-                self.chat_messages.append({
-                    "role": "assistant",
-                    "content": fallback_content
-                })
+                # Enhanced fallback response with structured format
+                fallback_response = self._get_fallback_response(query)
+                assistant_chat_msg = {
+                    "content": fallback_response,
+                    "is_user": False,
+                    "timestamp": f"{__import__('datetime').datetime.now().strftime('%H:%M')}"
+                }
+                self.chat_history.append(assistant_chat_msg)
+                self.rag_status = "error"
             
             # Always reset loading state
             self.is_loading = False
+    
+    def _format_enhanced_response(self, raw_response: str, query: str) -> str:
+        """Format RAG response with enhanced structure and sections."""
+        try:
+            # Extract clean philosophical response
+            cleaned_response = self._clean_rag_response(raw_response)
+            
+            # Create structured markdown response with sections
+            sections = []
+            sections.append(f"## 🏛️ Arete Response\n\n{cleaned_response}")
+            
+            # Add contextual sections based on query content
+            if "accused" in query.lower() or "charges" in query.lower():
+                sections.append("## Summary of the accusations (plain language)\n\nSocrates faced formal charges of corrupting Athens' youth and impiety toward the city's gods. The underlying concern was his philosophical questioning that challenged traditional beliefs and authority.")
+                sections.append("## Key terms explained simply\n\n**Impiety**: Disrespecting or not properly honoring the gods\n**Corruption of youth**: Teaching young people ideas that undermine social order\n**Philosophical questioning**: The Socratic method of examining beliefs through dialogue")
+            elif "virtue" in query.lower():
+                sections.append("## Key terms explained simply\n\n**Virtue (arete)**: Excellence of character and moral goodness\n**Temperance (sophrosyne)**: Self-control and moderation\n**Wisdom (sophia)**: Knowledge of what is truly good and valuable")
+            
+            # Look for citations in the raw response
+            if "Citations" in raw_response:
+                citations_start = raw_response.find("Citations")
+                if citations_start != -1:
+                    citations_text = raw_response[citations_start:].strip()
+                    sections.append(f"## {citations_text}")
+            
+            return "\n\n".join(sections)
+            
+        except Exception:
+            # If formatting fails, return the cleaned response
+            return self._clean_rag_response(raw_response)
     
     def _clean_rag_response(self, raw_response: str) -> str:
         """Extract clean philosophical response from RAG output."""
@@ -157,6 +199,41 @@ class State(rx.State):
         except Exception:
             # If anything goes wrong, return the original response
             return raw_response
+    
+    def _get_fallback_response(self, query: str) -> str:
+        """Get enhanced fallback response with structured format."""
+        if "virtue" in query.lower():
+            return """## 🏛️ Arete Response
+
+According to Socrates in Plato's dialogues, virtue is knowledge. He believed that if we truly know what is good, we will act virtuously. This is explored extensively in the Apology and other dialogues.
+
+## Key terms explained simply
+
+**Virtue (arete)**: Excellence of character and moral goodness
+**Knowledge**: True understanding of what is good and beneficial
+**Socratic Paradox**: The idea that no one does wrong willingly"""
+        elif "accused" in query.lower():
+            return """## 🏛️ Arete Response
+
+In the Apology, Socrates faces several accusations: corrupting the youth of Athens, not believing in the gods of the city, and introducing new divinities. He systematically addresses each charge in his defense.
+
+## Summary of the accusations (plain language)
+
+The formal charges were impiety and corruption of youth, but the real issue was Socrates' philosophical questioning that challenged traditional beliefs.
+
+## Key terms explained simply
+
+**Impiety**: Disrespecting the gods of Athens
+**Corruption**: Teaching ideas that undermine social order
+**Divine mission**: Socrates' belief that the god Apollo called him to philosophy"""
+        else:
+            return f"""## 🏛️ Arete Response
+
+Thank you for that thoughtful question about '{query}'. This touches on fundamental philosophical concepts that require careful examination through the lens of classical philosophy.
+
+## Key themes to explore
+
+This question relates to core philosophical investigations about knowledge, virtue, and the examined life that Socrates advocated."""
     
     def read_document(self, document_id: str):
         """Load and display a document."""
@@ -250,59 +327,193 @@ def render_message(message: Dict[str, str]) -> rx.Component:
     )
 
 def chat() -> rx.Component:
-    """Chat interface."""
+    """Enhanced chat interface with thinking indicator and structured responses."""
+    
+    # Create thinking indicator component
+    thinking_indicator = rx.box(
+        rx.box(
+            rx.hstack(
+                rx.text("🏛️ Arete is thinking", font_weight="500"),
+                rx.hstack(
+                    rx.text("●", style={"animation": "pulse 1.5s infinite"}),
+                    rx.text("●", style={"animation": "pulse 1.5s infinite", "animation-delay": "0.2s"}),
+                    rx.text("●", style={"animation": "pulse 1.5s infinite", "animation-delay": "0.4s"}),
+                    spacing="1"
+                ),
+                align="center"
+            ),
+            bg="blue.50",
+            p="3",
+            border_radius="lg",
+            border="1px solid",
+            border_color="blue.200",
+            max_width="300px"
+        ),
+        display="flex",
+        justify_content="flex-start",
+        margin_bottom="1rem"
+    )
+    
     return rx.container(
         rx.vstack(
             rx.heading("💬 Chat with Arete", size="7", color="blue.600"),
             
-            # Messages area
+            # Enhanced Messages area
             rx.box(
-                rx.vstack(
-                    rx.foreach(
-                        State.chat_messages,
-                        render_message
+                rx.cond(
+                    AreteState.chat_history.length() > 0,
+                    rx.box(
+                        rx.foreach(
+                            AreteState.chat_history,
+                            lambda msg: rx.box(
+                                rx.cond(
+                                    msg["is_user"],
+                                    # User message (right aligned)
+                                    rx.box(
+                                        rx.box(
+                                            rx.text(msg["content"], color="white"),
+                                            rx.text(msg["timestamp"], font_size="xs", color="white", opacity=0.7, margin_top="0.25rem"),
+                                            bg="blue.500",
+                                            p="3",
+                                            border_radius="lg",
+                                            max_width="400px"
+                                        ),
+                                        display="flex",
+                                        justify_content="flex-end",
+                                        margin_bottom="1rem"
+                                    ),
+                                    # Assistant message with enhanced markdown rendering (left aligned)
+                                    rx.box(
+                                        rx.box(
+                                            rx.markdown(msg["content"]),
+                                            rx.text(msg["timestamp"], font_size="xs", color="gray.500", margin_top="0.25rem"),
+                                            bg="gray.50",
+                                            p="3",
+                                            border_radius="lg",
+                                            border="1px solid",
+                                            border_color="gray.200",
+                                            max_width="600px"
+                                        ),
+                                        display="flex",
+                                        justify_content="flex-start",
+                                        margin_bottom="1rem"
+                                    )
+                                )
+                            )
+                        ),
+                        rx.cond(
+                            AreteState.is_loading,
+                            thinking_indicator,
+                            rx.fragment()
+                        ),
+                        width="100%"
                     ),
-                    # Show thinking animation when loading
                     rx.cond(
-                        State.is_loading,
-                        thinking_animation(),
-                        rx.fragment()
-                    ),
-                    spacing="4",
-                    width="100%"
+                        AreteState.is_loading,
+                        rx.box(
+                            thinking_indicator,
+                            width="100%"
+                        ),
+                        # Welcome message when no chat history
+                        rx.box(
+                            rx.box(
+                                rx.text(
+                                    "🏛️",
+                                    font_size="3rem",
+                                    margin_bottom="1rem"
+                                ),
+                                rx.heading(
+                                    "Welcome to Arete",
+                                    size="6",
+                                    margin_bottom="0.5rem"
+                                ),
+                                rx.text(
+                                    "Start a conversation about classical philosophy. "
+                                    "I can help you explore concepts from Plato, Aristotle, and other ancient thinkers.",
+                                    color="gray.600",
+                                    margin_bottom="1rem"
+                                ),
+                                rx.box(
+                                    rx.text("Try asking:", font_weight="semibold", margin_bottom="0.5rem"),
+                                    rx.vstack(
+                                        rx.text("• What is virtue according to Plato?"),
+                                        rx.text("• How does Aristotle define justice?"),
+                                        rx.text("• What is the Socratic method?"),
+                                        rx.text("• Explain the allegory of the cave"),
+                                        spacing="1",
+                                        font_size="sm",
+                                        color="gray.500"
+                                    ),
+                                    text_align="left"
+                                ),
+                                text_align="center",
+                                max_width="500px"
+                            ),
+                            display="flex",
+                            align_items="center",
+                            justify_content="center",
+                            height="100%"
+                        )
+                    )
                 ),
-                bg="gray.50",
+                bg="white",
                 p="4", 
                 border_radius="lg",
+                border="1px solid",
+                border_color="gray.200",
                 height="400px",
                 overflow_y="auto",
                 width="100%"
             ),
             
-            # Input area
+            # Enhanced Input area
             rx.hstack(
                 rx.input(
                     placeholder=rx.cond(
-                        State.is_loading,
-                        "Arete is thinking...",
+                        AreteState.is_loading,
+                        "🏛️ Arete is thinking...",
                         "Ask about philosophy..."
                     ),
-                    value=State.user_query,
-                    on_change=State.set_user_query,
-                    disabled=State.is_loading,
+                    value=AreteState.user_query,
+                    on_change=AreteState.set_user_query,
+                    disabled=AreteState.is_loading,
                     width="100%"
                 ),
                 rx.button(
                     rx.cond(
-                        State.is_loading,
+                        AreteState.is_loading,
                         "Thinking...",
                         "Send"
                     ),
-                    on_click=State.send_message,
+                    on_click=AreteState.send_message,
                     color_scheme="blue",
-                    disabled=State.is_loading
+                    disabled=AreteState.is_loading
                 ),
                 width="100%"
+            ),
+            
+            # Optional: Add status indicator
+            rx.cond(
+                AreteState.rag_status != "ready",
+                rx.text(
+                    rx.cond(
+                        AreteState.rag_status == "processing",
+                        "Processing your question...",
+                        rx.cond(
+                            AreteState.rag_status == "error",
+                            "Using fallback response",
+                            rx.cond(
+                                AreteState.rag_status == "unavailable",
+                                "RAG service unavailable, using fallback",
+                                ""
+                            )
+                        )
+                    ),
+                    font_size="sm",
+                    color="gray.500",
+                    text_align="center"
+                ),
+                rx.fragment()
             ),
             
             spacing="4",
@@ -316,22 +527,22 @@ def documents() -> rx.Component:
     """Document library."""
     return rx.container(
         rx.cond(
-            State.is_reading,
+            AreteState.is_reading,
             # Document viewer
             rx.vstack(
                 rx.hstack(
                     rx.button(
                         "← Back to Library",
-                        on_click=State.close_document,
+                        on_click=AreteState.close_document,
                         color_scheme="gray",
                         size="2"
                     ),
-                    rx.heading(f"Reading: {State.current_document.title()}", size="6", color="green.600"),
+                    rx.heading(f"Reading: {AreteState.current_document.title()}", size="6", color="green.600"),
                     justify="between",
                     width="100%"
                 ),
                 rx.box(
-                    rx.markdown(State.document_content),
+                    rx.markdown(AreteState.document_content),
                     bg="white",
                     p="6",
                     border_radius="lg",
@@ -354,7 +565,7 @@ def documents() -> rx.Component:
                         rx.vstack(
                             rx.heading("Plato's Apology", size="5"),
                             rx.text("Socrates' defense in court", color="gray.600"),
-                            rx.button("Read", on_click=lambda: State.read_document("apology"), color_scheme="green", size="2"),
+                            rx.button("Read", on_click=lambda: AreteState.read_document("apology"), color_scheme="green", size="2"),
                             spacing="2"
                         ),
                         bg="white",
@@ -368,7 +579,7 @@ def documents() -> rx.Component:
                         rx.vstack(
                             rx.heading("Charmides", size="5"),
                             rx.text("On temperance and self-knowledge", color="gray.600"),
-                            rx.button("Read", on_click=lambda: State.read_document("charmides"), color_scheme="green", size="2"),
+                            rx.button("Read", on_click=lambda: AreteState.read_document("charmides"), color_scheme="green", size="2"),
                             spacing="2"
                         ),
                         bg="white",
