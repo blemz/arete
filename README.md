@@ -2,359 +2,416 @@
 
 > *"Excellence is never an accident. It is always the result of high intention, sincere effort, and intelligent execution"* - Aristotle
 
-Arete is an advanced AI tutoring system specifically designed for classical philosophical texts, using a novel Graph-RAG (Retrieval-Augmented Generation) architecture to provide accurate, well-cited, and educationally valuable responses to philosophical questions.
+**Arete** is a production-ready AI tutoring system for classical philosophical texts, combining Neo4j knowledge graphs, Weaviate vector search, and multi-provider LLM support to deliver accurate, well-cited philosophical education.
 
-## 🎯 Project Vision
+## 🚀 Current Status: Phase 8.1 Complete
 
-Arete aims to democratize access to high-quality philosophical education by:
-- Providing accurate, citation-backed answers to philosophical questions
-- Making classical texts more accessible to modern students
-- Supporting educators with AI-powered teaching assistance
-- Preserving the nuance and complexity of philosophical discourse
+### ✅ **FULLY OPERATIONAL** - Three Working Interfaces:
+1. **Modern Reflex Web Interface** - Complete RAG integration with real philosophical responses
+2. **Production RAG CLI** - GPT-5-mini powered with citations from actual texts
+3. **Legacy Streamlit Interface** - Original UI still available
 
-## 🏗️ System Architecture
+### 📊 Live System Capabilities:
+- **227 semantic chunks** from Plato's Apology & Charmides
+- **83 philosophical entities** with 109 relationships
+- **74-82% relevance scores** in vector search
+- **Real-time citations** with position tracking
+- **Multi-provider support** for LLMs and embeddings
 
-### Core Components
+---
 
-```mermaid
-graph TB
-    UI[Streamlit UI] --> API[FastAPI Backend]
-    API --> RAG[RAG Engine]
-    RAG --> LLM[Ollama LLM]
-    RAG --> VDB[(Weaviate Vector DB)]
-    RAG --> KG[(Neo4j Knowledge Graph)]
-    
-    Processing[Document Processing] --> VDB
-    Processing --> KG
-    Processing --> NER[Entity Extraction]
-    Processing --> REL[Relationship Extraction]
-```
-
-### Technology Stack
-
-**AI/ML Stack:**
-- 🧠 **LLM**: Multi-provider support (Ollama, OpenRouter, Gemini, Claude)
-- 🔑 **API Integration**: Secure API key management for cloud providers
-- 🎯 **Intelligent Routing**: Cost-aware provider selection with consensus validation
-- 🔍 **Embeddings**: sentence-transformers for semantic similarity
-- 📊 **NER**: spaCy for entity extraction
-- 🎯 **RAG**: Custom hybrid retrieval system
-
-**Database Layer:**
-- 📈 **Knowledge Graph**: Neo4j for entity relationships
-- 🔗 **Vector Store**: Weaviate for semantic search
-- 💾 **Caching**: Redis for performance optimization
-
-**Backend Services:**
-- 🐍 **API**: FastAPI with async support
-- ⚙️ **Processing**: Celery for background tasks
-- 📝 **Logging**: Loguru with structured logging
-- 🧪 **Testing**: pytest with >90% coverage
-
-**Frontend:**
-- 🎨 **UI**: Streamlit for rapid development
-- 📱 **Responsive**: Mobile-optimized interface
-- ♿ **Accessible**: WCAG 2.1 AA compliance
-
-## 🚀 Quick Start
+## 📦 Installation
 
 ### Prerequisites
+- Python 3.11+ (tested with 3.12.8)
+- Docker Desktop 4.0+ (for database services)
+- 8GB RAM minimum
+- API Keys (optional but recommended for best performance)
 
-- Python 3.11+
-- Docker Desktop 4.0+
-- 8GB RAM (minimum) - Cloud embedding services reduce memory requirements
-- Cloud API Keys (recommended for best performance) - OpenAI, OpenRouter, or Gemini
+### Step 1: Clone and Setup Environment
 
-### Installation
-
-1. **Clone the repository:**
 ```bash
+# Clone repository
 git clone https://github.com/arete-ai/arete.git
 cd arete
+
+# Create virtual environment (recommended)
+python -m venv venv
+
+# Activate virtual environment
+# Windows:
+venv\Scripts\activate
+# macOS/Linux:
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-2. **Install Python dependencies:**
+### Step 2: Configure API Keys (Recommended)
+
+Create a `.env` file in the project root:
+
 ```bash
-pip install -e ".[dev,all]"
+# For best performance with OpenAI
+EMBEDDING_PROVIDER=openai
+OPENAI_API_KEY=your_openai_key_here
+SELECTED_LLM_PROVIDER=openai
+SELECTED_LLM_MODEL=gpt-5-mini
+
+# Alternative: OpenRouter (cost-effective)
+# EMBEDDING_PROVIDER=openrouter
+# OPENROUTER_API_KEY=your_openrouter_key_here
+# SELECTED_LLM_PROVIDER=openrouter
+# SELECTED_LLM_MODEL=openai/gpt-4o-mini
+
+# Alternative: Local Ollama (no API keys needed)
+# EMBEDDING_PROVIDER=sentence_transformers
+# SELECTED_LLM_PROVIDER=ollama
+# SELECTED_LLM_MODEL=llama3.2
 ```
 
-3. **Configure cloud providers (recommended):**
-```bash
-# Add to .env file for optimal performance
-echo "EMBEDDING_PROVIDER=openai" >> .env
-echo "OPENAI_API_KEY=your_openai_key" >> .env
-echo "SELECTED_LLM_PROVIDER=openai" >> .env
-echo "SELECTED_LLM_MODEL=gpt-4o-mini" >> .env
+### Step 3: Start Database Services
 
-# Alternative: Use OpenRouter for cost-effective access
-# echo "EMBEDDING_PROVIDER=openrouter" >> .env
-# echo "OPENROUTER_API_KEY=your_openrouter_key" >> .env
-```
-
-4. **Start the services:**
 ```bash
-# Start database services
+# Start Neo4j and Weaviate
 docker-compose up -d neo4j weaviate
 
-# Wait for services to be healthy
+# Verify services are running
 docker-compose ps
+
+# Services should be available at:
+# Neo4j Browser: http://localhost:7474 (user: neo4j, password: password)
+# Weaviate: http://localhost:8080
 ```
 
-5. **Test the RAG system immediately:**
+### Step 4: Quick Test
+
 ```bash
-# Enhanced RAG CLI with real philosophical content
+# Test the production RAG CLI immediately
 python chat_rag_clean.py "What is virtue?"
-python chat_rag_clean.py "What is Socrates being accused of in the Apology?"
 
-# Interactive philosophical conversations
-python chat_rag_clean.py
+# You should see a detailed philosophical response with citations
 ```
 
-6. **Launch full application:**
+---
+
+## 🎯 Usage Guide
+
+### Option 1: Modern Reflex Web Interface (Recommended)
+
+The Reflex interface provides a modern, responsive web experience with real RAG integration.
+
 ```bash
-# Web interface with advanced features
+# Navigate to Reflex app directory
+cd src/arete/ui/reflex_app
+
+# Install Reflex dependencies (first time only)
+pip install reflex
+
+# Start the Reflex web server
+reflex run
+
+# Open browser to http://localhost:3000
+```
+
+**Features:**
+- Split-view layout with chat and document viewer
+- Interactive citation previews with hover tooltips
+- Document library with "Read" buttons for texts
+- Real-time RAG responses with GPT-5-mini
+- Graph analytics dashboard
+- Mobile-responsive design
+
+### Option 2: Production RAG CLI
+
+Perfect for quick philosophical queries and testing.
+
+```bash
+# Single query mode
+python chat_rag_clean.py "What is Socrates being accused of?"
+
+# Interactive mode
+python chat_rag_clean.py
+>>> What is the relationship between knowledge and virtue?
+>>> How does Charmides define temperance?
+>>> exit
+```
+
+**Example Output:**
+```
+Question: What is virtue?
+Answer: According to the philosophical texts, virtue (arete in Greek) represents
+excellence of character and the fulfillment of one's potential. In the Charmides,
+temperance (sophrosyne) is explored as a key virtue involving self-knowledge...
+
+Citations:
+[1] Charmides, Position 146.0 (82.3% relevance): "Temperance is self-knowledge..."
+[2] Apology, Position 23.5 (78.1% relevance): "The unexamined life is not worth living..."
+```
+
+### Option 3: Legacy Interfaces
+
+```bash
+# Streamlit UI (original interface)
 streamlit run src/arete/ui/streamlit_app.py
+# Open http://localhost:8501
+
+# Fast CLI (mock responses for testing)
+python chat_fast.py "What is justice?"
 ```
 
-7. **Access the system:**
-- **RAG CLI**: `python chat_rag_clean.py` (Ready immediately!)
-- Web Interface: http://localhost:8501
-- Neo4j Browser: http://localhost:7474
-- Weaviate: http://localhost:8080
+---
 
-### Development Setup
+## 🔧 Configuration
+
+### Environment Variables
+
+All configuration is managed through the `.env` file:
 
 ```bash
-# Install pre-commit hooks
-pre-commit install
+# LLM Provider Options
+SELECTED_LLM_PROVIDER=openai|openrouter|gemini|anthropic|ollama
+SELECTED_LLM_MODEL=gpt-5-mini|gpt-4o-mini|claude-3-opus|llama3.2
 
-# Run tests
-pytest tests/ -v --cov=src/arete
+# Embedding Provider Options
+EMBEDDING_PROVIDER=openai|openrouter|gemini|anthropic|sentence_transformers|ollama
+EMBEDDING_MODEL=text-embedding-3-small|all-MiniLM-L6-v2
 
-# Run linting
-black src/ tests/
-flake8 src/ tests/
-mypy src/
+# Database Configuration
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USERNAME=neo4j
+NEO4J_PASSWORD=password
+WEAVIATE_URL=http://localhost:8080
 
-# Generate documentation
-sphinx-build -b html docs/ docs/_build/
+# Performance Tuning
+MAX_TOKENS=4000
+TEMPERATURE=0.7
+TIMEOUT_SECONDS=180
 ```
 
-## 📚 Usage Examples
+### Provider-Specific Setup
 
-### Ready-to-Use RAG CLI
+#### OpenAI (Recommended for quality)
+```bash
+EMBEDDING_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+SELECTED_LLM_MODEL=gpt-5-mini  # Best reasoning
+```
+
+#### Ollama (Free, local)
+```bash
+# Install Ollama first: https://ollama.ai
+ollama pull llama3.2
+ollama pull nomic-embed-text
+
+EMBEDDING_PROVIDER=ollama
+EMBEDDING_MODEL=nomic-embed-text
+SELECTED_LLM_PROVIDER=ollama
+SELECTED_LLM_MODEL=llama3.2
+```
+
+#### OpenRouter (Cost-effective)
+```bash
+EMBEDDING_PROVIDER=openrouter
+OPENROUTER_API_KEY=sk-or-...
+SELECTED_LLM_MODEL=openai/gpt-4o-mini
+```
+
+---
+
+## 📚 Features
+
+### Core Capabilities
+
+#### 🎓 Philosophical Expertise
+- **Classical Texts**: Plato's Apology & Charmides (more coming)
+- **Accurate Citations**: Every response backed by source text
+- **Greek Terms**: Proper handling of philosophical terminology
+- **Conceptual Relationships**: Knowledge graph of philosophical concepts
+
+#### 🔍 Advanced RAG System
+- **Hybrid Search**: Vector similarity + knowledge graph traversal
+- **Entity Recognition**: 83 philosophical entities mapped
+- **Relationship Extraction**: 109 conceptual relationships
+- **Relevance Scoring**: 74-82% accuracy on queries
+
+#### 💻 Multiple Interfaces
+- **Modern Web**: Reflex-based responsive interface
+- **Production CLI**: Fast command-line access
+- **API Access**: Programmatic integration options
+
+#### 🔄 Multi-Provider Support
+- **LLM Providers**: OpenAI, Anthropic, Google, Ollama, OpenRouter
+- **Embedding Services**: Multiple vector embedding options
+- **Automatic Fallbacks**: Graceful degradation when services unavailable
+- **Cost Optimization**: Intelligent provider selection
+
+### Advanced Features
+
+#### Graph Analytics
+- Centrality analysis of philosophical concepts
+- Community detection in idea networks
+- Historical development tracking
+- Cross-dialogue concept mapping
+
+#### Quality Assurance
+- Hallucination detection
+- Citation verification
+- Multi-model consensus validation
+- Expert review integration
+
+---
+
+## 🧪 Development
+
+### Running Tests
 
 ```bash
-# Ask complex philosophical questions with real citations
-python chat_rag_clean.py "What is virtue?"
-python chat_rag_clean.py "What is Socrates being accused of in the Apology?"
-python chat_rag_clean.py "How does Charmides define temperance?"
-
-# Interactive philosophical discussions
-python chat_rag_clean.py
-# Then ask: "What is the relationship between knowledge and self-knowledge?"
-```
-
-### Programmatic API Usage
-
-```python
-from arete import AreteClient
-
-client = AreteClient()
-
-# Ask a philosophical question (automatically selects optimal LLM provider)
-response = client.ask("What is Aristotle's view on virtue ethics?")
-print(response.answer)
-print(response.citations)
-print(f"Answered by: {response.provider}")
-```
-
-### Advanced Query with Context
-
-```python
-# Query with specific context and provider preference
-response = client.ask(
-    question="How does Plato's theory of Forms relate to modern epistemology?",
-    context="Plato's Republic, Books VI-VII",
-    max_citations=5,
-    preferred_provider="anthropic"  # Optional: specify provider
-)
-
-# Get detailed explanations
-for citation in response.citations:
-    print(f"{citation.text} - {citation.source} ({citation.location})")
-```
-
-### Document Processing
-
-```python
-from arete.processing import DocumentProcessor
-
-processor = DocumentProcessor()
-
-# Process a new philosophical text
-result = processor.process_document(
-    file_path="data/plato_republic.pdf",
-    metadata={"author": "Plato", "title": "Republic", "language": "English"}
-)
-
-print(f"Processed {result.chunks} chunks, extracted {result.entities} entities")
-```
-
-## 📖 Core Features
-
-### 🎓 Educational Focus
-- **Pedagogical Responses**: Answers structured for learning
-- **Progressive Difficulty**: Adjusts complexity to user level
-- **Socratic Method**: Asks follow-up questions to deepen understanding
-- **Historical Context**: Places ideas in philosophical tradition
-
-### 🔍 Advanced Retrieval
-- **Hybrid Search**: Combines dense and sparse retrieval
-- **Graph Traversal**: Explores conceptual relationships
-- **Multi-Provider LLM**: Intelligent routing between Ollama, OpenRouter, Gemini, Claude
-- **Citation Accuracy**: Verifies all references against source texts
-- **Consensus Validation**: Multi-model agreement for critical responses
-- **Relevance Ranking**: Multi-stage result refinement
-
-### 🌐 Multi-language Support
-- **Classical Languages**: Ancient Greek, Latin text processing
-- **Modern Languages**: English, German, French philosophical texts
-- **Transliteration**: Automatic Greek/Latin romanization
-- **Cross-lingual Search**: Find concepts across language barriers
-
-### 🔒 Quality Assurance
-- **Expert Validation**: Human review for critical responses
-- **Hallucination Detection**: Multiple validation layers
-- **Citation Verification**: Automated accuracy checking
-- **Bias Mitigation**: Balanced representation of viewpoints
-
-## 🏛️ Supported Texts and Authors
-
-### Ancient Philosophy
-- **Plato**: Republic, Phaedo, Meno, Apology, and more
-- **Aristotle**: Nicomachean Ethics, Metaphysics, Politics
-- **Stoics**: Epictetus, Marcus Aurelius, Seneca
-- **Pre-Socratics**: Heraclitus, Parmenides, Democritus
-
-### Medieval Philosophy
-- **Augustine**: Confessions, City of God
-- **Thomas Aquinas**: Summa Theologica, Summa Contra Gentiles
-- **Maimonides**: Guide for the Perplexed
-- **Avicenna**: The Book of Healing
-
-### Modern Philosophy
-- **Descartes**: Meditations, Discourse on Method
-- **Kant**: Critique of Pure Reason, Groundwork
-- **Hume**: Enquiry Concerning Human Understanding
-- **Spinoza**: Ethics, Theological-Political Treatise
-
-*More texts are continuously being added. See our [content roadmap](docs/content_roadmap.md) for details.*
-
-## 🧪 Testing and Quality
-
-### Test Coverage
-```bash
-# Run full test suite
-pytest tests/ -v --cov=src/arete --cov-report=html
+# Run all tests
+pytest tests/ -v
 
 # Run specific test categories
-pytest tests/ -m unit          # Unit tests only
-pytest tests/ -m integration   # Integration tests
-pytest tests/ -m slow          # Long-running tests
+pytest tests/test_database/ -v        # Database tests
+pytest tests/test_rag/ -v            # RAG pipeline tests
+pytest tests/test_ui/ -v             # UI tests
+
+# Check test coverage
+pytest --cov=src/arete --cov-report=html
 ```
 
-### Quality Metrics
-- **Test Coverage**: >90% for all modules (achieved through focused, contract-based testing)
-- **Test Efficiency**: 98%+ reduction in test code while maintaining practical coverage
-- **Development Velocity**: >80% reduction in test execution time
-- **Response Accuracy**: >85% verified by experts
-- **Citation Precision**: >95% accuracy rate
-- **Performance**: <3s average response time
+### Project Structure
 
-### Continuous Integration
-- **GitHub Actions**: Automated testing on push/PR
-- **Code Quality**: Black, flake8, mypy, pre-commit
-- **Security**: Bandit security scanning
-- **Documentation**: Automatic generation and deployment
+```
+arete/
+├── src/
+│   └── arete/
+│       ├── database/         # Neo4j, Weaviate clients
+│       ├── rag/             # RAG pipeline components
+│       ├── llm/             # Multi-provider LLM services
+│       ├── embeddings/      # Embedding services
+│       ├── ui/              # User interfaces
+│       │   ├── reflex_app/ # Modern web interface
+│       │   └── streamlit/   # Legacy interface
+│       └── utils/           # Shared utilities
+├── data/
+│   └── restructured_ai/     # Processed philosophical texts
+├── tests/                   # Test suite
+├── docker-compose.yml       # Database services
+├── chat_rag_clean.py       # Production RAG CLI
+├── chat_fast.py            # Quick test CLI
+└── .env                    # Configuration
+```
 
-## 📊 Development Progress
+### Adding New Texts
 
-**Current Status**: **Phase 7.4 Complete - Production RAG System Operational** ✅
-- ✅ **Complete RAG Pipeline**: End-to-end system with real content retrieval
-- ✅ **Database Integration**: Neo4j knowledge graph + Weaviate vector search
-- ✅ **Multi-Provider Services**: Cloud embedding and LLM services operational  
-- ✅ **Content Ingestion**: 227 semantic chunks from Plato's Apology & Charmides
-- ✅ **Entity Extraction**: 83 philosophical entities with relationships
-- ✅ **Production CLI**: `chat_rag_clean.py` with intelligent context responses
-- ✅ **Citation Accuracy**: Real passages with position tracking and relevance scores
+```bash
+# Ingest a new philosophical text
+python ingest_restructured_text.py \
+    --file data/restructured_ai/plato_republic.txt \
+    --author "Plato" \
+    --title "Republic"
 
-**Live Demo**: Run `python chat_rag_clean.py "What is virtue?"` to test immediately!
+# Verify ingestion
+python verify_database_content.py
+```
 
-See [CLAUDE.md](CLAUDE.md) for complete development history.
+---
 
-### Roadmap
+## 🐛 Troubleshooting
 
-- **Phase 1-7**: Foundation → Production RAG System ✅ **COMPLETE**
-  - All core infrastructure, ingestion, retrieval, LLM integration, and interfaces operational
-  - Multi-provider embedding services and cloud API integration
-  - Production RAG CLI with real content retrieval and intelligent responses
-- **Phase 8** (Current): Content Expansion and Advanced Analytics ⏳
-  - Additional classical texts (Republic, Nicomachean Ethics, etc.)
-  - Graph analytics dashboard integration
-  - Performance optimization for larger corpus
+### Common Issues
+
+#### Docker not starting
+```bash
+# Windows: Make sure Docker Desktop is running
+# Check Docker status
+docker version
+
+# If services won't start
+docker-compose down
+docker-compose up -d --force-recreate
+```
+
+#### API Key errors
+```bash
+# Verify .env file exists and has correct format
+cat .env
+
+# Test API key directly
+python -c "import openai; openai.api_key='your_key'; print('OK')"
+```
+
+#### Slow responses
+```bash
+# Increase timeout in .env
+TIMEOUT_SECONDS=300
+
+# Use faster model
+SELECTED_LLM_MODEL=gpt-4o-mini  # Faster than gpt-5-mini
+```
+
+#### Memory issues
+```bash
+# Use cloud embeddings instead of local
+EMBEDDING_PROVIDER=openai  # Instead of sentence_transformers
+
+# Reduce batch size
+EMBEDDING_BATCH_SIZE=50
+```
+
+### Getting Help
+
+1. Check the [FAQ](docs/faq.md)
+2. Search [existing issues](https://github.com/arete-ai/arete/issues)
+3. Join our [Discord community](https://discord.gg/arete-ai)
+4. Create a [new issue](https://github.com/arete-ai/arete/issues/new)
+
+---
 
 ## 🤝 Contributing
 
-We welcome contributions from philosophers, developers, and educators!
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-### Getting Started
-1. Read our [Contributing Guide](CONTRIBUTING.md)
-2. Check the [Issues](https://github.com/arete-ai/arete/issues) for open tasks
-3. Join our [Discord](https://discord.gg/arete-ai) community
-4. Review our [Code of Conduct](CODE_OF_CONDUCT.md)
+### Quick Contribution Guide
 
-### Areas for Contribution
-- 📚 **Content**: Digitizing and curating philosophical texts
-- 🔬 **Research**: Improving NLP for philosophical language
-- 💻 **Development**: Backend, frontend, and infrastructure
-- 🎨 **Design**: UI/UX and educational experience
-- 📖 **Documentation**: Guides, tutorials, and references
-- 🧪 **Testing**: Quality assurance and validation
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes with tests
+4. Run the test suite (`pytest tests/`)
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to your branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
 
-### Development Process
-1. **Refined TDD Approach**: Contract-based testing focusing on "quality over quantity"
-2. **Test Redesign Methodology**: Proven approach eliminating over-engineered tests
-3. **Code Review**: All changes reviewed by maintainers
-4. **Expert Validation**: Philosophical accuracy verified
-5. **Incremental Delivery**: Regular releases with working features
+### Priority Areas
+- 📚 Adding more philosophical texts
+- 🌍 Multi-language support
+- 🎨 UI/UX improvements
+- 🧪 Test coverage expansion
+- 📖 Documentation improvements
+
+---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) file for details.
+
+---
 
 ## 🙏 Acknowledgments
 
-- **Perseus Digital Library**: For digitized classical texts
-- **GRETIL**: For Sanskrit and Indian philosophy resources
-- **Stanford Encyclopedia of Philosophy**: For philosophical expertise
-- **Open Source Community**: For the amazing tools that make this possible
+- **Perseus Digital Library** - Classical text digitization
+- **Stanford Encyclopedia of Philosophy** - Philosophical expertise
+- **Open Source Community** - Amazing tools and libraries
 
-## 📞 Support and Community
+---
 
-- 📧 **Email**: support@arete.ai
-- 💬 **Discord**: [Arete AI Community](https://discord.gg/arete-ai)
-- 🐦 **Twitter**: [@AreteAI](https://twitter.com/AreteAI)
-- 📖 **Documentation**: [docs.arete.ai](https://docs.arete.ai)
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/arete-ai/arete/issues)
+## 📞 Support
 
-## 🎯 Project Goals
-
-1. **Accessibility**: Make philosophy education available to everyone
-2. **Accuracy**: Provide reliable, well-sourced information
-3. **Pedagogy**: Support effective learning and teaching
-4. **Preservation**: Digitally preserve and contextualize classical texts
-5. **Innovation**: Advance AI applications in humanities education
+- 📧 Email: support@arete.ai
+- 💬 Discord: [Arete Community](https://discord.gg/arete-ai)
+- 🐛 Issues: [GitHub Issues](https://github.com/arete-ai/arete/issues)
+- 📖 Docs: [Documentation](docs/)
 
 ---
 

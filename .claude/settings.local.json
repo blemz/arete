@@ -48,7 +48,8 @@
       "mcp__serena__read_memory",
       "WebSearch",
       "Bash(reflex run:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(dir)"
     ],
     "deny": []
   },
