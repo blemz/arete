@@ -49,7 +49,11 @@
       "WebSearch",
       "Bash(reflex run:*)",
       "Bash(curl:*)",
+<<<<<<< HEAD
       "Bash(dir)"
+=======
+      "mcp__serena__list_memories"
+>>>>>>> 170924d71ef7305ac076316fc8dd24cdbf1b41d1
     ],
     "deny": []
   },

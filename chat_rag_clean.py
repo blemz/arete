@@ -32,6 +32,7 @@ from arete.database.weaviate_client import WeaviateClient
 from arete.services.embedding_factory import get_embedding_service
 from arete.services.simple_llm_service import get_llm_service
 from arete.services.llm_provider import LLMMessage, MessageRole
+from arete.services.prompt_templates import build_enhanced_prompt, PromptStyle
 
 
 class AreteRAGCLI:
@@ -149,29 +150,16 @@ class AreteRAGCLI:
         
         # Step 5: Generate response using LLM (with context-based fallback)
         if context_chunks:
-            print("  Generating response with LLM...")
-            combined_context = "\n\n".join(context_chunks)
+            print("  Generating response with enhanced prompt...")
             
-            # Create enhanced prompt with entities
-            entity_names = [e['name'] for e in entities[:5]]  # Top 5 entities
-            entity_context = f"Relevant entities: {', '.join(entity_names)}" if entity_names else ""
-            
-            prompt = f"""You are a classical philosophy expert. Answer this question using the provided context from Plato's dialogues.
-
-Question: {query}
-
-Context from Plato's Apology and Charmides:
-{combined_context}
-
-{entity_context}
-
-Provide a thoughtful answer that:
-1. Directly addresses the question
-2. References specific passages from the context
-3. Explains the philosophical concepts clearly
-4. Connects to broader themes in Plato's work
-
-Answer:"""
+            # Build intelligent, structured prompt using new template system
+            prompt = build_enhanced_prompt(
+                query=query,
+                context_chunks=context_chunks,
+                entities=entities,
+                search_results=search_results,
+                style=PromptStyle.EDUCATIONAL
+            )
             
             try:
                 # Create proper LLMMessage format
@@ -181,7 +169,7 @@ Answer:"""
                 
                 response = await self.llm_service.generate_response(
                     messages=messages,
-                    max_tokens=500,
+                    max_tokens=1500,  # Increased for structured responses
                     temperature=0.1  # Low temperature for factual accuracy
                 )
                 

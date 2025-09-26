@@ -48,14 +48,13 @@ class ChatState(rx.State):
         if not self.current_message.strip():
             return
         
-        # Add user message
-        user_msg = ChatMessage(
-            role="user",
-            content=self.current_message,
-            timestamp=datetime.now(),
-            citations=[]
-        )
-        self.messages.append(user_msg)
+        # Add user message to chat history for display
+        user_chat_msg = {
+            "content": self.current_message,
+            "is_user": True,
+            "timestamp": datetime.now().strftime("%H:%M")
+        }
+        self.chat_history.append(user_chat_msg)
         
         # Clear input and set loading
         query = self.current_message
@@ -74,39 +73,72 @@ class ChatState(rx.State):
             # Calculate response time
             self.response_time = (datetime.now() - start_time).total_seconds()
             
-            # Create assistant message
+            # Parse and format the response using ResponseParser
+            from ..components.response_parser import ResponseParser
+            parsed_response = ResponseParser.parse_response(response_text)
+            
+            # Create structured markdown response with sections
+            formatted_content = self._format_structured_response(parsed_response)
+            
+            # Add assistant message to chat history for display
+            assistant_chat_msg = {
+                "content": formatted_content,
+                "is_user": False,
+                "timestamp": datetime.now().strftime("%H:%M")
+            }
+            self.chat_history.append(assistant_chat_msg)
+            
+            # Store original message objects
+            user_msg = ChatMessage(
+                role="user",
+                content=query,
+                timestamp=datetime.now(),
+                citations=[]
+            )
             assistant_msg = ChatMessage(
                 role="assistant",
                 content=response_text,
                 timestamp=datetime.now(),
                 citations=citations
             )
-            self.messages.append(assistant_msg)
+            self.messages.extend([user_msg, assistant_msg])
             self.current_citations = citations
             self.rag_status = "ready"
             
-            # Update chat history
-            self.chat_history.append({
-                "timestamp": datetime.now().isoformat(),
-                "query": query,
-                "response": response_text,
-                "citations_count": len(citations),
-                "response_time": self.response_time
-            })
-            
         except Exception as e:
             logger.error(f"Chat error: {e}")
-            error_msg = ChatMessage(
-                role="assistant",
-                content="I apologize, but I encountered an error processing your question. Please try again.",
-                timestamp=datetime.now(),
-                citations=[]
-            )
-            self.messages.append(error_msg)
+            error_chat_msg = {
+                "content": "I apologize, but I encountered an error processing your question. Please try again.",
+                "is_user": False,
+                "timestamp": datetime.now().strftime("%H:%M")
+            }
+            self.chat_history.append(error_chat_msg)
             self.rag_status = "error"
             
         finally:
             self.is_loading = False
+    
+    def _format_structured_response(self, parsed_response) -> str:
+        """Format parsed response into structured markdown."""
+        sections = []
+        
+        if parsed_response.direct_answer:
+            sections.append(f"## 🏛️ Arete Response\n\n{parsed_response.direct_answer}")
+        
+        if parsed_response.detailed_explanation:
+            sections.append(f"## Summary of the accusations (plain language)\n\n{parsed_response.detailed_explanation}")
+        
+        if parsed_response.broader_connections:
+            sections.append(f"## Key terms explained simply\n\n{parsed_response.broader_connections}")
+        
+        if parsed_response.references:
+            sections.append(f"## Citations\n\n{parsed_response.references}")
+        
+        # If no structured sections found, use the raw response
+        if not sections and parsed_response.raw_response:
+            return f"## 🏛️ Arete Response\n\n{parsed_response.raw_response}"
+        
+        return "\n\n".join(sections) if sections else "I apologize, but I couldn't format this response properly."
     
     def update_message(self, value: str):
         """Update the current message input."""
