@@ -1,0 +1,27 @@
+# CODEOWNERS for Arete Project
+# This file defines who owns and must review changes to specific parts of the codebase
+# These owners will be automatically requested for review when someone opens a pull request
+
+# Default owner for everything in the repo
+* @blemo
+
+# Core system components require owner review
+/src/arete/database/ @blemo
+/src/arete/rag/ @blemo
+/src/arete/llm/ @blemo
+
+# UI components
+/src/arete/ui/ @blemo
+
+# Configuration and infrastructure
+/.github/ @blemo
+/docker-compose.yml @blemo
+/.env.example @blemo
+
+# Documentation can be updated by contributors more freely
+# (Remove this line if you want to review all docs changes)
+/docs/ @blemo
+
+# Critical files that should never change without owner review
+/CLAUDE.md @blemo
+/pyproject.toml @blemo

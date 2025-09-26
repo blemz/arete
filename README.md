@@ -35,8 +35,8 @@
 git clone https://github.com/arete-ai/arete.git
 cd arete
 
-# Create virtual environment (recommended)
-python -m venv venv
+# Create virtual environment (UV use recommended)
+uv venv
 
 # Activate virtual environment
 # Windows:
@@ -45,7 +45,7 @@ venv\Scripts\activate
 source venv/bin/activate
 
 # Install dependencies
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 ```
 
 ### Step 2: Configure API Keys (Recommended)

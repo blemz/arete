@@ -197,6 +197,22 @@ mypy src/
 pre-commit run --all-files
 ```
 
+4. **Create pull request:**
+```bash
+# Push your branch
+git push origin feature/phase-X-your-feature-name
+
+# Create PR via GitHub UI or CLI
+gh pr create --title "Phase X: Brief description" --body "Detailed description"
+```
+
+5. **Pull Request Requirements:**
+   - ✅ **All tests pass** - CI/CD checks must be green
+   - ✅ **Code review approval** - At least 1 maintainer approval required
+   - ✅ **No merge conflicts** - Branch must be up to date with main
+   - ✅ **Documentation updated** - If applicable
+   - ✅ **CODEOWNERS approval** - For core system changes
+
 4. **Create meaningful commits:**
 ```bash
 # Use conventional commit format
