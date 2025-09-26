@@ -141,8 +141,11 @@ secrets/
 # Cache
 .cache/
 cache/
+.mypy_cache/
+__pycache__/
 
 # Profiling
 *.prof
 *.profile
 nul
+.mypy_cache/
