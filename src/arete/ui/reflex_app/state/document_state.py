@@ -1,423 +1,437 @@
-"""Document state management with split-view integration."""
+"""Document state management for the document viewer component."""
 
 import reflex as rx
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Optional, Any
+from dataclasses import dataclass
 from datetime import datetime
 
 
-class DocumentSection(rx.Base):
-    """Document section model."""
+@dataclass
+class Citation:
+    """Citation data model."""
+    id: str
+    text: str
+    preview_text: str
+    full_text: str
+    author: str
+    work: str
+    section: str
+    page: str
+    position: int
+    type: str = "citation"
+
+
+@dataclass  
+class DocumentSection:
+    """Document section for table of contents."""
     id: str
     title: str
-    content: str
-    level: int  # Heading level (1-6)
-    position: float  # Position in document (0.0 - 1.0)
-    word_count: int
+    level: int
+    position: int
 
 
-class DocumentAnnotation(rx.Base):
-    """Document annotation model."""
-    id: str
-    type: str  # "highlight", "note", "citation"
-    start_position: int
-    end_position: int
+@dataclass
+class DocumentContent:
+    """Document content element (text or citation)."""
     text: str
-    note: str = ""
-    timestamp: datetime
-    color: str = "yellow"
+    type: str  # "text" or "citation"
+    highlighted: bool = False
+    citation_data: Optional[Citation] = None
 
 
-class DocumentSearchResult(rx.Base):
-    """Document search result model."""
+@dataclass
+class DocumentParagraph:
+    """Document paragraph with mixed content."""
     id: str
+    content: List[DocumentContent]
+    position: int
+
+
+@dataclass
+class Bookmark:
+    """Document bookmark."""
+    id: str
+    title: str
+    preview: str
+    position: int
+    created_at: datetime
+
+
+@dataclass
+class SearchResult:
+    """Search result with position and context."""
+    position: int
     text: str
-    position: float
     context: str
-    relevance_score: float
+    paragraph_id: str
+
+
+@dataclass
+class DocumentMetadata:
+    """Document metadata model."""
+    id: str
+    title: str
+    author: str
+    date: str
+    word_count: int
+    type: str
+    description: str
+    sections: List[DocumentSection]
+    paragraphs: List[DocumentParagraph]
+    citations: List[Citation]
 
 
 class DocumentState(rx.State):
-    """State management for document viewer with split-view coordination."""
+    """State management for document viewer functionality."""
     
-    # Document content
-    document_id: Optional[str] = None
-    document_title: str = ""
-    document_content: str = ""
-    document_url: str = ""
+    # Current document
+    current_document: DocumentMetadata = DocumentMetadata(
+        id="", title="", author="", date="", word_count=0, type="",
+        description="", sections=[], paragraphs=[], citations=[]
+    )
     
-    # Document structure
-    sections: List[DocumentSection] = []
-    table_of_contents: List[Dict[str, Any]] = []
-    
-    # Navigation
-    current_position: float = 0.0  # 0.0 to 1.0
-    current_section_id: Optional[str] = None
-    scroll_position: int = 0
+    # Document library
+    documents: List[DocumentMetadata] = []
+    library_search: str = ""
+    filtered_documents: List[DocumentMetadata] = []
     
     # Search functionality
+    show_search: bool = False
     search_query: str = ""
-    search_results: List[DocumentSearchResult] = []
+    search_results: List[SearchResult] = []
     current_search_index: int = 0
-    search_highlights: List[Dict[str, Any]] = []
     
     # Citation system
-    citations: List[Dict[str, Any]] = []
-    active_citations: List[str] = []
-    citation_highlights: Dict[str, str] = {}  # citation_id -> color
+    show_citation_modal: bool = False
+    selected_citation: Citation = Citation(
+        id="", text="", preview_text="", full_text="", 
+        author="", work="", section="", page="", position=0
+    )
     
-    # Annotations
-    annotations: List[DocumentAnnotation] = []
-    selected_text: str = ""
-    selection_range: Tuple[int, int] = (0, 0)
+    # Navigation and progress
+    reading_progress: int = 0
+    current_position: int = 0
     
-    # Compact mode for split view
-    compact_mode: bool = False
-    sidebar_visible: bool = True
+    # Bookmarks
+    show_bookmarks: bool = False
+    bookmarks: List[Bookmark] = []
     
-    # Loading state
-    is_loading: bool = False
-    error_message: str = ""
+    # Export functionality
+    show_export_menu: bool = False
     
-    # Performance optimization
-    render_chunk_size: int = 1000  # Characters to render at once
-    lazy_loading_enabled: bool = True
+    def __init__(self):
+        super().__init__()
+        self.load_document_library()
     
-    def load_document(self, document_id: str, url: str):
-        """Load document content."""
-        self.is_loading = True
-        self.error_message = ""
-        
-        try:
-            # Simulate document loading (would integrate with actual document service)
-            self.document_id = document_id
-            self.document_url = url
-            self._load_document_async(document_id, url)
-        except Exception as e:
-            self.error_message = f"Failed to load document: {str(e)}"
-            self.is_loading = False
-    
-    def _load_document_async(self, document_id: str, url: str):
-        """Load document content asynchronously."""
-        # Mock document loading
-        import time
-        time.sleep(0.5)  # Simulate loading time
-        
-        # Mock document content
-        self.document_title = "Plato's Apology"
-        self.document_content = """
-        The Apology of Socrates, written by Plato, is a Socratic dialogue of the speech 
-        of legal self-defence which Socrates spoke at his trial for impiety and corruption 
-        in 399 BCE. Specifically, the Apology of Socrates is a defence against the charges 
-        of "corrupting the young, and by not believing in the gods in whom the city believes, 
-        but in other daimonia that are novel" (24b).
-        
-        In this dialogue, Socrates explains who he is and what kind of life he has lived. 
-        The text is divided into three main parts: the main speech, the counter-assessment, 
-        and the final speech.
-        """
-        
-        # Generate sections
-        self.sections = [
-            DocumentSection(
-                id="section_1",
-                title="Introduction",
-                content="The Apology of Socrates, written by Plato...",
-                level=1,
-                position=0.0,
-                word_count=50
+    def load_document_library(self):
+        """Load available documents from the RAG system."""
+        # Mock data - in production this would connect to the actual document corpus
+        self.documents = [
+            DocumentMetadata(
+                id="plato_apology",
+                title="Apology",
+                author="Plato",
+                date="399 BCE", 
+                word_count=12500,
+                type="Dialogue",
+                description="Socrates' defense speech at his trial for impiety and corrupting youth.",
+                sections=[
+                    DocumentSection("intro", "Introduction", 1, 0),
+                    DocumentSection("charges", "The Charges", 1, 100),
+                    DocumentSection("defense", "Socrates' Defense", 1, 500),
+                    DocumentSection("penalty", "The Penalty", 1, 900)
+                ],
+                paragraphs=[],
+                citations=[]
             ),
-            DocumentSection(
-                id="section_2", 
-                title="Main Speech",
-                content="In this dialogue, Socrates explains...",
-                level=1,
-                position=0.4,
-                word_count=75
+            DocumentMetadata(
+                id="plato_charmides", 
+                title="Charmides",
+                author="Plato",
+                date="390 BCE",
+                word_count=8900,
+                type="Dialogue",
+                description="An exploration of temperance and self-knowledge through dialogue.",
+                sections=[
+                    DocumentSection("opening", "Opening Scene", 1, 0),
+                    DocumentSection("temperance", "On Temperance", 1, 200),
+                    DocumentSection("knowledge", "Self-Knowledge", 1, 600)
+                ],
+                paragraphs=[],
+                citations=[]
             ),
-            DocumentSection(
-                id="section_3",
-                title="Final Words",
-                content="The text is divided into three main parts...",
-                level=1,
-                position=0.8,
-                word_count=25
+            DocumentMetadata(
+                id="aristotle_ethics",
+                title="Nicomachean Ethics",
+                author="Aristotle", 
+                date="350 BCE",
+                word_count=95000,
+                type="Treatise",
+                description="Aristotle's comprehensive work on ethics and the good life.",
+                sections=[
+                    DocumentSection("book1", "Book I: The Good", 1, 0),
+                    DocumentSection("book2", "Book II: Virtue", 1, 1000),
+                    DocumentSection("book3", "Book III: Voluntary Action", 1, 2000),
+                    DocumentSection("book10", "Book X: Happiness", 1, 9000)
+                ],
+                paragraphs=[],
+                citations=[]
+            )
+        ]
+        self.filtered_documents = self.documents.copy()
+    
+    def set_library_search(self, query: str):
+        """Filter document library by search query."""
+        self.library_search = query
+        if not query:
+            self.filtered_documents = self.documents.copy()
+        else:
+            self.filtered_documents = [
+                doc for doc in self.documents
+                if query.lower() in doc.title.lower() 
+                or query.lower() in doc.author.lower()
+                or query.lower() in doc.description.lower()
+            ]
+    
+    def load_document(self, document_id: str):
+        """Load a specific document for viewing."""
+        doc = next((d for d in self.documents if d.id == document_id), None)
+        if doc:
+            # In production, this would load the full document content from the RAG system
+            self.current_document = self._load_full_document_content(doc)
+            self.reading_progress = 0
+            self.current_position = 0
+    
+    def _load_full_document_content(self, doc: DocumentMetadata) -> DocumentMetadata:
+        """Load full document content including paragraphs and citations."""
+        # Mock implementation - in production this would query the actual document corpus
+        sample_citations = [
+            Citation(
+                id="cite_1",
+                text="examined life",
+                preview_text="The unexamined life is not worth living for a human being.",
+                full_text="The unexamined life is not worth living for a human being. This is what I have learned from the god, and I believe it to be true.",
+                author="Plato",
+                work="Apology",
+                section="38a",
+                page="42",
+                position=850
+            ),
+            Citation(
+                id="cite_2", 
+                text="wisdom",
+                preview_text="Human wisdom is of little or no value compared to divine wisdom.",
+                full_text="When I heard this, I thought to myself: What can the god mean? What is the riddle? I am conscious that I am not wise either much or little.",
+                author="Plato",
+                work="Apology", 
+                section="21b",
+                page="28",
+                position=200
             )
         ]
         
-        # Generate table of contents
-        self._generate_table_of_contents()
-        
-        # Load citations
-        self._load_citations()
-        
-        self.is_loading = False
-    
-    def load_document_by_citation(self, citation_id: str):
-        """Load document based on citation reference."""
-        # Mock citation-based loading
-        citation_data = self._get_citation_data(citation_id)
-        if citation_data:
-            self.load_document(citation_data["document_id"], citation_data["url"])
-    
-    def _get_citation_data(self, citation_id: str) -> Optional[Dict[str, Any]]:
-        """Get citation data by ID."""
-        # Mock citation lookup
-        return {
-            "document_id": "doc_plato_apology",
-            "url": "/documents/plato_apology.pdf",
-            "title": "Plato's Apology"
-        }
-    
-    def _generate_table_of_contents(self):
-        """Generate table of contents from sections."""
-        self.table_of_contents = [
-            {
-                "id": section.id,
-                "title": section.title,
-                "level": section.level,
-                "position": section.position
-            }
-            for section in self.sections
+        sample_content = [
+            DocumentContent("When I heard this oracle, I thought to myself: What can the god mean? For I am conscious that I am not ", "text"),
+            DocumentContent("wise", "citation", citation_data=sample_citations[1]),
+            DocumentContent(" either much or little. What then does he mean by saying that I am the wisest? For he certainly does not lie; that is not his way.", "text")
         ]
-    
-    def _load_citations(self):
-        """Load citation data for document."""
-        self.citations = [
-            {
-                "id": "cite_1",
-                "text": "corrupting the young, and by not believing in the gods",
-                "position": 0.25,
-                "section_id": "section_1",
-                "relevance_score": 0.9
-            },
-            {
-                "id": "cite_2",
-                "text": "what kind of life he has lived",
-                "position": 0.6,
-                "section_id": "section_2",
-                "relevance_score": 0.8
-            }
+        
+        sample_paragraphs = [
+            DocumentParagraph(
+                id="para_1",
+                content=sample_content,
+                position=1
+            ),
+            DocumentParagraph(
+                id="para_2", 
+                content=[
+                    DocumentContent("The ", "text"),
+                    DocumentContent("examined life", "citation", citation_data=sample_citations[0]),
+                    DocumentContent(" is the only life worth living, according to Socrates in his final speech.", "text")
+                ],
+                position=2
+            )
         ]
+        
+        doc.paragraphs = sample_paragraphs
+        doc.citations = sample_citations
+        return doc
     
-    def perform_search(self, query: str):
-        """Perform document search."""
+    def toggle_search(self):
+        """Toggle search panel visibility."""
+        self.show_search = not self.show_search
+        if not self.show_search:
+            self.clear_search()
+    
+    def set_search_query(self, query: str):
+        """Set search query."""
         self.search_query = query
-        self.current_search_index = 0
-        
-        if not query.strip():
-            self.search_results.clear()
-            self.search_highlights.clear()
+    
+    def handle_search_keydown(self, key: str):
+        """Handle search input keydown events."""
+        if key == "Enter":
+            self.search_document()
+    
+    def search_document(self):
+        """Search current document content."""
+        if not self.search_query or not self.current_document.paragraphs:
             return
+            
+        results = []
+        for para in self.current_document.paragraphs:
+            full_text = "".join([content.text for content in para.content])
+            if self.search_query.lower() in full_text.lower():
+                # Find position of match
+                match_pos = full_text.lower().find(self.search_query.lower())
+                context_start = max(0, match_pos - 50)
+                context_end = min(len(full_text), match_pos + len(self.search_query) + 50)
+                context = full_text[context_start:context_end]
+                
+                results.append(SearchResult(
+                    position=para.position,
+                    text=self.search_query,
+                    context=context,
+                    paragraph_id=para.id
+                ))
         
-        # Mock search implementation
-        self.search_results = [
-            DocumentSearchResult(
-                id="result_1",
-                text="corrupting the young",
-                position=0.25,
-                context="...charges of corrupting the young, and by not believing...",
-                relevance_score=0.95
-            ),
-            DocumentSearchResult(
-                id="result_2", 
-                text="Socrates explains",
-                position=0.6,
-                context="...In this dialogue, Socrates explains who he is...",
-                relevance_score=0.8
-            )
-        ]
-        
-        # Generate search highlights
-        self._generate_search_highlights()
+        self.search_results = results
+        self.current_search_index = 0
+        if results:
+            self.jump_to_search_result(0)
     
-    def _generate_search_highlights(self):
-        """Generate search highlights from results."""
-        self.search_highlights = [
-            {
-                "id": result.id,
-                "start": int(result.position * len(self.document_content)),
-                "end": int(result.position * len(self.document_content)) + len(result.text),
-                "color": "bg-yellow-200 dark:bg-yellow-800"
-            }
-            for result in self.search_results
-        ]
-    
-    def navigate_to_search_result(self, index: int):
-        """Navigate to specific search result."""
-        if 0 <= index < len(self.search_results):
-            self.current_search_index = index
-            result = self.search_results[index]
-            self.scroll_to_position(result.position)
-    
-    def next_search_result(self):
-        """Navigate to next search result."""
-        if self.search_results:
-            next_index = (self.current_search_index + 1) % len(self.search_results)
-            self.navigate_to_search_result(next_index)
+    def clear_search(self):
+        """Clear search results and highlighting."""
+        self.search_query = ""
+        self.search_results = []
+        self.current_search_index = 0
+        self._clear_highlighting()
     
     def previous_search_result(self):
         """Navigate to previous search result."""
-        if self.search_results:
-            prev_index = (self.current_search_index - 1) % len(self.search_results)
-            self.navigate_to_search_result(prev_index)
+        if self.current_search_index > 0:
+            self.current_search_index -= 1
+            self.jump_to_search_result(self.current_search_index)
     
-    def scroll_to_position(self, position: float):
-        """Scroll to specific position in document."""
-        self.current_position = max(0.0, min(1.0, position))
-        
-        # Update current section
-        for section in self.sections:
-            if section.position <= position:
-                self.current_section_id = section.id
+    def next_search_result(self):
+        """Navigate to next search result."""
+        if self.current_search_index < len(self.search_results) - 1:
+            self.current_search_index += 1
+            self.jump_to_search_result(self.current_search_index)
     
-    def scroll_to_citation(self, citation_id: str):
-        """Scroll to specific citation."""
-        citation = next(
-            (cite for cite in self.citations if cite["id"] == citation_id),
-            None
-        )
-        
-        if citation:
-            self.scroll_to_position(citation["position"])
-            self.highlight_citation(citation_id)
+    def jump_to_search_result(self, index: int):
+        """Jump to specific search result and highlight."""
+        if 0 <= index < len(self.search_results):
+            result = self.search_results[index]
+            self.current_position = result.position
+            self._highlight_search_term(result.paragraph_id, self.search_query)
     
-    def highlight_citation(self, citation_id: str, color: str = "bg-blue-200 dark:bg-blue-800"):
-        """Highlight specific citation."""
-        if citation_id not in self.active_citations:
-            self.active_citations.append(citation_id)
-        
-        self.citation_highlights[citation_id] = color
+    def _highlight_search_term(self, paragraph_id: str, term: str):
+        """Highlight search term in specified paragraph."""
+        # Implementation would update highlighting state
+        pass
     
-    def remove_citation_highlight(self, citation_id: str):
-        """Remove citation highlight."""
-        if citation_id in self.active_citations:
-            self.active_citations.remove(citation_id)
-        
-        if citation_id in self.citation_highlights:
-            del self.citation_highlights[citation_id]
-    
-    def clear_citation_highlights(self):
-        """Clear all citation highlights."""
-        self.active_citations.clear()
-        self.citation_highlights.clear()
-    
-    def add_annotation(self, annotation_type: str, note: str = "", color: str = "yellow"):
-        """Add annotation to selected text."""
-        if not self.selected_text or self.selection_range == (0, 0):
-            return
-        
-        annotation = DocumentAnnotation(
-            id=f"annotation_{len(self.annotations)}_{datetime.now().timestamp()}",
-            type=annotation_type,
-            start_position=self.selection_range[0],
-            end_position=self.selection_range[1],
-            text=self.selected_text,
-            note=note,
-            timestamp=datetime.now(),
-            color=color
-        )
-        
-        self.annotations.append(annotation)
-        self.clear_selection()
-    
-    def remove_annotation(self, annotation_id: str):
-        """Remove annotation."""
-        self.annotations = [
-            ann for ann in self.annotations 
-            if ann.id != annotation_id
-        ]
-    
-    def set_text_selection(self, text: str, start: int, end: int):
-        """Set selected text range."""
-        self.selected_text = text
-        self.selection_range = (start, end)
-    
-    def clear_selection(self):
-        """Clear text selection."""
-        self.selected_text = ""
-        self.selection_range = (0, 0)
-    
-    def toggle_sidebar(self):
-        """Toggle sidebar visibility."""
-        self.sidebar_visible = not self.sidebar_visible
-    
-    def set_compact_mode(self, compact: bool):
-        """Set compact mode state."""
-        self.compact_mode = compact
+    def _clear_highlighting(self):
+        """Clear all text highlighting."""
+        # Implementation would clear highlighting state
+        pass
     
     def jump_to_section(self, section_id: str):
-        """Jump to specific document section."""
-        section = next(
-            (sec for sec in self.sections if sec.id == section_id),
-            None
-        )
-        
+        """Jump to document section."""
+        section = next((s for s in self.current_document.sections if s.id == section_id), None)
         if section:
-            self.scroll_to_position(section.position)
+            self.current_position = section.position
+            self._calculate_reading_progress()
     
-    def export_annotations(self) -> str:
-        """Export annotations as formatted text."""
-        if not self.annotations:
-            return "No annotations found."
-        
-        export_lines = [f"# Annotations for {self.document_title}", ""]
-        
-        for annotation in sorted(self.annotations, key=lambda a: a.start_position):
-            export_lines.extend([
-                f"**{annotation.type.title()}:** {annotation.text}",
-                f"**Note:** {annotation.note}" if annotation.note else "",
-                f"**Date:** {annotation.timestamp.strftime('%Y-%m-%d %H:%M')}",
-                ""
-            ])
-        
-        return "\n".join(export_lines)
+    def _calculate_reading_progress(self):
+        """Calculate reading progress percentage."""
+        if self.current_document.paragraphs:
+            total_paragraphs = len(self.current_document.paragraphs)
+            current_para = min(self.current_position, total_paragraphs)
+            self.reading_progress = int((current_para / total_paragraphs) * 100)
     
-    # Computed properties
+    def open_citation_modal(self, citation_id: str):
+        """Open citation detail modal."""
+        citation = next((c for c in self.current_document.citations if c.id == citation_id), None)
+        if citation:
+            self.selected_citation = citation
+            self.show_citation_modal = True
     
-    @rx.var
-    def has_document(self) -> bool:
-        """Check if document is loaded."""
-        return self.document_id is not None and bool(self.document_content)
+    def close_citation_modal(self):
+        """Close citation modal."""
+        self.show_citation_modal = False
     
-    @rx.var
-    def search_result_count(self) -> int:
-        """Get search result count."""
-        return len(self.search_results)
+    def previous_citation(self):
+        """Navigate to previous citation."""
+        current_index = next((i for i, c in enumerate(self.current_document.citations) if c.id == self.selected_citation.id), -1)
+        if current_index > 0:
+            self.selected_citation = self.current_document.citations[current_index - 1]
     
-    @rx.var
-    def current_search_result(self) -> Optional[DocumentSearchResult]:
-        """Get current search result."""
-        if (self.search_results and 
-            0 <= self.current_search_index < len(self.search_results)):
-            return self.search_results[self.current_search_index]
-        return None
+    def next_citation(self):
+        """Navigate to next citation."""
+        current_index = next((i for i, c in enumerate(self.current_document.citations) if c.id == self.selected_citation.id), -1)
+        if current_index < len(self.current_document.citations) - 1:
+            self.selected_citation = self.current_document.citations[current_index + 1]
     
     @rx.var
-    def annotation_count(self) -> int:
-        """Get annotation count."""
-        return len(self.annotations)
+    def has_previous_citation(self) -> bool:
+        """Check if there is a previous citation."""
+        current_index = next((i for i, c in enumerate(self.current_document.citations) if c.id == self.selected_citation.id), -1)
+        return current_index > 0
     
     @rx.var
-    def citation_count(self) -> int:
-        """Get citation count."""
-        return len(self.citations)
+    def has_next_citation(self) -> bool:
+        """Check if there is a next citation."""
+        current_index = next((i for i, c in enumerate(self.current_document.citations) if c.id == self.selected_citation.id), -1)
+        return current_index < len(self.current_document.citations) - 1
     
-    @rx.var
-    def active_citation_count(self) -> int:
-        """Get active citation count."""
-        return len(self.active_citations)
+    def copy_citation(self):
+        """Copy citation to clipboard."""
+        # Implementation would copy citation text to clipboard
+        pass
     
-    @rx.var
-    def current_section(self) -> Optional[DocumentSection]:
-        """Get current document section."""
-        if self.current_section_id:
-            return next(
-                (sec for sec in self.sections if sec.id == self.current_section_id),
-                None
-            )
-        return None
+    def share_citation(self):
+        """Share citation."""
+        # Implementation would provide sharing options
+        pass
     
-    @rx.var
-    def progress_percentage(self) -> int:
-        """Get reading progress as percentage."""
-        return int(self.current_position * 100)
+    def toggle_bookmarks(self):
+        """Toggle bookmarks panel."""
+        self.show_bookmarks = not self.show_bookmarks
+    
+    def close_bookmarks(self):
+        """Close bookmarks panel."""
+        self.show_bookmarks = False
+    
+    def add_bookmark(self, title: str, preview: str, position: int):
+        """Add bookmark at current position."""
+        bookmark = Bookmark(
+            id=f"bookmark_{len(self.bookmarks)}",
+            title=title,
+            preview=preview,
+            position=position,
+            created_at=datetime.now()
+        )
+        self.bookmarks.append(bookmark)
+    
+    def remove_bookmark(self, bookmark_id: str):
+        """Remove bookmark."""
+        self.bookmarks = [b for b in self.bookmarks if b.id != bookmark_id]
+    
+    def jump_to_bookmark(self, bookmark_id: str):
+        """Jump to bookmark position."""
+        bookmark = next((b for b in self.bookmarks if b.id == bookmark_id), None)
+        if bookmark:
+            self.current_position = bookmark.position
+            self._calculate_reading_progress()
+            self.close_bookmarks()
+    
+    def toggle_export_menu(self):
+        """Toggle export menu."""
+        self.show_export_menu = not self.show_export_menu
+    
+    def export_document(self, format: str):
+        """Export document in specified format."""
+        # Implementation would handle document export
+        self.show_export_menu = False
+        # Add success notification
+        pass

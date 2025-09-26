@@ -1,21 +1,26 @@
-"""
-Component modules for the Arete Reflex application.
-"""
+"""Arete UI components package."""
 
-from .layout import base_layout, navbar, sidebar
-from .hero import hero_section
-from .features import features_section
-from .chat import chat_interface
-from .document_viewer import document_viewer
-from .analytics import analytics_dashboard
+from .navigation import navigation_bar, nav_link, theme_toggle_button, user_profile_dropdown
+from .sidebar import sidebar, recent_item, sidebar_section
+from .footer import footer, footer_link
+from .layout import base_layout, page_layout, main_content_area, split_view_layout
+from .accessibility import keyboard_shortcuts_modal, accessibility_provider, accessible_button
 
 __all__ = [
-    "base_layout",
-    "navbar", 
+    "navigation_bar",
+    "nav_link", 
+    "theme_toggle_button",
+    "user_profile_dropdown",
     "sidebar",
-    "hero_section",
-    "features_section",
-    "chat_interface",
-    "document_viewer",
-    "analytics_dashboard"
+    "recent_item",
+    "sidebar_section", 
+    "footer",
+    "footer_link",
+    "base_layout",
+    "page_layout",
+    "main_content_area", 
+    "split_view_layout",
+    "keyboard_shortcuts_modal",
+    "accessibility_provider", 
+    "accessible_button",
 ]
