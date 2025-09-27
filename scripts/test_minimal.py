@@ -9,7 +9,7 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-def test_clients():
+def test_clients() -> bool:
     """Test just client creation and basic connectivity."""
     print("=== Testing Basic Client Creation ===")
     
@@ -42,7 +42,7 @@ def test_clients():
     
     return True
 
-def test_embedding():
+def test_embedding() -> bool:
     """Test embedding generation only."""
     print("\n=== Testing Embedding Generation ===")
     
@@ -58,7 +58,7 @@ def test_embedding():
         print(f"[ERROR] Embedding: {e}")
         return False
 
-def test_repository_creation():
+def test_repository_creation() -> bool:
     """Test repository creation without actual search."""
     print("\n=== Testing Repository Creation ===")
     

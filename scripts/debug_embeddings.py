@@ -324,7 +324,7 @@ async def store_embeddings_in_weaviate(chunks: List[Chunk]) -> bool:
         await weaviate_client.async_close()
 
 
-async def main():
+async def main() -> None:
     """Main debug function."""
     parser = argparse.ArgumentParser(
         description="Debug embedding generation for Arete chunks"

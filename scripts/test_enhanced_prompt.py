@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from arete.services.prompt_templates import build_enhanced_prompt, PromptStyle
 
-def test_enhanced_prompt():
+def test_enhanced_prompt() -> None:
     """Test the new prompt system with sample data."""
     
     # Sample data similar to what would come from the RAG system

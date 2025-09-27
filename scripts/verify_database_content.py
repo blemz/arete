@@ -215,7 +215,7 @@ async def test_vector_search() -> None:
         await weaviate_client.async_close()
 
 
-async def main():
+async def main() -> None:
     """Main verification function."""
     print("Database Content Verification")
     print("=" * 50)

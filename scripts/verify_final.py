@@ -16,7 +16,7 @@ from arete.database.client import Neo4jClient
 from arete.database.weaviate_client import WeaviateClient
 
 
-async def main():
+async def main() -> None:
     """Quick verification of both databases."""
     print("=== ARETE DATABASE VERIFICATION ===\n")
     

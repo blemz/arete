@@ -219,7 +219,7 @@ def verify_weaviate() -> Dict[str, Any]:
         weaviate_client.close()
 
 
-def print_verification_report(neo4j_stats: Dict[str, Any], weaviate_stats: Dict[str, Any]):
+def print_verification_report(neo4j_stats: Dict[str, Any], weaviate_stats: Dict[str, Any]) -> None:
     """Print comprehensive verification report."""
     print("\n" + "=" * 80)
     print("ARETE DATABASE VERIFICATION REPORT")
@@ -327,7 +327,7 @@ def print_verification_report(neo4j_stats: Dict[str, Any], weaviate_stats: Dict[
     print("=" * 80)
 
 
-async def main():
+async def main() -> None:
     """Main verification function."""
     logger.info("Starting database verification...")
     

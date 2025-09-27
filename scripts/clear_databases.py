@@ -28,7 +28,7 @@ logging.basicConfig(
 logger = logging.getLogger("clear_databases")
 
 
-async def clear_neo4j():
+async def clear_neo4j() -> None:
     """Clear all data from Neo4j database."""
     logger.info("Clearing Neo4j database...")
     
@@ -75,7 +75,7 @@ async def clear_neo4j():
         await neo4j_client.async_close()
 
 
-def clear_weaviate():
+def clear_weaviate() -> None:
     """Clear all data from Weaviate database."""
     logger.info("Clearing Weaviate database...")
     
@@ -146,7 +146,7 @@ def clear_weaviate():
         weaviate_client.close()
 
 
-async def main():
+async def main() -> None:
     """Main clearing function."""
     logger.info("=" * 60)
     logger.info("ARETE DATABASE CLEARING TOOL")

@@ -20,7 +20,7 @@ except ImportError:
     sys.path.insert(0, os.path.dirname(__file__))
     from src.arete.services.prompt_templates import PromptTemplate, PromptStyle, build_enhanced_prompt
 
-def test_single_work_apology():
+def test_single_work_apology() -> None:
     """Test 1: Single Work - Shows explicit source attribution"""
     print("\n" + "="*80)
     print(" TEST 1: SINGLE WORK SOURCE ATTRIBUTION")
@@ -71,7 +71,7 @@ def test_single_work_apology():
             print(f"Line {i+1}: {line}")
             break
 
-def test_multiple_works():
+def test_multiple_works() -> None:
     """Test 2: Multiple Works - Shows detailed source listing"""
     print("\n" + "="*80)
     print(" TEST 2: MULTIPLE WORKS SOURCE LISTING")
@@ -112,7 +112,7 @@ def test_multiple_works():
             print(f"  {line}")
             break
 
-def test_aristotelian_content():
+def test_aristotelian_content() -> None:
     """Test 3: Aristotelian Content - Shows Bekker number citations"""
     print("\n" + "="*80)
     print(" TEST 3: ARISTOTELIAN CONTENT - BEKKER CITATIONS")
@@ -147,7 +147,7 @@ def test_aristotelian_content():
             print(f"  {line}")
             break
 
-def test_comparison_missing_evidence():
+def test_comparison_missing_evidence() -> None:
     """Test 4: Comparison with Missing Evidence - Shows restriction protocol"""
     print("\n" + "="*80)
     print(" TEST 4: COMPARISON WITH MISSING EVIDENCE RESTRICTION")
@@ -193,7 +193,7 @@ def test_comparison_missing_evidence():
             print(f"  {line}")
             break
 
-def test_xml_parsing_demo():
+def test_xml_parsing_demo() -> None:
     """Test 5: XML Parsing - Shows programmatic structure"""
     print("\n" + "="*80)
     print(" TEST 5: XML STRUCTURE FOR PROGRAMMATIC PARSING")
