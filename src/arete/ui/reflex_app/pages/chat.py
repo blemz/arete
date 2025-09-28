@@ -184,7 +184,7 @@ def enhanced_chat_header() -> rx.Component:
                         size="2",
                         variant="ghost",
                         color_scheme="gray",
-                        on_click=RAGChatState.toggle_search  # Toggle search panel
+                        # on_click=RAGChatState.toggle_search  # Toggle search panel
                     ),
                     rx.button(
                         rx.icon("bar-chart", size=16),
@@ -194,35 +194,58 @@ def enhanced_chat_header() -> rx.Component:
                         on_click=RAGChatState.toggle_retrieval_stats
                     ),
                     rx.button(
-                        rx.icon("eye" if RAGChatState.show_citations else "eye-off", size=16),
+                        rx.cond(
+                            RAGChatState.show_citations,
+                            rx.icon("eye", size=16),
+                            rx.icon("eye-off", size=16)
+                        ),
                         size="2",
                         variant="ghost",
                         color_scheme="gray",
                         on_click=RAGChatState.toggle_citations
                     ),
-                    rx.menu(
-                        rx.menu_button(
-                            rx.icon("more-vertical", size=16),
-                            size="2",
-                            variant="ghost",
-                            color_scheme="gray"
+                    rx.popover.root(
+                        rx.popover.trigger(
+                            rx.icon_button(
+                                rx.icon("move-vertical", size=16),
+                                size="2",
+                                variant="ghost",
+                                color_scheme="gray"
+                            )
                         ),
-                        rx.menu_list(
-                            rx.menu_item(
-                                rx.icon("download", margin_right="0.5rem"),
-                                "Export Conversation",
-                                on_click=RAGChatState.open_export_modal  # Open export modal
-                            ),
-                            rx.menu_item(
-                                rx.icon("settings", margin_right="0.5rem"),
-                                "Settings"
-                            ),
-                            rx.menu_divider(),
-                            rx.menu_item(
-                                rx.icon("trash-2", margin_right="0.5rem"),
-                                "Clear Conversation",
-                                color="red.400",
-                                on_click=RAGChatState.clear_conversation
+                        rx.popover.content(
+                            rx.vstack(
+                                rx.button(
+                                    rx.icon("download", size=16),
+                                    "Export Conversation",
+                                    variant="ghost",
+                                    size="2",
+                                    justify="start",
+                                    width="100%"
+                                    # on_click=RAGChatState.open_export_modal
+                                ),
+                                rx.button(
+                                    rx.icon("settings", size=16),
+                                    "Settings",
+                                    variant="ghost",
+                                    size="2",
+                                    justify="start",
+                                    width="100%"
+                                ),
+                                rx.divider(),
+                                rx.button(
+                                    rx.icon("trash-2", size=16),
+                                    "Clear Conversation",
+                                    variant="ghost",
+                                    size="2",
+                                    justify="start",
+                                    width="100%",
+                                    color_scheme="red"
+                                    # on_click=RAGChatState.clear_conversation
+                                ),
+                                spacing="1",
+                                width="200px",
+                                p="2"
                             )
                         )
                     ),
@@ -238,23 +261,14 @@ def enhanced_chat_header() -> rx.Component:
             rx.cond(
                 RAGChatState.conversation_metadata is not None,
                 rx.hstack(
-                    rx.editable(
-                        rx.editable_preview(
-                            RAGChatState.conversation_metadata.title,
-                            color="gray.300",
-                            font_size="sm"
-                        ),
-                        rx.editable_input(
-                            font_size="sm",
-                            bg="gray.800",
-                            color="white"
-                        ),
-                        value=RAGChatState.conversation_metadata.title,
-                        on_submit=lambda title: RAGChatState.conversation_metadata.update(title=title),
+                    rx.text(
+                        RAGChatState.conversation_metadata.title,
+                        color="gray.300",
+                        font_size="sm",
                         flex="1"
                     ),
                     rx.text(
-                        RAGChatState.conversation_metadata.created_at.strftime("%Y-%m-%d %H:%M"),
+                        RAGChatState.conversation_metadata.created_at,
                         font_size="xs",
                         color="gray.500"
                     ),
@@ -283,13 +297,16 @@ def main_chat_interface() -> rx.Component:
                     rx.vstack(
                         # Performance stats panel (collapsible)
                         performance_stats_panel(),
-                        
+
                         # Messages
-                        *[enhanced_message_bubble(message) for message in RAGChatState.filtered_messages],
-                        
+                        rx.foreach(
+                            RAGChatState.filtered_messages,
+                            enhanced_message_bubble
+                        ),
+
                         # Typing indicator
                         enhanced_typing_indicator(),
-                        
+
                         spacing="4",
                         width="100%",
                         align="stretch",

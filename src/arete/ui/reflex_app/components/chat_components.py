@@ -179,21 +179,21 @@ def performance_stats_panel() -> rx.Component:
                 ),
                 
                 rx.grid(
-                    rx.stat(
-                        rx.stat_label("Avg Response Time", color="gray.400"),
-                        rx.stat_number(f"{RAGChatState.average_response_time:.1f}s", font_size="8")
+                    rx.box(
+                        rx.text("Avg Response Time", color="gray.400", font_size="xs"),
+                        rx.text(f"{RAGChatState.average_response_time:.1f}s", font_size="sm", font_weight="bold")
                     ),
-                    rx.stat(
-                        rx.stat_label("Total Queries", color="gray.400"),
-                        rx.stat_number(RAGChatState.total_queries, font_size="8")
+                    rx.box(
+                        rx.text("Total Queries", color="gray.400", font_size="xs"),
+                        rx.text(RAGChatState.total_queries, font_size="sm", font_weight="bold")
                     ),
-                    rx.stat(
-                        rx.stat_label("Messages", color="gray.400"),
-                        rx.stat_number(RAGChatState.conversation_stats["total_messages"], font_size="8")
+                    rx.box(
+                        rx.text("Messages", color="gray.400", font_size="xs"),
+                        rx.text(RAGChatState.conversation_stats["total_messages"], font_size="sm", font_weight="bold")
                     ),
-                    rx.stat(
-                        rx.stat_label("Total Tokens", color="gray.400"),
-                        rx.stat_number(RAGChatState.conversation_stats["total_tokens"], font_size="8")
+                    rx.box(
+                        rx.text("Total Tokens", color="gray.400", font_size="xs"),
+                        rx.text(RAGChatState.conversation_stats["total_tokens"], font_size="sm", font_weight="bold")
                     ),
                     columns="4",
                     spacing="4",
@@ -312,14 +312,9 @@ def enhanced_message_bubble(message: ChatMessage) -> rx.Component:
     is_error = message.message_type == MessageType.ERROR
     is_system = message.message_type == MessageType.SYSTEM
     
-    # Dynamic styling based on message type
-    alignment = "flex-end" if is_user else "flex-start"
-    bg_color = (
-        "blue.600" if is_user
-        else "red.600" if is_error
-        else "purple.600" if is_system
-        else "gray.700"
-    )
+    # Dynamic styling based on message type - using defaults for now
+    alignment = "start"  # Will be handled in component
+    bg_color = "gray.700"  # Will be handled with rx.cond
     
     return rx.box(
         rx.vstack(
@@ -328,8 +323,8 @@ def enhanced_message_bubble(message: ChatMessage) -> rx.Component:
                 rx.hstack(
                     rx.cond(
                         is_user,
-                        rx.avatar(fallback="U", size=12, color_scheme="blue"),
-                        rx.avatar(fallback="A", size=12, color_scheme="gray")
+                        rx.avatar(fallback="U", size="2", color_scheme="blue"),
+                        rx.avatar(fallback="A", size="2", color_scheme="gray")
                     ),
                     rx.vstack(
                         rx.text(
@@ -474,7 +469,7 @@ def enhanced_message_bubble(message: ChatMessage) -> rx.Component:
         p="4",
         border_radius="lg",
         max_width="85%",
-        align_self=alignment,
+        align_self="start",
         shadow="lg",
         border="1px solid gray.600",
         class_name="message-bubble",
