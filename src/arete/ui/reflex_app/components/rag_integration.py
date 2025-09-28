@@ -2,8 +2,8 @@
 
 import reflex as rx
 from typing import List, Dict, Optional, Any, Tuple
-from ..state.document_state import DocumentState, Citation, DocumentMetadata
-from ..state.chat_state import ChatState
+from state.document_state import DocumentState, Citation, DocumentMetadata
+from state import ChatState
 import asyncio
 import json
 
@@ -156,7 +156,7 @@ class RAGIntegrationState(rx.State):
     
     def _convert_to_document_metadata(self, corpus_doc: Dict[str, Any], content: Dict[str, Any], citations: List[Citation]) -> DocumentMetadata:
         """Convert RAG data to DocumentMetadata format."""
-        from ..state.document_state import DocumentSection, DocumentParagraph, DocumentContent
+        from state import DocumentSection, DocumentParagraph, DocumentContent
         
         # Convert sections
         sections = [
@@ -200,7 +200,7 @@ class RAGIntegrationState(rx.State):
     
     def _parse_paragraph_with_citations(self, text: str, citation_ids: List[str], all_citations: List[Citation]) -> List[object]:
         """Parse paragraph text and insert citation objects."""
-        from ..state.document_state import DocumentContent
+        from state import DocumentContent
         
         # Find citations that appear in this paragraph
         paragraph_citations = [c for c in all_citations if c.id in citation_ids]

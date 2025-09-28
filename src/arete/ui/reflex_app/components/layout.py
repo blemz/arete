@@ -1,7 +1,7 @@
 """Responsive layout components with multiple view modes and accessibility support."""
 
 import reflex as rx
-from ..state import NavigationState, ChatState, DocumentState
+from arete.state import NavigationState, ChatState, DocumentState
 from .navigation import navigation_bar, keyboard_navigation_shortcuts
 from .sidebar import sidebar
 from .footer import footer
@@ -13,7 +13,7 @@ def chat_interface() -> rx.Component:
         rx.flex(
             # Chat header
             rx.flex(
-                rx.text("Philosophical Assistant", font_weight="semibold", font_size="lg"),
+                rx.text("Philosophical Assistant", font_weight="semibold", font_size="8"),
                 rx.text("Ask questions about classical philosophy", 
                        font_size="sm", color=rx.color("gray", 10)),
                 direction="column",
@@ -28,7 +28,7 @@ def chat_interface() -> rx.Component:
                         rx.icon("message-circle", size=48, color=rx.color("gray", 8)),
                         rx.text(
                             "Start a conversation about classical philosophy",
-                            font_size="lg",
+                            font_size="8",
                             color=rx.color("gray", 10),
                             text_align="center"
                         ),
@@ -132,7 +132,7 @@ def document_viewer() -> rx.Component:
         rx.flex(
             # Document header
             rx.flex(
-                rx.text("Document Viewer", font_weight="semibold", font_size="lg"),
+                rx.text("Document Viewer", font_weight="semibold", font_size="8"),
                 rx.input(
                     placeholder="Search in document...",
                     value=DocumentState.search_query,
@@ -162,7 +162,7 @@ def document_viewer() -> rx.Component:
                         rx.icon("book-open", size=48, color=rx.color("gray", 8)),
                         rx.text(
                             "Select a document to view",
-                            font_size="lg",
+                            font_size="8",
                             color=rx.color("gray", 10),
                             text_align="center"
                         ),
@@ -384,7 +384,7 @@ def page_layout(title: str, children: rx.Component) -> rx.Component:
     """Page layout with title and content."""
     return base_layout(
         rx.box(
-            rx.heading(title, font_size="2xl", margin_bottom="6"),
+            rx.heading(title, font_size="7", margin_bottom="6"),
             children,
             padding="6",
             max_width="1200px",

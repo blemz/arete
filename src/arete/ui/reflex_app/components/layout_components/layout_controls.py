@@ -2,7 +2,7 @@
 
 import reflex as rx
 from typing import Dict, Any, List
-from ...state.layout_state import LayoutState
+from state import LayoutState
 from .panel_manager import LayoutPresetManager
 
 

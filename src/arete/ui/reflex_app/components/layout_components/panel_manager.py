@@ -2,9 +2,9 @@
 
 import reflex as rx
 from typing import Dict, Any, Optional, List, Callable
-from ...state.layout_state import LayoutState
-from ...state.chat_state import ChatState
-from ...state.document_state import DocumentState
+from state import LayoutState
+from state import ChatState
+from state import DocumentState
 
 
 class PanelManager:

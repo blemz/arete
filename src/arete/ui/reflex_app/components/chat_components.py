@@ -12,9 +12,9 @@ def enhanced_typing_indicator() -> rx.Component:
         RAGChatState.typing_indicator,
         rx.hstack(
             rx.avatar(
-                src="/arete-logo.png", 
+                src="/arete-logo.png",
                 fallback="A",
-                size="sm",
+                size=16,
                 color_scheme="blue"
             ),
             rx.hstack(
@@ -64,7 +64,7 @@ def advanced_citation_card(citation: Dict[str, Any]) -> rx.Component:
             # Citation header
             rx.hstack(
                 rx.hstack(
-                    rx.icon("book-open", size="sm", color="blue.400"),
+                    rx.icon("book-open", size=16, color="blue.400"),
                     rx.text(
                         citation.get("source", "Unknown Source"),
                         font_size="sm",
@@ -92,13 +92,13 @@ def advanced_citation_card(citation: Dict[str, Any]) -> rx.Component:
                     ),
                     spacing="2"
                 ),
-                justify="space-between",
+                justify="between",
                 width="100%"
             ),
             
             # Citation preview text
             rx.text(
-                citation.get("text", "")[:300] + "..." if len(citation.get("text", "")) > 300 else citation.get("text", ""),
+                citation.get("text", "")[:300] + "..." if citation.get("text", "").__len__() > 300 else citation.get("text", ""),
                 font_size="sm",
                 color="gray.300",
                 line_height="1.5",
@@ -127,22 +127,22 @@ def advanced_citation_card(citation: Dict[str, Any]) -> rx.Component:
             # Actions
             rx.hstack(
                 rx.button(
-                    rx.icon("eye", size="xs"),
+                    rx.icon("eye", size=12),
                     "View Full",
-                    size="xs",
+                    size="1",
                     variant="ghost",
                     color_scheme="gray",
                     on_click=RAGChatState.open_citation_modal(citation.get("id"))
                 ),
                 rx.button(
-                    rx.icon("copy", size="xs"),
+                    rx.icon("copy", size=12),
                     "Copy",
-                    size="xs",
+                    size="1",
                     variant="ghost",
                     color_scheme="gray",
                     on_click=lambda: rx.set_clipboard(citation.get("text", ""))
                 ),
-                justify="flex-end",
+                justify="end",
                 spacing="2",
                 width="100%"
             ),
@@ -171,9 +171,9 @@ def performance_stats_panel() -> rx.Component:
         rx.box(
             rx.vstack(
                 rx.hstack(
-                    rx.icon("activity", size="sm", color="green.400"),
+                    rx.icon("activity", size=16, color="green.400"),
                     rx.text("Performance Stats", font_weight="medium", color="white"),
-                    justify="flex-start",
+                    justify="start",
                     align="center",
                     spacing="2"
                 ),
@@ -181,19 +181,19 @@ def performance_stats_panel() -> rx.Component:
                 rx.grid(
                     rx.stat(
                         rx.stat_label("Avg Response Time", color="gray.400"),
-                        rx.stat_number(f"{RAGChatState.average_response_time:.1f}s", font_size="lg")
+                        rx.stat_number(f"{RAGChatState.average_response_time:.1f}s", font_size="8")
                     ),
                     rx.stat(
                         rx.stat_label("Total Queries", color="gray.400"),
-                        rx.stat_number(RAGChatState.total_queries, font_size="lg")
+                        rx.stat_number(RAGChatState.total_queries, font_size="8")
                     ),
                     rx.stat(
                         rx.stat_label("Messages", color="gray.400"),
-                        rx.stat_number(RAGChatState.conversation_stats["total_messages"], font_size="lg")
+                        rx.stat_number(RAGChatState.conversation_stats["total_messages"], font_size="8")
                     ),
                     rx.stat(
                         rx.stat_label("Total Tokens", color="gray.400"),
-                        rx.stat_number(RAGChatState.conversation_stats["total_tokens"], font_size="lg")
+                        rx.stat_number(RAGChatState.conversation_stats["total_tokens"], font_size="8")
                     ),
                     columns="4",
                     spacing="4",
@@ -217,9 +217,9 @@ def advanced_search_panel() -> rx.Component:
     return rx.box(
         rx.vstack(
             rx.hstack(
-                rx.icon("search", size="sm", color="blue.400"),
+                rx.icon("search", size=16, color="blue.400"),
                 rx.text("Search Conversation", font_weight="medium", color="white"),
-                justify="flex-start",
+                justify="start",
                 align="center",
                 spacing="2"
             ),
@@ -236,8 +236,8 @@ def advanced_search_panel() -> rx.Component:
                     _focus={"border_color": "blue.500"}
                 ),
                 rx.button(
-                    rx.icon("x"),
-                    size="sm",
+                    rx.icon("x", size=16),
+                    size="2",
                     variant="ghost",
                     on_click=RAGChatState.clear_search,
                     disabled=RAGChatState.search_query == ""
@@ -247,23 +247,19 @@ def advanced_search_panel() -> rx.Component:
             ),
             
             # Search mode selector
-            rx.radio_group(
-                rx.hstack(
-                    rx.radio("content", "Content"),
-                    rx.radio("citations", "Citations"),
-                    rx.radio("metadata", "Metadata"),
-                    spacing="4"
-                ),
+            rx.select(
+                ["content", "citations", "metadata"],
+                placeholder="Search mode...",
                 value=RAGChatState.search_mode,
                 on_change=RAGChatState.set_search_mode,
-                color_scheme="blue"
+                width="100%"
             ),
             
             # Search results summary
             rx.cond(
                 RAGChatState.search_query != "",
                 rx.text(
-                    f"Found {len(RAGChatState.filtered_messages)} of {len(RAGChatState.messages)} messages",
+                    f"Found {RAGChatState.filtered_messages.length()} of {RAGChatState.messages.length()} messages",
                     font_size="sm",
                     color="gray.400"
                 )
@@ -284,24 +280,24 @@ def message_actions_menu(message_id: str) -> rx.Component:
     """Context menu for message actions"""
     return rx.menu(
         rx.menu_button(
-            rx.icon("more-vertical", size="sm"),
-            size="sm",
+            rx.icon("more-vertical", size=16),
+            size="2",
             variant="ghost",
             color_scheme="gray"
         ),
         rx.menu_list(
             rx.menu_item(
-                rx.icon("copy", margin_right="0.5rem"),
+                rx.icon("copy", size=16, margin_right="0.5rem"),
                 "Copy Message",
                 on_click=RAGChatState.copy_message_content(message_id)
             ),
             rx.menu_item(
-                rx.icon("git-branch", margin_right="0.5rem"),
+                rx.icon("git-branch", size=16, margin_right="0.5rem"),
                 "Branch Conversation",
                 on_click=RAGChatState.branch_conversation_from_message(message_id)
             ),
             rx.menu_item(
-                rx.icon("trash-2", margin_right="0.5rem"),
+                rx.icon("trash-2", size=16, margin_right="0.5rem"),
                 "Delete Message",
                 color="red.400",
                 on_click=RAGChatState.remove_message(message_id)
@@ -332,8 +328,8 @@ def enhanced_message_bubble(message: ChatMessage) -> rx.Component:
                 rx.hstack(
                     rx.cond(
                         is_user,
-                        rx.avatar(fallback="U", size="xs", color_scheme="blue"),
-                        rx.avatar(fallback="A", size="xs", color_scheme="gray")
+                        rx.avatar(fallback="U", size=12, color_scheme="blue"),
+                        rx.avatar(fallback="A", size=12, color_scheme="gray")
                     ),
                     rx.vstack(
                         rx.text(
@@ -379,7 +375,7 @@ def enhanced_message_bubble(message: ChatMessage) -> rx.Component:
                     align="center"
                 ),
                 
-                justify="space-between",
+                justify="between",
                 width="100%"
             ),
             
@@ -387,7 +383,7 @@ def enhanced_message_bubble(message: ChatMessage) -> rx.Component:
             rx.cond(
                 message.is_loading,
                 rx.hstack(
-                    rx.spinner(size="sm", color="blue.400"),
+                    rx.spinner(size=16, color="blue.400"),
                     rx.text("Processing...", color="gray.300", font_style="italic"),
                     align="center",
                     spacing="2"
@@ -445,13 +441,13 @@ def enhanced_message_bubble(message: ChatMessage) -> rx.Component:
             
             # Enhanced citations
             rx.cond(
-                RAGChatState.show_citations & (len(message.citations) > 0),
+                RAGChatState.show_citations & (message.citations.length() > 0),
                 rx.vstack(
                     rx.divider(border_color="gray.600", my="3"),
                     rx.hstack(
-                        rx.icon("quote", size="sm", color="purple.400"),
+                        rx.icon("quote", size=16, color="purple.400"),
                         rx.text(
-                            f"Sources ({len(message.citations)})",
+                            f"Sources ({message.citations.length()})",
                             font_size="sm",
                             font_weight="medium",
                             color="purple.300"
@@ -521,7 +517,7 @@ def conversation_export_modal() -> rx.Component:
                             color="gray.600"
                         ),
                         rx.text(
-                            f"Messages: {len(RAGChatState.messages)} | Tokens: {RAGChatState.conversation_metadata.total_tokens}",
+                            f"Messages: {RAGChatState.messages.length()} | Tokens: {RAGChatState.conversation_metadata.total_tokens}",
                             font_size="sm",
                             color="gray.600"
                         ),
@@ -538,7 +534,7 @@ def conversation_export_modal() -> rx.Component:
                             on_click=lambda: None  # Close modal logic would go here
                         ),
                         rx.button(
-                            rx.icon("download", margin_right="0.5rem"),
+                            rx.icon("download", size=16, margin_right="0.5rem"),
                             "Export",
                             color_scheme="blue",
                             on_click=lambda: rx.download(
@@ -551,7 +547,7 @@ def conversation_export_modal() -> rx.Component:
                 )
             )
         ),
-        size="md"
+        size="6"
     )
 
 
@@ -562,7 +558,7 @@ def citation_detail_modal() -> rx.Component:
             rx.modal_content(
                 rx.modal_header(
                     rx.hstack(
-                        rx.icon("book-open", color="blue.400"),
+                        rx.icon("book-open", size=16, color="blue.400"),
                         "Citation Details",
                         align="center",
                         spacing="2"
@@ -578,7 +574,7 @@ def citation_detail_modal() -> rx.Component:
                                     rx.stat_label("Source", color="gray.500"),
                                     rx.stat_number(
                                         RAGChatState.selected_citation["source"],
-                                        font_size="md",
+                                        font_size="6",
                                         color="blue.400"
                                     )
                                 ),
@@ -586,7 +582,7 @@ def citation_detail_modal() -> rx.Component:
                                     rx.stat_label("Relevance", color="gray.500"),
                                     rx.stat_number(
                                         f"{RAGChatState.selected_citation['relevance_score']:.1%}",
-                                        font_size="md",
+                                        font_size="6",
                                         color="green.400"
                                     )
                                 ),
@@ -596,7 +592,7 @@ def citation_detail_modal() -> rx.Component:
                                         rx.stat_label("Position", color="gray.500"),
                                         rx.stat_number(
                                             RAGChatState.selected_citation["position"],
-                                            font_size="md"
+                                            font_size="6"
                                         )
                                     )
                                 ),
@@ -655,7 +651,7 @@ def citation_detail_modal() -> rx.Component:
                 rx.modal_footer(
                     rx.hstack(
                         rx.button(
-                            rx.icon("copy", margin_right="0.5rem"),
+                            rx.icon("copy", size=16, margin_right="0.5rem"),
                             "Copy Text",
                             variant="outline",
                             on_click=lambda: rx.set_clipboard(
@@ -675,7 +671,7 @@ def citation_detail_modal() -> rx.Component:
             )
         ),
         is_open=RAGChatState.citation_modal_open,
-        size="xl"
+        size="9"
     )
 
 
@@ -694,7 +690,7 @@ def quick_actions_panel() -> rx.Component:
         ~RAGChatState.has_messages,
         rx.box(
             rx.vstack(
-                rx.heading("Explore Classical Philosophy", size="lg", color="white", mb="4"),
+                rx.heading("Explore Classical Philosophy", size="8", color="white", mb="4"),
                 rx.text(
                     "Select a question below or ask your own to begin exploring ancient wisdom:",
                     color="gray.400",
@@ -707,7 +703,7 @@ def quick_actions_panel() -> rx.Component:
                             question,
                             variant="outline",
                             color_scheme="blue",
-                            size="sm",
+                            size="2",
                             white_space="normal",
                             height="auto",
                             py="3",

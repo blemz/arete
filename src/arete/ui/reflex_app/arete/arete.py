@@ -1,10 +1,16 @@
 """Main Arete Reflex application."""
 
 import reflex as rx
-from .pages.home import home_page
-from .pages.chat import chat_page
-from .components.layout import base_layout, main_content_area
-from .state import NavigationState
+import sys
+from pathlib import Path
+
+# Add parent directory to path to enable imports
+sys.path.append(str(Path(__file__).parent.parent))
+
+from pages.index import index_page as home_page
+from pages.chat import chat_page
+from components.layout import base_layout, main_content_area
+from arete.state import NavigationState
 
 
 # Global styles for accessibility and theming
@@ -42,7 +48,7 @@ def library_page() -> rx.Component:
     """Library page placeholder."""
     return base_layout(
         rx.box(
-            rx.heading("Document Library", font_size="2xl", margin_bottom="6"),
+            rx.heading("Document Library", font_size="7", margin_bottom="6"),
             rx.text("Browse and search classical philosophical texts.", margin_bottom="4"),
             rx.text("Coming soon: Interactive document viewer with highlighting and annotations."),
             padding="6"
@@ -54,7 +60,7 @@ def analytics_page() -> rx.Component:
     """Analytics page placeholder.""" 
     return base_layout(
         rx.box(
-            rx.heading("Knowledge Graph Analytics", font_size="2xl", margin_bottom="6"),
+            rx.heading("Knowledge Graph Analytics", font_size="7", margin_bottom="6"),
             rx.text("Visualize relationships between philosophers, concepts, and texts.", margin_bottom="4"),
             rx.text("Coming soon: Interactive network graphs and centrality analysis."),
             padding="6"
@@ -66,7 +72,7 @@ def about_page() -> rx.Component:
     """About page placeholder."""
     return base_layout(
         rx.box(
-            rx.heading("About Arete", font_size="2xl", margin_bottom="6"),
+            rx.heading("About Arete", font_size="7", margin_bottom="6"),
             rx.text(
                 "Arete is a Graph-RAG AI tutoring system that combines ancient philosophical wisdom "
                 "with modern artificial intelligence to provide accurate, citation-backed education "

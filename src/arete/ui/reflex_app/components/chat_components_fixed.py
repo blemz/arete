@@ -1,0 +1,1 @@
+# This is a temporary file to help understand the structure - will be removed

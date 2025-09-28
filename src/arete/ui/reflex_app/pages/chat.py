@@ -2,7 +2,15 @@ import reflex as rx
 from typing import Dict, Any, Optional
 from urllib.parse import parse_qs
 
-from state.chat_state import RAGChatState, MessageType
+from state import ChatState as RAGChatState
+try:
+    from state.chat_state import MessageType
+except ImportError:
+    class MessageType:
+        USER = "user"
+        ASSISTANT = "assistant"
+        SYSTEM = "system"
+        ERROR = "error"
 from components.chat_components import (
     enhanced_message_bubble,
     enhanced_typing_indicator,
@@ -25,14 +33,14 @@ def enhanced_message_input() -> rx.Component:
                     rx.text("Try asking:", font_size="sm", color="gray.400"),
                     rx.button(
                         "What is virtue?",
-                        size="xs",
+                        size=12,
                         variant="ghost",
                         color_scheme="blue",
                         on_click=lambda: RAGChatState.set_input("What is virtue?")
                     ),
                     rx.button(
                         "Who was Socrates?",
-                        size="xs",
+                        size=12,
                         variant="ghost", 
                         color_scheme="blue",
                         on_click=lambda: RAGChatState.set_input("Who was Socrates?")
@@ -68,13 +76,13 @@ def enhanced_message_input() -> rx.Component:
                     rx.button(
                         rx.cond(
                             RAGChatState.is_processing,
-                            rx.spinner(size="sm"),
-                            rx.icon("send", size="sm")
+                            rx.spinner(size=16),
+                            rx.icon("send", size=16)
                         ),
                         on_click=RAGChatState.send_message,
                         disabled=RAGChatState.is_processing | (RAGChatState.current_input.strip() == ""),
                         color_scheme="blue",
-                        size="md",
+                        size="6",
                         height="50px",
                         min_width="50px"
                     ),
@@ -82,11 +90,11 @@ def enhanced_message_input() -> rx.Component:
                     rx.cond(
                         RAGChatState.can_regenerate & ~RAGChatState.is_processing,
                         rx.button(
-                            rx.icon("refresh-cw", size="sm"),
+                            rx.icon("refresh-cw", size=16),
                             on_click=RAGChatState.regenerate_last_response,
                             variant="outline",
                             color_scheme="gray",
-                            size="sm",
+                            size="2",
                             width="50px"
                         )
                     ),
@@ -131,9 +139,9 @@ def enhanced_chat_header() -> rx.Component:
             # Main header
             rx.hstack(
                 rx.hstack(
-                    rx.icon("brain", size="lg", color="blue.400"),
+                    rx.icon("brain", size=32, color="blue.400"),
                     rx.vstack(
-                        rx.heading("Arete", size="lg", color="white"),
+                        rx.heading("Arete", size="8", color="white"),
                         rx.text(
                             "Classical Philosophy Tutor",
                             font_size="sm",
@@ -154,12 +162,12 @@ def enhanced_chat_header() -> rx.Component:
                         rx.badge("Initializing...", color_scheme="yellow", variant="solid")
                     ),
                     rx.badge(
-                        f"{len(RAGChatState.messages)} msgs",
+                        f"{RAGChatState.messages.length()} msgs",
                         color_scheme="blue",
                         variant="outline"
                     ),
                     rx.cond(
-                        RAGChatState.conversation_stats["total_tokens"] > 0,
+                        RAGChatState.conversation_stats["total_tokens"],
                         rx.badge(
                             f"{RAGChatState.conversation_stats['total_tokens']} tokens",
                             color_scheme="purple",
@@ -172,30 +180,30 @@ def enhanced_chat_header() -> rx.Component:
                 # Action buttons
                 rx.hstack(
                     rx.button(
-                        rx.icon("search", size="sm"),
-                        size="sm",
+                        rx.icon("search", size=16),
+                        size="2",
                         variant="ghost",
                         color_scheme="gray",
-                        on_click=lambda: None  # Toggle search panel
+                        on_click=RAGChatState.toggle_search  # Toggle search panel
                     ),
                     rx.button(
-                        rx.icon("bar-chart", size="sm"),
-                        size="sm",
+                        rx.icon("bar-chart", size=16),
+                        size="2",
                         variant="ghost",
                         color_scheme="gray",
                         on_click=RAGChatState.toggle_retrieval_stats
                     ),
                     rx.button(
-                        rx.icon("eye" if RAGChatState.show_citations else "eye-off", size="sm"),
-                        size="sm",
+                        rx.icon("eye" if RAGChatState.show_citations else "eye-off", size=16),
+                        size="2",
                         variant="ghost",
                         color_scheme="gray",
                         on_click=RAGChatState.toggle_citations
                     ),
                     rx.menu(
                         rx.menu_button(
-                            rx.icon("more-vertical", size="sm"),
-                            size="sm",
+                            rx.icon("more-vertical", size=16),
+                            size="2",
                             variant="ghost",
                             color_scheme="gray"
                         ),
@@ -203,7 +211,7 @@ def enhanced_chat_header() -> rx.Component:
                             rx.menu_item(
                                 rx.icon("download", margin_right="0.5rem"),
                                 "Export Conversation",
-                                on_click=lambda: None  # Open export modal
+                                on_click=RAGChatState.open_export_modal  # Open export modal
                             ),
                             rx.menu_item(
                                 rx.icon("settings", margin_right="0.5rem"),
@@ -221,7 +229,7 @@ def enhanced_chat_header() -> rx.Component:
                     spacing="2"
                 ),
                 
-                justify="space-between",
+                justify="between",
                 align="center",
                 width="100%"
             ),
@@ -250,7 +258,7 @@ def enhanced_chat_header() -> rx.Component:
                         font_size="xs",
                         color="gray.500"
                     ),
-                    justify="space-between",
+                    justify="between",
                     width="100%",
                     mt="2"
                 )
@@ -318,47 +326,47 @@ def sidebar_panel() -> rx.Component:
             rx.box(
                 rx.vstack(
                     rx.hstack(
-                        rx.icon("message-square", size="sm", color="purple.400"),
+                        rx.icon("message-square", size=16, color="purple.400"),
                         rx.text("Conversations", font_weight="medium", color="white"),
-                        justify="flex-start",
+                        justify="start",
                         align="center",
                         spacing="2"
                     ),
                     
                     # Saved conversations list
-                    rx.vstack(
-                        *[
-                            rx.button(
-                                rx.hstack(
-                                    rx.text(
-                                        conv.title[:30] + "..." if len(conv.title) > 30 else conv.title,
-                                        font_size="sm",
-                                        text_align="left"
-                                    ),
-                                    rx.text(
-                                        f"{conv.message_count} msgs",
-                                        font_size="xs",
-                                        color="gray.500"
-                                    ),
-                                    justify="space-between",
-                                    width="100%"
+                    rx.foreach(
+                        RAGChatState.saved_conversations,
+                        lambda conv: rx.button(
+                            rx.hstack(
+                                rx.text(
+                                    conv.title,
+                                    font_size="sm",
+                                    text_align="left"
                                 ),
-                                variant="ghost",
-                                color_scheme="gray",
-                                width="100%",
-                                height="auto",
-                                py="2",
-                                on_click=RAGChatState.load_conversation(conv.id)
-                            )
-                            for conv in RAGChatState.saved_conversations[-10:]  # Last 10 conversations
-                        ],
-                        spacing="1",
-                        width="100%"
-                    ) if RAGChatState.saved_conversations else rx.text(
-                        "No saved conversations",
-                        font_size="sm",
-                        color="gray.500",
-                        text_align="center"
+                                rx.text(
+                                    f"{conv.message_count} msgs",
+                                    font_size="xs",
+                                    color="gray.500"
+                                ),
+                                justify="between",
+                                width="100%"
+                            ),
+                            variant="ghost",
+                            color_scheme="gray",
+                            width="100%",
+                            height="auto",
+                            py="2",
+                            on_click=RAGChatState.load_conversation(conv.id)
+                        )
+                    ),
+                    rx.cond(
+                        ~RAGChatState.saved_conversations,
+                        rx.text(
+                            "No saved conversations",
+                            font_size="sm",
+                            color="gray.500",
+                            text_align="center"
+                        )
                     ),
                     
                     spacing="3",
@@ -450,12 +458,12 @@ def chat_settings_page() -> rx.Component:
     """Chat settings and configuration page"""
     return rx.container(
         rx.vstack(
-            rx.heading("Chat Settings", size="xl", color="white"),
+            rx.heading("Chat Settings", size="9", color="white"),
             
             # RAG Configuration
             rx.box(
                 rx.vstack(
-                    rx.heading("RAG Configuration", size="lg", color="white"),
+                    rx.heading("RAG Configuration", size="8", color="white"),
                     
                     rx.hstack(
                         rx.text("Retrieval Limit:", color="gray.300"),
@@ -508,7 +516,7 @@ def chat_settings_page() -> rx.Component:
             # Display Settings
             rx.box(
                 rx.vstack(
-                    rx.heading("Display Settings", size="lg", color="white"),
+                    rx.heading("Display Settings", size="8", color="white"),
                     
                     rx.checkbox(
                         "Show Citations",

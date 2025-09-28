@@ -1,7 +1,7 @@
 """Accessibility components and keyboard navigation support."""
 
 import reflex as rx
-from ..state import NavigationState
+from arete.state import NavigationState
 
 
 def keyboard_shortcuts_modal() -> rx.Component:

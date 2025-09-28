@@ -2,7 +2,7 @@
 
 import reflex as rx
 from typing import Dict, Any, Optional, Literal
-from ...state.layout_state import LayoutState
+from state import LayoutState
 
 
 class SplitViewComponent(rx.Component):
@@ -139,7 +139,7 @@ class SplitViewComponent(rx.Component):
     
     def _render_chat_only(self) -> rx.Component:
         """Render chat interface in full-width mode."""
-        from ..chat.chat_interface import ChatInterface
+        from chat.chat_interface import ChatInterface
         
         return rx.box(
             ChatInterface(),
@@ -153,7 +153,7 @@ class SplitViewComponent(rx.Component):
     
     def _render_chat_split(self) -> rx.Component:
         """Render chat interface in split-view mode."""
-        from ..chat.chat_interface import ChatInterface
+        from chat.chat_interface import ChatInterface
         
         return rx.box(
             # Split-view chat header
@@ -195,7 +195,7 @@ class SplitViewComponent(rx.Component):
     
     def _render_document_only(self) -> rx.Component:
         """Render document viewer in full-width mode."""
-        from ..document.document_viewer import DocumentViewer
+        from document.document_viewer import DocumentViewer
         
         return rx.box(
             DocumentViewer(),
@@ -204,7 +204,7 @@ class SplitViewComponent(rx.Component):
     
     def _render_document_split(self) -> rx.Component:
         """Render document viewer in split-view mode."""
-        from ..document.document_viewer import DocumentViewer
+        from document.document_viewer import DocumentViewer
         
         return rx.box(
             # Split-view document header

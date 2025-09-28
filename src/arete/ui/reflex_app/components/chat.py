@@ -3,7 +3,7 @@ Chat interface component for the Arete Reflex application.
 """
 
 import reflex as rx
-from ..reflex_app import AreteState
+from reflex_app import AreteState
 
 
 def message_bubble(message: dict) -> rx.Component:
@@ -13,8 +13,8 @@ def message_bubble(message: dict) -> rx.Component:
     timestamp = message.get("timestamp", "")
     
     if is_user:
-        return rx.div(
-            rx.div(
+        return rx.box(
+            rx.box(
                 rx.text(content, class_name="text-primary-content"),
                 rx.text(timestamp, class_name="text-xs opacity-70 mt-1"),
                 class_name="chat-bubble chat-bubble-primary max-w-md"
@@ -22,8 +22,8 @@ def message_bubble(message: dict) -> rx.Component:
             class_name="chat chat-end mb-4"
         )
     else:
-        return rx.div(
-            rx.div(
+        return rx.box(
+            rx.box(
                 rx.markdown(content, class_name="text-base-content prose prose-sm max-w-none"),
                 rx.text(timestamp, class_name="text-xs opacity-70 mt-1"),
                 class_name="chat-bubble chat-bubble-secondary max-w-2xl"
@@ -34,8 +34,8 @@ def message_bubble(message: dict) -> rx.Component:
 
 def chat_input() -> rx.Component:
     """Chat input component with send button."""
-    return rx.div(
-        rx.div(
+    return rx.box(
+        rx.box(
             rx.input(
                 placeholder="Ask about virtue, justice, knowledge, or any philosophical concept...",
                 value=AreteState.user_query,
@@ -65,11 +65,11 @@ def chat_input() -> rx.Component:
 
 def chat_header() -> rx.Component:
     """Chat header with title and controls."""
-    return rx.div(
-        rx.div(
+    return rx.box(
+        rx.box(
             rx.heading(
                 "Philosophy Chat",
-                size="lg",
+                size="8",
                 font_weight="semibold",
                 color="base-content"
             ),
@@ -79,7 +79,7 @@ def chat_header() -> rx.Component:
             ),
             class_name="flex-1"
         ),
-        rx.div(
+        rx.box(
             rx.button(
                 "Clear Chat",
                 on_click=AreteState.clear_chat,
@@ -95,11 +95,11 @@ def chat_messages() -> rx.Component:
     """Chat messages display area with thinking indicator."""
     
     # Create thinking indicator component
-    thinking_indicator = rx.div(
-        rx.div(
-            rx.div(
+    thinking_indicator = rx.box(
+        rx.box(
+            rx.box(
                 rx.text("🏛️ Arete is thinking", class_name="text-base-content font-medium"),
-                rx.div(
+                rx.box(
                     rx.text("●", class_name="animate-pulse"),
                     rx.text("●", class_name="animate-pulse", style={"animation-delay": "0.2s"}),
                     rx.text("●", class_name="animate-pulse", style={"animation-delay": "0.4s"}),
@@ -112,10 +112,10 @@ def chat_messages() -> rx.Component:
         class_name="chat chat-start mb-4"
     )
     
-    return rx.div(
+    return rx.box(
         rx.cond(
             AreteState.chat_history.length() > 0,
-            rx.div(
+            rx.box(
                 rx.foreach(
                     AreteState.chat_history,
                     message_bubble
@@ -129,12 +129,12 @@ def chat_messages() -> rx.Component:
             ),
             rx.cond(
                 AreteState.is_loading,
-                rx.div(
+                rx.box(
                     thinking_indicator,
                     class_name="space-y-4"
                 ),
-                rx.div(
-                    rx.div(
+                rx.box(
+                    rx.box(
                         rx.text(
                             "🏛️",
                             font_size="3rem",
@@ -142,7 +142,7 @@ def chat_messages() -> rx.Component:
                         ),
                         rx.heading(
                             "Welcome to Arete",
-                            size="xl",
+                            size="9",
                             class_name="mb-2"
                         ),
                         rx.text(
@@ -150,7 +150,7 @@ def chat_messages() -> rx.Component:
                             "I can help you explore concepts from Plato, Aristotle, and other ancient thinkers.",
                             class_name="opacity-70 mb-4"
                         ),
-                        rx.div(
+                        rx.box(
                             rx.text("Try asking:", class_name="font-semibold mb-2"),
                             rx.ul(
                                 rx.li("What is virtue according to Plato?"),
@@ -173,7 +173,7 @@ def chat_messages() -> rx.Component:
 
 def chat_interface() -> rx.Component:
     """Complete chat interface component."""
-    return rx.div(
+    return rx.box(
         chat_header(),
         chat_messages(), 
         chat_input(),

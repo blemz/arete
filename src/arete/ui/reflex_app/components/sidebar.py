@@ -2,7 +2,7 @@
 
 import reflex as rx
 from typing import List, Dict
-from ..state import NavigationState, ChatState, DocumentState
+from arete.state import NavigationState, ChatState, DocumentState
 
 
 def recent_item(title: str, subtitle: str = None, icon: str = "file-text", on_click=None) -> rx.Component:

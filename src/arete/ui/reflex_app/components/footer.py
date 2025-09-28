@@ -1,7 +1,7 @@
 """Comprehensive footer component with project information and academic attribution."""
 
 import reflex as rx
-from ..state import NavigationState
+from arete.state import NavigationState
 
 
 def footer_link(text: str, href: str) -> rx.Component:

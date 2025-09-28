@@ -3,9 +3,9 @@ Index/Home page for the Arete Reflex application.
 """
 
 import reflex as rx
-from ..components.layout import base_layout
-from ..components.hero import hero_section
-from ..components.features import features_section
+from components.layout import base_layout
+from components.hero import hero_section
+from components.features import features_section
 
 
 def index_page() -> rx.Component:

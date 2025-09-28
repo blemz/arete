@@ -2,8 +2,8 @@
 
 import reflex as rx
 from typing import List, Dict, Optional, Any
-from ..state.document_state import DocumentState, Citation, DocumentMetadata
-from ..state.ui_state import UIState
+from state.document_state import DocumentState, Citation, DocumentMetadata
+from state import UIState
 
 
 def document_header(document: DocumentMetadata) -> rx.Component:
@@ -11,7 +11,7 @@ def document_header(document: DocumentMetadata) -> rx.Component:
     return rx.box(
         rx.hstack(
             rx.vstack(
-                rx.heading(document.title, size="lg", color="gray.900"),
+                rx.heading(document.title, size="8", color="gray.900"),
                 rx.text(f"By {document.author}", color="gray.600", font_weight="medium"),
                 rx.hstack(
                     rx.text(f"{document.word_count:,} words", color="gray.500", font_size="sm"),
@@ -186,7 +186,7 @@ def citation_modal() -> rx.Component:
             rx.modal_content(
                 rx.modal_header(
                     rx.hstack(
-                        rx.heading("Citation Details", size="md"),
+                        rx.heading("Citation Details", size="6"),
                         rx.spacer(),
                         rx.modal_close_button()
                     )
@@ -279,7 +279,7 @@ def document_content() -> rx.Component:
                 ),
                 margin_bottom="4",
                 line_height="1.7",
-                font_size="lg"
+                font_size="8"
             )
         ),
         padding="6",
@@ -323,7 +323,7 @@ def bookmark_panel() -> rx.Component:
                 rx.drawer_content(
                     rx.drawer_header(
                         rx.hstack(
-                            rx.heading("Bookmarks", size="md"),
+                            rx.heading("Bookmarks", size="6"),
                             rx.spacer(),
                             rx.drawer_close_button()
                         )
@@ -374,7 +374,7 @@ def bookmark_panel() -> rx.Component:
                         )
                     ),
                     placement="right",
-                    size="md"
+                    size="6"
                 )
             ),
             is_open=DocumentState.show_bookmarks,
@@ -467,7 +467,7 @@ def document_library() -> rx.Component:
     """Document library browser."""
     return rx.box(
         rx.vstack(
-            rx.heading("Classical Philosophical Texts", size="xl", margin_bottom="6"),
+            rx.heading("Classical Philosophical Texts", size="9", margin_bottom="6"),
             rx.input(
                 placeholder="Search library...",
                 value=DocumentState.library_search,
@@ -480,7 +480,7 @@ def document_library() -> rx.Component:
                     DocumentState.filtered_documents,
                     lambda doc: rx.box(
                         rx.vstack(
-                            rx.heading(doc.title, size="md", color="gray.800"),
+                            rx.heading(doc.title, size="6", color="gray.800"),
                             rx.text(f"by {doc.author}", color="gray.600", font_weight="medium"),
                             rx.text(doc.description, color="gray.500", font_size="sm"),
                             rx.hstack(

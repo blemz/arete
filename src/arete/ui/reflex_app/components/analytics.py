@@ -3,16 +3,16 @@ Analytics dashboard component for the Arete Reflex application.
 """
 
 import reflex as rx
-from ..reflex_app import AreteState
+# Avoid circular import - AreteState will be passed as needed
 
 
 def analytics_card(title: str, value: str, icon: str, description: str = "") -> rx.Component:
     """Analytics metric card component."""
-    return rx.div(
-        rx.div(
-            rx.div(
+    return rx.box(
+        rx.box(
+            rx.box(
                 rx.text(icon, font_size="2rem", class_name="mb-2"),
-                rx.div(
+                rx.box(
                     rx.text(value, font_size="2rem", font_weight="bold", color="primary"),
                     rx.text(title, font_size="0.875rem", class_name="opacity-70"),
                     class_name="text-left"
@@ -32,16 +32,16 @@ def analytics_card(title: str, value: str, icon: str, description: str = "") -> 
 
 def network_visualization() -> rx.Component:
     """Network visualization placeholder component."""
-    return rx.div(
-        rx.div(
+    return rx.box(
+        rx.box(
             rx.heading(
                 "Knowledge Graph Network",
-                size="md",
+                size="6",
                 font_weight="semibold", 
                 class_name="mb-4"
             ),
-            rx.div(
-                rx.div(
+            rx.box(
+                rx.box(
                     rx.text("🕸️", font_size="4rem", class_name="mb-4"),
                     rx.text(
                         "Interactive Network Visualization",
@@ -65,28 +65,28 @@ def network_visualization() -> rx.Component:
 
 def concept_analysis() -> rx.Component:
     """Concept analysis component.""" 
-    return rx.div(
-        rx.div(
+    return rx.box(
+        rx.box(
             rx.heading(
                 "Concept Analysis",
-                size="md",
+                size="6",
                 font_weight="semibold",
                 class_name="mb-4"
             ),
-            rx.div(
-                rx.div(
+            rx.box(
+                rx.box(
                     rx.text("🎯", font_weight="semibold", class_name="mb-2"),
                     rx.text("Virtue (ἀρετή)", class_name="font-medium mb-1"),
                     rx.text("Centrality: 0.85", class_name="text-sm opacity-70"),
                     class_name="p-4 bg-base-200 rounded-lg mb-3"
                 ),
-                rx.div(
+                rx.box(
                     rx.text("⚖️", font_weight="semibold", class_name="mb-2"),
                     rx.text("Justice (δικαιοσύνη)", class_name="font-medium mb-1"),
                     rx.text("Centrality: 0.78", class_name="text-sm opacity-70"),
                     class_name="p-4 bg-base-200 rounded-lg mb-3"
                 ),
-                rx.div(
+                rx.box(
                     rx.text("🧠", font_weight="semibold", class_name="mb-2"),
                     rx.text("Knowledge (ἐπιστήμη)", class_name="font-medium mb-1"),
                     rx.text("Centrality: 0.72", class_name="text-sm opacity-70"),
@@ -102,29 +102,29 @@ def concept_analysis() -> rx.Component:
 
 def historical_timeline() -> rx.Component:
     """Historical development timeline component."""
-    return rx.div(
-        rx.div(
+    return rx.box(
+        rx.box(
             rx.heading(
                 "Historical Development",
-                size="md",
+                size="6",
                 font_weight="semibold",
                 class_name="mb-4"
             ),
-            rx.div(
-                rx.div(
-                    rx.div(
+            rx.box(
+                rx.box(
+                    rx.box(
                         rx.text("470 BCE", font_weight="bold", class_name="text-primary mb-1"),
                         rx.text("Birth of Socrates", font_weight="medium", class_name="mb-1"),
                         rx.text("Beginning of systematic philosophical inquiry", class_name="text-sm opacity-70"),
                         class_name="pb-4 border-b border-base-300"
                     ),
-                    rx.div(
+                    rx.box(
                         rx.text("428 BCE", font_weight="bold", class_name="text-primary mb-1"),
                         rx.text("Birth of Plato", font_weight="medium", class_name="mb-1"), 
                         rx.text("Development of idealist philosophy", class_name="text-sm opacity-70"),
                         class_name="py-4 border-b border-base-300"
                     ),
-                    rx.div(
+                    rx.box(
                         rx.text("384 BCE", font_weight="bold", class_name="text-primary mb-1"),
                         rx.text("Birth of Aristotle", font_weight="medium", class_name="mb-1"),
                         rx.text("Systematic classification of knowledge", class_name="text-sm opacity-70"),
@@ -142,16 +142,16 @@ def historical_timeline() -> rx.Component:
 
 def analytics_dashboard() -> rx.Component:
     """Complete analytics dashboard component."""
-    return rx.div(
+    return rx.box(
         rx.heading(
             "Analytics Dashboard",
-            size="xl",
+            size="9",
             font_weight="bold",
             class_name="mb-8"
         ),
         
         # Metrics row
-        rx.div(
+        rx.box(
             analytics_card("Documents", "2", "📚", "Classical texts ingested"),
             analytics_card("Entities", "83", "🏷️", "Philosophical concepts tracked"),
             analytics_card("Relationships", "109", "🔗", "Concept connections mapped"),
@@ -160,13 +160,13 @@ def analytics_dashboard() -> rx.Component:
         ),
         
         # Visualizations row  
-        rx.div(
+        rx.box(
             network_visualization(),
             class_name="mb-8"
         ),
         
         # Analysis row
-        rx.div(
+        rx.box(
             concept_analysis(),
             historical_timeline(),
             class_name="grid grid-cols-1 lg:grid-cols-2 gap-6"

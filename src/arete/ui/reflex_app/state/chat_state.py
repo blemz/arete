@@ -6,18 +6,14 @@ import json
 import logging
 from uuid import uuid4
 
-# Import existing RAG services
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-from arete.services.llm_service import LLMService, LLMServiceFactory
-from arete.services.retrieval_service import RetrievalService
-from arete.services.embedding_service import get_embedding_service
-from arete.database.weaviate_client import WeaviateClient
-from arete.database.neo4j_client import Neo4jClient
-from arete.core.config import get_settings
-from arete.models.chat_models import Message, ConversationHistory, Citation
+# Use local services from reflex_app
+try:
+    from services.rag_service import RAGService
+    from services.chat_service import ChatService
+except ImportError:
+    # Fallback if services not available
+    RAGService = None
+    ChatService = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -67,10 +63,10 @@ class RAGChatState(rx.State):
     
     # RAG service instances - lazy loaded
     _services_initialized: bool = False
-    _retrieval_service: Optional[RetrievalService] = None
-    _llm_service: Optional[LLMService] = None
-    _weaviate_client: Optional[WeaviateClient] = None
-    _neo4j_client: Optional[Neo4jClient] = None
+    _retrieval_service: Optional[Any] = None
+    _llm_service: Optional[Any] = None
+    _weaviate_client: Optional[Any] = None
+    _neo4j_client: Optional[Any] = None
     
     # UI state management
     show_citations: bool = True

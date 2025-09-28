@@ -2,7 +2,7 @@
 
 import reflex as rx
 from typing import List, Dict
-from ..state import NavigationState
+from arete.state import NavigationState
 
 
 def nav_link(text: str, href: str, icon: str = None) -> rx.Component:
@@ -72,7 +72,7 @@ def user_profile_dropdown() -> rx.Component:
     """User profile dropdown menu (simplified for compatibility)."""
     return rx.button(
         rx.flex(
-            rx.text("👤", font_size="lg"),
+            rx.text("👤", font_size="8"),
             rx.text(NavigationState.user_name, font_weight="medium"),
             align_items="center",
             gap="2"
@@ -136,7 +136,7 @@ def navigation_bar() -> rx.Component:
                         rx.icon("graduation-cap", size=24, color=rx.color("accent", 11)),
                         rx.text(
                             "Arete",
-                            font_size="xl",
+                            font_size="9",
                             font_weight="bold",
                             color=rx.color("accent", 11)
                         ),
