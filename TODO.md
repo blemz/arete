@@ -17,26 +17,31 @@ Successfully demonstrated complete RAG functionality with:
 
 ### IMMEDIATE HIGH Priority 🚨
 
-#### **8.0 UI Enhancement Implementation - IN PROGRESS**
-- [ ] **State System Integration** - Connect enhanced ChatState to main arete.py interface
-  - [ ] Update arete.py to use ChatState instead of local state management
-  - [ ] Migrate chat interface to use components/chat.py instead of inline components
-  - [ ] Remove duplicate state management systems
-- [ ] **Thinking Indicator Implementation**
-  - [ ] Integrate "🏛️ Arete is thinking..." animated dots during processing
-  - [ ] Connect loading state to proper state management
-  - [ ] Test indicator timing with RAG response processing
-- [ ] **Response Formatting Enhancement**
-  - [ ] Implement structured markdown responses with sections
-  - [ ] Add headers: "🏛️ Arete Response", "Summary", "Key terms", "Citations"
-  - [ ] Integrate ResponseParser for content structure
-  - [ ] Test formatted responses in live interface
+#### **8.0 UI Enhancement Implementation - PAUSED**
+*Original complex Reflex app has too many structural issues. Switching to clean template approach.*
+
+#### **8.0-NEW Reflex Chat Template Integration - IN PROGRESS**
+- [x] **Template Setup** - Clone and test working Reflex chat template
+  - [x] Clone reflex-chat template from GitHub
+  - [x] Install dependencies and initialize template
+  - [x] Verify clean compilation (100% success vs broken original)
+  - [x] Confirm app runs without errors at `new_ui/arete_chat/`
+- [ ] **RAG Pipeline Integration** - Replace OpenAI calls with Arete RAG
+  - [ ] Modify `chat/state.py` to call `chat_rag_clean.py` instead of OpenAI directly
+  - [ ] Integrate full Neo4j + Weaviate + configurable LLM pipeline via .env
+  - [ ] Configure proper paths to access existing RAG infrastructure
+  - [ ] Test philosophical responses with citations in new interface
+- [ ] **Arete-specific Customization**
+  - [ ] Update branding and styling for Arete philosophy theme
+  - [ ] Add "🏛️ Arete is thinking..." indicator during RAG processing
+  - [ ] Implement structured response formatting with citations
+  - [ ] Add document viewer integration for classical texts
 
 **Technical Details**:
-- Modified components in: `src/arete/ui/reflex_app/components/chat.py`
-- Enhanced state in: `src/arete/ui/reflex_app/state/chat_state.py`
-- Main integration needed in: `src/arete/ui/reflex_app/arete/arete.py` (lines 244-300)
-- Expected result: Proper UI with thinking animation and structured responses
+- **New Clean Foundation**: `new_ui/arete_chat/` - Working Reflex chat template
+- **Key Integration Point**: `chat/state.py` - Replace OpenAI with Arete RAG
+- **Configuration**: Use existing `.env` for Neo4j, Weaviate, LLM providers
+- **Expected Result**: Professional chat interface with full RAG functionality
 
 ### High Priority 🔥
 
