@@ -9,7 +9,7 @@ import reflex as rx
 from typing import List
 
 # Import pages (will be created)
-from .pages import index_page, chat_page, document_page, analytics_page
+from pages import index_page, chat_page, document_page, analytics_page
 
 class AreteState(rx.State):
     """Global state for the Arete application."""

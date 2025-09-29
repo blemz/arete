@@ -7,9 +7,9 @@ import reflex as rx
 
 def hero_section() -> rx.Component:
     """Hero section with main value proposition."""
-    return rx.div(
-        rx.div(
-            rx.div(
+    return rx.box(
+        rx.box(
+            rx.box(
                 rx.text(
                     "🏛️",
                     font_size="4rem",
@@ -17,7 +17,7 @@ def hero_section() -> rx.Component:
                 ),
                 rx.heading(
                     "Arete AI Philosophy Tutor",
-                    size="3xl",
+                    size="9",
                     font_weight="bold",
                     color="primary",
                     class_name="mb-4"

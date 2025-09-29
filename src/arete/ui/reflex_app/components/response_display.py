@@ -17,14 +17,14 @@ def direct_answer_card(content: str) -> rx.Component:
     return rx.box(
         rx.vstack(
             rx.hstack(
-                rx.text("💡", font_size="xl", opacity="0.8"),
+                rx.text("💡", font_size="9", opacity="0.8"),
                 rx.heading("Direct Answer", size="5", color="blue.700", font_weight="600"),
                 spacing="3",
                 align="center"
             ),
             rx.text(
                 content,
-                font_size="lg",
+                font_size="8",
                 line_height="1.7",
                 color="gray.800",
                 font_weight="400",
@@ -52,14 +52,14 @@ def detailed_explanation_card(content: str) -> rx.Component:
     return rx.box(
         rx.vstack(
             rx.hstack(
-                rx.text("📚", font_size="xl", opacity="0.8"),
+                rx.text("📚", font_size="9", opacity="0.8"),
                 rx.heading("Detailed Explanation", size="5", color="green.700", font_weight="600"),
                 spacing="3",
                 align="center"
             ),
             rx.text(
                 content,
-                font_size="md",
+                font_size="6",
                 line_height="1.8",
                 color="gray.800",
                 white_space="pre-wrap",
@@ -88,14 +88,14 @@ def broader_connections_card(content: str) -> rx.Component:
     return rx.box(
         rx.vstack(
             rx.hstack(
-                rx.text("🌐", font_size="xl", opacity="0.8"),
+                rx.text("🌐", font_size="9", opacity="0.8"),
                 rx.heading("Broader Connections", size="5", color="purple.700", font_weight="600"),
                 spacing="3",
                 align="center"
             ),
             rx.text(
                 content,
-                font_size="md",
+                font_size="6",
                 line_height="1.7",
                 color="gray.800",
                 white_space="pre-wrap",
@@ -127,7 +127,7 @@ def references_card(content: str) -> rx.Component:
     return rx.box(
         rx.vstack(
             rx.hstack(
-                rx.text("📖", font_size="xl", opacity="0.8"),
+                rx.text("📖", font_size="9", opacity="0.8"),
                 rx.heading("References", size="5", color="orange.700", font_weight="600"),
                 spacing="3",
                 align="center"
@@ -204,14 +204,14 @@ def formatted_response(response_text: str) -> rx.Component:
     return rx.box(
         rx.vstack(
             rx.hstack(
-                rx.text("🏛️", font_size="xl", opacity="0.8"),
+                rx.text("🏛️", font_size="9", opacity="0.8"),
                 rx.heading("Arete Response", size="5", color="gray.700", font_weight="600"),
                 spacing="3",
                 align="center"
             ),
             rx.text(
                 response_text,
-                font_size="md",
+                font_size="6",
                 line_height="1.7",
                 color="gray.800",
                 white_space="pre-wrap",
@@ -240,10 +240,10 @@ def simple_message(message: str, is_user: bool = False) -> rx.Component:
         # User message
         rx.box(
             rx.hstack(
-                rx.text("👤", font_size="lg", opacity="0.7"),
+                rx.text("👤", font_size="8", opacity="0.7"),
                 rx.text(
                     message,
-                    font_size="md",
+                    font_size="6",
                     line_height="1.6",
                     color="blue.900",
                     font_weight="400",
@@ -267,7 +267,7 @@ def simple_message(message: str, is_user: bool = False) -> rx.Component:
         rx.box(
             rx.text(
                 message,
-                font_size="md",
+                font_size="6",
                 line_height="1.6",
                 color="gray.800",
                 font_weight="400",
@@ -290,7 +290,7 @@ def thinking_animation() -> rx.Component:
     return rx.box(
         rx.vstack(
             rx.hstack(
-                rx.text("🏛️", font_size="xl", opacity="0.8"),
+                rx.text("🏛️", font_size="9", opacity="0.8"),
                 rx.heading("Arete is thinking...", size="5", color="gray.600", font_weight="500"),
                 spacing="3",
                 align="center"

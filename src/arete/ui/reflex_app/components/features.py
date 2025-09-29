@@ -7,8 +7,8 @@ import reflex as rx
 
 def feature_card(icon: str, title: str, description: str) -> rx.Component:
     """Individual feature card component."""
-    return rx.div(
-        rx.div(
+    return rx.box(
+        rx.box(
             rx.text(
                 icon,
                 font_size="3rem",
@@ -16,7 +16,7 @@ def feature_card(icon: str, title: str, description: str) -> rx.Component:
             ),
             rx.heading(
                 title,
-                size="lg", 
+                size="8", 
                 font_weight="semibold",
                 color="primary",
                 class_name="mb-3"
@@ -34,11 +34,11 @@ def feature_card(icon: str, title: str, description: str) -> rx.Component:
 
 def features_section() -> rx.Component:
     """Features section highlighting key capabilities."""
-    return rx.div(
-        rx.div(
+    return rx.box(
+        rx.box(
             rx.heading(
                 "Powered by Advanced AI Technology",
-                size="2xl",
+                size="7",
                 font_weight="bold",
                 color="base-content",
                 class_name="text-center mb-4"
@@ -50,7 +50,7 @@ def features_section() -> rx.Component:
                 color="base-content", 
                 class_name="text-center mb-12 opacity-70 max-w-3xl mx-auto"
             ),
-            rx.div(
+            rx.box(
                 feature_card(
                     "🧠",
                     "Graph-RAG Technology",
