@@ -79,6 +79,7 @@ data/tei_xml/*.xml
 logs/
 *.log
 src/arete/ui/reflex_app/node_modules/
+.playwright-mcp/
 
 # Model files
 models/

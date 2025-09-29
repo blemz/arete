@@ -382,20 +382,16 @@ def chat() -> rx.Component:
                                         justify_content="flex-end",
                                         margin_bottom="1rem"
                                     ),
-                                    # Assistant message with enhanced markdown rendering (left aligned)
+                                    # Assistant message with full width
                                     rx.box(
-                                        rx.box(
-                                            rx.markdown(msg["content"]),
-                                            rx.text(msg["timestamp"], font_size="xs", color="gray.500", margin_top="0.25rem"),
-                                            bg="gray.50",
-                                            p="3",
-                                            border_radius="lg",
-                                            border="1px solid",
-                                            border_color="gray.200",
-                                            max_width="600px"
-                                        ),
-                                        display="flex",
-                                        justify_content="flex-start",
+                                        rx.markdown(msg["content"]),
+                                        rx.text(msg["timestamp"], font_size="xs", color="gray.500", margin_top="0.25rem"),
+                                        bg="gray.50",
+                                        p="3",
+                                        border_radius="lg",
+                                        border="1px solid",
+                                        border_color="gray.200",
+                                        width="100%",  # Use full width instead of max_width
                                         margin_bottom="1rem"
                                     )
                                 )
