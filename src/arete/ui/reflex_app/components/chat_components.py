@@ -334,7 +334,7 @@ def enhanced_message_bubble(message: ChatMessage) -> rx.Component:
                             color="white"
                         ),
                         rx.text(
-                            message.timestamp.strftime("%H:%M:%S"),
+                            message.timestamp,
                             font_size="xs",
                             color="gray.300"
                         ),

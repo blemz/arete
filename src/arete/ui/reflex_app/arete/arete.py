@@ -8,7 +8,6 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from pages.index import index_page as home_page
-from pages.chat import chat_page
 from components.layout import base_layout, main_content_area
 from arete.state import NavigationState
 
@@ -100,7 +99,7 @@ app = rx.App(
 
 # Add routes
 app.add_page(home_page, route="/", title="Arete - AI Philosophy Tutor")
-app.add_page(chat_page, route="/chat", title="Chat - Arete") 
+ 
 app.add_page(library_page, route="/library", title="Library - Arete")
 app.add_page(analytics_page, route="/analytics", title="Analytics - Arete")
 app.add_page(about_page, route="/about", title="About - Arete")
