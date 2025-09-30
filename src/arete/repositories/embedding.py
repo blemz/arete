@@ -8,7 +8,7 @@ following the established repository pattern with dual persistence architecture.
 import logging
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable
 from uuid import UUID
 
 from arete.config import Settings, get_settings
@@ -186,7 +186,7 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
         batch_size: int | None = None,
         use_vectorizable_text: bool = True,
         store_immediately: bool = True,
-        progress_callback: callable | None = None,
+        progress_callback: Callable | None = None,
     ) -> list[Chunk]:
         """
         Generate embeddings for multiple chunks efficiently.
