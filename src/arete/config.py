@@ -1,9 +1,8 @@
 """
 Configuration management for Arete Graph-RAG system.
 """
-import logging
 from functools import lru_cache
-from typing import Literal, Tuple
+from typing import Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -11,14 +10,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     """Application settings with environment variable support."""
-    
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore"
     )
-    
+
     # Database Configuration
     neo4j_uri: str = Field(
         default="bolt://localhost:7687",
@@ -33,19 +32,19 @@ class Settings(BaseSettings):
         description="Neo4j password",
         repr=False  # Don't show in repr for security
     )
-    
+
     # Weaviate Configuration
     weaviate_url: str = Field(
         default="http://localhost:8080",
         description="Weaviate server URL"
     )
-    
+
     # Ollama Configuration
     ollama_base_url: str = Field(
         default="http://localhost:11434",
         description="Ollama server base URL"
     )
-    
+
     # Embedding Configuration
     embedding_provider: str = Field(
         default="sentence-transformers",
@@ -75,7 +74,7 @@ class Settings(BaseSettings):
         le=10000,
         description="Number of embeddings to cache in memory"
     )
-    
+
     # Logging Configuration
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
         default="INFO",
@@ -85,7 +84,7 @@ class Settings(BaseSettings):
         default=False,
         description="Enable debug mode"
     )
-    
+
     # RAG Configuration
     max_context_tokens: int = Field(
         default=5000,
@@ -105,7 +104,7 @@ class Settings(BaseSettings):
         le=1000,
         description="Overlap between text chunks"
     )
-    
+
     # Retrieval Configuration
     max_retrievals: int = Field(
         default=10,
@@ -119,7 +118,7 @@ class Settings(BaseSettings):
         le=1.0,
         description="Minimum similarity threshold for retrieval"
     )
-    
+
     # Performance Configuration
     batch_size: int = Field(
         default=32,
@@ -133,7 +132,7 @@ class Settings(BaseSettings):
         le=16,
         description="Maximum number of worker threads"
     )
-    
+
     # LLM Provider Configuration
     ollama_api_key: str = Field(
         default="",
@@ -160,7 +159,7 @@ class Settings(BaseSettings):
         description="OpenAI API key for GPT models",
         repr=False
     )
-    
+
     # LLM Provider Settings
     default_llm_provider: str = Field(
         default="ollama",
@@ -174,7 +173,7 @@ class Settings(BaseSettings):
         default="",
         description="Currently selected LLM model (overrides provider default if set)"
     )
-    
+
     # Knowledge Graph Extraction LLM Settings
     kg_llm_provider: str = Field(
         default="",
@@ -184,7 +183,7 @@ class Settings(BaseSettings):
         default="",
         description="LLM model for knowledge graph extraction (uses more powerful models)"
     )
-    
+
     llm_max_tokens: int = Field(
         default=4000,
         ge=100,
@@ -209,7 +208,7 @@ class Settings(BaseSettings):
         le=10,
         description="Number of retry attempts for failed LLM requests"
     )
-    
+
     # Security Configuration
     api_key_header: str = Field(
         default="X-API-Key",
@@ -219,7 +218,7 @@ class Settings(BaseSettings):
         default=["http://localhost:8501", "http://localhost:3000"],
         description="CORS allowed origins"
     )
-    
+
     @field_validator("chunk_overlap")
     @classmethod
     def validate_chunk_overlap(cls, v, info):
@@ -229,7 +228,7 @@ class Settings(BaseSettings):
         if v >= 1000:  # Default chunk_size
             raise ValueError("chunk_overlap must be smaller than chunk_size")
         return v
-    
+
     @field_validator("embedding_provider")
     @classmethod
     def validate_embedding_provider(cls, v: str) -> str:
@@ -238,7 +237,7 @@ class Settings(BaseSettings):
         if v.lower() not in valid_providers:
             raise ValueError(f"embedding_provider must be one of: {valid_providers}")
         return v.lower()
-    
+
     @field_validator("embedding_device")
     @classmethod
     def validate_embedding_device(cls, v: str) -> str:
@@ -247,7 +246,7 @@ class Settings(BaseSettings):
         if v.lower() not in valid_devices:
             raise ValueError(f"embedding_device must be one of: {valid_devices}")
         return v.lower()
-    
+
     @field_validator("default_llm_provider")
     @classmethod
     def validate_default_llm_provider(cls, v: str) -> str:
@@ -256,12 +255,12 @@ class Settings(BaseSettings):
         if v.lower() not in valid_providers:
             raise ValueError(f"default_llm_provider must be one of: {valid_providers}")
         return v.lower()
-    
+
     @property
-    def neo4j_auth(self) -> Tuple[str, str]:
+    def neo4j_auth(self) -> tuple[str, str]:
         """Return Neo4j authentication tuple."""
         return (self.neo4j_username, self.neo4j_password)
-    
+
     @property
     def logging_config(self) -> dict:
         """Return logging configuration dict."""
@@ -271,7 +270,7 @@ class Settings(BaseSettings):
             "backtrace": self.debug,
             "diagnose": self.debug,
         }
-    
+
     @property
     def embedding_config(self) -> dict:
         """Return embedding configuration dict."""
@@ -282,17 +281,17 @@ class Settings(BaseSettings):
             "normalize": self.embedding_normalize,
             "cache_size": self.embedding_cache_size
         }
-    
+
     @property
     def active_llm_provider(self) -> str:
         """Get the currently active LLM provider."""
         return self.selected_llm_provider or self.default_llm_provider
-    
-    @property 
+
+    @property
     def active_llm_model(self) -> str:
         """Get the currently active LLM model."""
         return self.selected_llm_model
-    
+
     @property
     def llm_config(self) -> dict:
         """Return LLM configuration dict."""
@@ -316,7 +315,7 @@ class Settings(BaseSettings):
         }
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
     return Settings()
@@ -324,14 +323,15 @@ def get_settings() -> Settings:
 
 def setup_logging() -> None:
     """Setup logging configuration."""
-    from loguru import logger
     import sys
-    
+
+    from loguru import logger
+
     settings = get_settings()
-    
+
     # Remove default logger
     logger.remove()
-    
+
     # Add console handler
     logger.add(
         sys.stdout,
@@ -340,7 +340,7 @@ def setup_logging() -> None:
         backtrace=settings.logging_config["backtrace"],
         diagnose=settings.logging_config["diagnose"],
     )
-    
+
     # Add file handler if not in debug mode
     if not settings.debug:
         logger.add(

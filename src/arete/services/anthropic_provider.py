@@ -6,24 +6,24 @@ Claude 3 Haiku, Sonnet, and Opus models with advanced reasoning capabilities
 and educational content generation.
 """
 
-import asyncio
-import logging
-from typing import List, Dict, Any, Optional, Union
+import contextlib
 import json
+import logging
+from typing import Any
 
 import httpx
 
+from arete.config import Settings
 from arete.services.llm_provider import (
-    LLMProvider,
+    AuthenticationError,
     LLMMessage,
+    LLMProvider,
+    LLMProviderError,
     LLMResponse,
     MessageRole,
-    LLMProviderError,
     ProviderUnavailableError,
     RateLimitError,
-    AuthenticationError,
 )
-from arete.config import Settings
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -115,7 +115,7 @@ class AnthropicProvider(LLMProvider):
         return self._initialized
 
     @property
-    def supported_models(self) -> List[str]:
+    def supported_models(self) -> list[str]:
         """Get list of supported models."""
         return self._available_models.copy()
 
@@ -134,10 +134,10 @@ class AnthropicProvider(LLMProvider):
 
     async def generate_response(
         self,
-        messages: List[LLMMessage],
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        messages: list[LLMMessage],
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         stream: bool = False,
         **kwargs,
     ) -> LLMResponse:
@@ -191,7 +191,7 @@ class AnthropicProvider(LLMProvider):
 
     async def _generate_standard(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         model: str,
         max_tokens: int,
         temperature: float,
@@ -235,7 +235,7 @@ class AnthropicProvider(LLMProvider):
 
     async def _generate_streaming(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         model: str,
         max_tokens: int,
         temperature: float,
@@ -267,7 +267,7 @@ class AnthropicProvider(LLMProvider):
                     if line.strip():
                         # Parse server-sent events format
                         if line.startswith("event: "):
-                            event_type = line[7:]  # Remove "event: " prefix
+                            line[7:]  # Remove "event: " prefix
                         elif line.startswith("data: "):
                             data_str = line[6:]  # Remove "data: " prefix
 
@@ -330,10 +330,9 @@ class AnthropicProvider(LLMProvider):
             error_data = response.json()
             error = error_data.get("error", {})
             error_message = error.get("message", "Unknown error")
-            error_type = error.get("type", "unknown_error")
+            error.get("type", "unknown_error")
         except:
             error_message = response.text or f"HTTP {response.status_code}"
-            error_type = "unknown_error"
 
         if response.status_code == 401:
             raise AuthenticationError(
@@ -343,10 +342,8 @@ class AnthropicProvider(LLMProvider):
         elif response.status_code == 429:
             retry_after = None
             if "retry-after" in response.headers:
-                try:
+                with contextlib.suppress(ValueError):
                     retry_after = int(response.headers["retry-after"])
-                except ValueError:
-                    pass
 
             raise RateLimitError(
                 f"Anthropic API rate limit exceeded: {error_message}",
@@ -364,13 +361,13 @@ class AnthropicProvider(LLMProvider):
 
     def _build_request_params(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         model: str,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         stream: bool = False,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Build request parameters for Anthropic API."""
         formatted = self._format_messages(messages)
 
@@ -397,7 +394,7 @@ class AnthropicProvider(LLMProvider):
 
         return params
 
-    def _format_messages(self, messages: List[LLMMessage]) -> Dict[str, Any]:
+    def _format_messages(self, messages: list[LLMMessage]) -> dict[str, Any]:
         """Format messages for Anthropic API."""
         system_message = None
         conversation_messages = []
@@ -418,8 +415,8 @@ class AnthropicProvider(LLMProvider):
         return {"system": system_message, "messages": conversation_messages}
 
     def _extract_content_from_response(
-        self, response_data: Dict[str, Any]
-    ) -> tuple[str, Optional[int], Optional[str]]:
+        self, response_data: dict[str, Any]
+    ) -> tuple[str, int | None, str | None]:
         """Extract content, tokens, and finish reason from Anthropic response."""
         content = ""
         tokens = None
@@ -447,7 +444,7 @@ class AnthropicProvider(LLMProvider):
 
         return content, tokens, finish_reason
 
-    def _map_stop_reason(self, stop_reason: Optional[str]) -> str:
+    def _map_stop_reason(self, stop_reason: str | None) -> str:
         """Map Anthropic stop reasons to standard format."""
         if not stop_reason:
             return "stop"
@@ -456,7 +453,7 @@ class AnthropicProvider(LLMProvider):
 
         return mapping.get(stop_reason, stop_reason)
 
-    def _get_default_model(self, available_models: List[str]) -> str:
+    def _get_default_model(self, available_models: list[str]) -> str:
         """Get default model to use."""
         if not available_models:
             return self._default_model
@@ -476,7 +473,7 @@ class AnthropicProvider(LLMProvider):
         # Return first available model
         return available_models[0]
 
-    def _get_headers(self) -> Dict[str, str]:
+    def _get_headers(self) -> dict[str, str]:
         """Get HTTP headers for API requests."""
         return {
             "x-api-key": self.api_key,
@@ -484,13 +481,13 @@ class AnthropicProvider(LLMProvider):
             "anthropic-version": "2023-06-01",
         }
 
-    def get_model_info(self, model_id: str) -> Optional[Dict[str, Any]]:
+    def get_model_info(self, model_id: str) -> dict[str, Any] | None:
         """Get detailed information about a specific model."""
         return self._model_info.get(model_id)
 
     def estimate_cost(
         self, model_id: str, input_tokens: int, output_tokens: int
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Estimate cost for a request."""
         model_info = self._model_info.get(model_id, {})
 
@@ -508,7 +505,7 @@ class AnthropicProvider(LLMProvider):
             "currency": "USD",
         }
 
-    def get_health_status(self) -> Dict[str, Any]:
+    def get_health_status(self) -> dict[str, Any]:
         """Get provider health status and diagnostics."""
         if not self._initialized:
             return {
@@ -541,7 +538,7 @@ class AnthropicProvider(LLMProvider):
 
 
 # Factory function for easy Anthropic provider creation
-def create_anthropic_provider(settings: Optional[Settings] = None) -> AnthropicProvider:
+def create_anthropic_provider(settings: Settings | None = None) -> AnthropicProvider:
     """
     Create and initialize an Anthropic provider.
 

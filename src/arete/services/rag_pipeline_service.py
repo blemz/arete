@@ -14,25 +14,26 @@ Provides end-to-end philosophical tutoring capabilities.
 
 import logging
 import time
-from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 from arete.config import Settings, get_settings
-from arete.services.dense_retrieval_service import DenseRetrievalService, SearchResult
-from arete.services.sparse_retrieval_service import SparseRetrievalService
-from arete.services.graph_traversal_service import GraphTraversalService
-from arete.services.reranking_service import RerankingService
-from arete.services.diversity_service import DiversityService
+from arete.repositories.retrieval import RetrievalRepository
 from arete.services.context_composition_service import (
     ContextCompositionService,
     ContextResult,
 )
+from arete.services.dense_retrieval_service import DenseRetrievalService, SearchResult
+from arete.services.diversity_service import DiversityService
+from arete.services.graph_traversal_service import GraphTraversalService
+from arete.services.reranking_service import RerankingService
 from arete.services.response_generation_service import (
     ResponseGenerationService,
     ResponseResult,
 )
-from arete.repositories.retrieval import RetrievalRepository
+from arete.services.sparse_retrieval_service import SparseRetrievalService
+
 from .base import ServiceError
 
 logger = logging.getLogger(__name__)
@@ -41,7 +42,6 @@ logger = logging.getLogger(__name__)
 class RAGPipelineError(ServiceError):
     """Base exception for RAG pipeline errors."""
 
-    pass
 
 
 class PipelineStage(str, Enum):
@@ -128,14 +128,14 @@ class RAGPipelineResult:
     stage_completed: PipelineStage
 
     # Intermediate results (for debugging/analysis)
-    retrieval_results: List[SearchResult] = field(default_factory=list)
-    reranked_results: List[SearchResult] = field(default_factory=list)
-    diversified_results: List[SearchResult] = field(default_factory=list)
-    context_result: Optional[ContextResult] = None
+    retrieval_results: list[SearchResult] = field(default_factory=list)
+    reranked_results: list[SearchResult] = field(default_factory=list)
+    diversified_results: list[SearchResult] = field(default_factory=list)
+    context_result: ContextResult | None = None
 
     # Error information
-    errors: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
 class RAGPipelineService:
@@ -148,16 +148,16 @@ class RAGPipelineService:
 
     def __init__(
         self,
-        dense_retrieval_service: Optional[DenseRetrievalService] = None,
-        sparse_retrieval_service: Optional[SparseRetrievalService] = None,
-        graph_traversal_service: Optional[GraphTraversalService] = None,
-        reranking_service: Optional[RerankingService] = None,
-        diversity_service: Optional[DiversityService] = None,
-        context_composition_service: Optional[ContextCompositionService] = None,
-        response_generation_service: Optional[ResponseGenerationService] = None,
-        retrieval_repository: Optional[RetrievalRepository] = None,
-        config: Optional[RAGPipelineConfig] = None,
-        settings: Optional[Settings] = None,
+        dense_retrieval_service: DenseRetrievalService | None = None,
+        sparse_retrieval_service: SparseRetrievalService | None = None,
+        graph_traversal_service: GraphTraversalService | None = None,
+        reranking_service: RerankingService | None = None,
+        diversity_service: DiversityService | None = None,
+        context_composition_service: ContextCompositionService | None = None,
+        response_generation_service: ResponseGenerationService | None = None,
+        retrieval_repository: RetrievalRepository | None = None,
+        config: RAGPipelineConfig | None = None,
+        settings: Settings | None = None,
     ):
         """
         Initialize RAG pipeline service.
@@ -188,8 +188,8 @@ class RAGPipelineService:
         self.retrieval_repository = retrieval_repository
 
         # Pipeline caching
-        self._pipeline_cache: Dict[str, RAGPipelineResult] = {}
-        self._cache_timestamps: Dict[str, float] = {}
+        self._pipeline_cache: dict[str, RAGPipelineResult] = {}
+        self._cache_timestamps: dict[str, float] = {}
 
         logger.info(
             f"Initialized RAGPipelineService with config: "
@@ -200,8 +200,8 @@ class RAGPipelineService:
     async def execute_pipeline(
         self,
         query: str,
-        config: Optional[RAGPipelineConfig] = None,
-        user_context: Optional[Dict[str, Any]] = None,
+        config: RAGPipelineConfig | None = None,
+        user_context: dict[str, Any] | None = None,
     ) -> RAGPipelineResult:
         """
         Execute the complete RAG pipeline for a query.
@@ -329,10 +329,10 @@ class RAGPipelineService:
 
     async def execute_pipeline_batch(
         self,
-        queries: List[str],
-        config: Optional[RAGPipelineConfig] = None,
-        user_context: Optional[Dict[str, Any]] = None,
-    ) -> List[RAGPipelineResult]:
+        queries: list[str],
+        config: RAGPipelineConfig | None = None,
+        user_context: dict[str, Any] | None = None,
+    ) -> list[RAGPipelineResult]:
         """
         Execute pipeline for multiple queries in batch.
 
@@ -382,8 +382,8 @@ class RAGPipelineService:
         self,
         query: str,
         config: RAGPipelineConfig,
-        user_context: Optional[Dict[str, Any]],
-    ) -> List[SearchResult]:
+        user_context: dict[str, Any] | None,
+    ) -> list[SearchResult]:
         """Execute multi-modal retrieval stage."""
         logger.debug(f"Executing retrieval stage for query: {query[:50]}...")
 
@@ -423,12 +423,11 @@ class RAGPipelineService:
         # Graph traversal
         if self.graph_traversal:
             try:
-                graph_results = await self.graph_traversal.traverse(
+                await self.graph_traversal.traverse(
                     query, limit=config.max_retrieval_results // 3
                 )
                 # Convert graph results to SearchResult format
                 # This would need to be implemented based on graph service interface
-                pass
             except Exception as e:
                 logger.warning(f"Graph traversal failed: {e}")
 
@@ -437,8 +436,8 @@ class RAGPipelineService:
         return unique_results[: config.max_retrieval_results]
 
     async def _execute_reranking_stage(
-        self, query: str, results: List[SearchResult], config: RAGPipelineConfig
-    ) -> List[SearchResult]:
+        self, query: str, results: list[SearchResult], config: RAGPipelineConfig
+    ) -> list[SearchResult]:
         """Execute re-ranking stage."""
         logger.debug(f"Executing re-ranking stage for {len(results)} results")
 
@@ -459,8 +458,8 @@ class RAGPipelineService:
             return results[: config.max_reranked_results]
 
     async def _execute_diversification_stage(
-        self, query: str, results: List[SearchResult], config: RAGPipelineConfig
-    ) -> List[SearchResult]:
+        self, query: str, results: list[SearchResult], config: RAGPipelineConfig
+    ) -> list[SearchResult]:
         """Execute diversification stage."""
         logger.debug(f"Executing diversification stage for {len(results)} results")
 
@@ -483,7 +482,7 @@ class RAGPipelineService:
             return results[: config.max_diversified_results]
 
     async def _execute_context_composition_stage(
-        self, query: str, results: List[SearchResult], config: RAGPipelineConfig
+        self, query: str, results: list[SearchResult], config: RAGPipelineConfig
     ) -> ContextResult:
         """Execute context composition stage."""
         logger.debug(f"Executing context composition for {len(results)} results")
@@ -493,8 +492,8 @@ class RAGPipelineService:
 
         try:
             from arete.services.context_composition_service import (
-                ContextCompositionConfig,
                 CompositionStrategy,
+                ContextCompositionConfig,
             )
 
             composition_config = ContextCompositionConfig(
@@ -555,7 +554,7 @@ class RAGPipelineService:
             logger.error(f"Response generation failed: {e}")
             raise RAGPipelineError(f"Response generation failed: {e}") from e
 
-    def _deduplicate_results(self, results: List[SearchResult]) -> List[SearchResult]:
+    def _deduplicate_results(self, results: list[SearchResult]) -> list[SearchResult]:
         """Remove duplicate results based on chunk ID."""
         seen_ids = set()
         unique_results = []
@@ -568,7 +567,7 @@ class RAGPipelineService:
 
         return unique_results
 
-    def _calculate_average_relevance(self, results: List[SearchResult]) -> float:
+    def _calculate_average_relevance(self, results: list[SearchResult]) -> float:
         """Calculate average relevance score."""
         if not results:
             return 0.0
@@ -582,8 +581,8 @@ class RAGPipelineService:
         config: RAGPipelineConfig,
         metrics: PipelineMetrics,
         stage_completed: PipelineStage,
-        errors: Optional[List[str]] = None,
-        warnings: Optional[List[str]] = None,
+        errors: list[str] | None = None,
+        warnings: list[str] | None = None,
     ) -> RAGPipelineResult:
         """Create empty result for error cases."""
         from arete.services.response_generation_service import (
@@ -617,7 +616,7 @@ class RAGPipelineService:
         self,
         query: str,
         config: RAGPipelineConfig,
-        user_context: Optional[Dict[str, Any]],
+        user_context: dict[str, Any] | None,
     ) -> str:
         """Generate cache key for pipeline request."""
         import hashlib
@@ -638,7 +637,7 @@ class RAGPipelineService:
         key_string = "|".join(key_components)
         return hashlib.md5(key_string.encode()).hexdigest()
 
-    def _get_cached_result(self, cache_key: str) -> Optional[RAGPipelineResult]:
+    def _get_cached_result(self, cache_key: str) -> RAGPipelineResult | None:
         """Get cached pipeline result if valid."""
         if cache_key not in self._pipeline_cache:
             return None
@@ -672,7 +671,7 @@ class RAGPipelineService:
         self._cache_timestamps.clear()
         logger.info("RAG pipeline cache cleared")
 
-    def get_pipeline_stats(self) -> Dict[str, Any]:
+    def get_pipeline_stats(self) -> dict[str, Any]:
         """Get pipeline statistics."""
         return {
             "config": {
@@ -706,8 +705,8 @@ class RAGPipelineService:
 
 # Factory function following established pattern
 def create_rag_pipeline_service(
-    config: Optional[RAGPipelineConfig] = None,
-    settings: Optional[Settings] = None,
+    config: RAGPipelineConfig | None = None,
+    settings: Settings | None = None,
     **service_kwargs,
 ) -> RAGPipelineService:
     """
@@ -721,9 +720,9 @@ def create_rag_pipeline_service(
     Returns:
         Configured RAGPipelineService instance
     """
+    from arete.repositories.retrieval import RetrievalRepository
     from arete.services.dense_retrieval_service import DenseRetrievalService
     from arete.services.sparse_retrieval_service import SparseRetrievalService
-    from arete.repositories.retrieval import RetrievalRepository
 
     # Initialize settings
     if settings is None:

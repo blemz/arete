@@ -16,7 +16,7 @@ def feature_card(icon: str, title: str, description: str) -> rx.Component:
             ),
             rx.heading(
                 title,
-                size="lg", 
+                size="lg",
                 font_weight="semibold",
                 color="primary",
                 class_name="mb-3"
@@ -47,7 +47,7 @@ def features_section() -> rx.Component:
                 "Arete combines cutting-edge AI technologies to deliver accurate, "
                 "contextual, and well-cited philosophical education.",
                 font_size="1.125rem",
-                color="base-content", 
+                color="base-content",
                 class_name="text-center mb-12 opacity-70 max-w-3xl mx-auto"
             ),
             rx.div(
@@ -58,7 +58,7 @@ def features_section() -> rx.Component:
                     "with Weaviate vector embeddings for precise, contextual responses."
                 ),
                 feature_card(
-                    "📚", 
+                    "📚",
                     "Classical Text Corpus",
                     "Comprehensive collection of Plato's dialogues and Aristotle's works, "
                     "professionally processed and semantically indexed."

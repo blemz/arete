@@ -10,19 +10,20 @@ Provides continuous monitoring capabilities for RAG system quality including:
 """
 
 import asyncio
+import contextlib
 import logging
-from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Any, Optional, Callable, Tuple
-from dataclasses import dataclass
 import statistics
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from enum import Enum
+from typing import Any
 
-from arete.services.data_quality.ragas_quality_service import (
-    RAGASQualityService,
-    EvaluationResult,
-    QualityThresholds,
-)
 from arete.config import Settings, get_settings
+from arete.services.data_quality.ragas_quality_service import (
+    EvaluationResult,
+    RAGASQualityService,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ class QualityAlert:
     threshold_value: float
     message: str
     timestamp: datetime
-    query_samples: List[str] = None
+    query_samples: list[str] = None
 
 
 @dataclass
@@ -69,7 +70,7 @@ class MonitoringStats:
     average_quality_score: float
     quality_trend_slope: float
     alerts_triggered: int
-    last_evaluation_time: Optional[datetime]
+    last_evaluation_time: datetime | None
 
 
 class QualityMonitor:
@@ -78,8 +79,8 @@ class QualityMonitor:
     def __init__(
         self,
         quality_service: RAGASQualityService,
-        config: Dict[str, Any],
-        settings: Optional[Settings] = None,
+        config: dict[str, Any],
+        settings: Settings | None = None,
     ):
         """Initialize quality monitor."""
         self.quality_service = quality_service
@@ -89,12 +90,12 @@ class QualityMonitor:
 
         # Monitoring state
         self.status = MonitoringStatus.STOPPED
-        self.start_time: Optional[datetime] = None
-        self.monitoring_task: Optional[asyncio.Task] = None
+        self.start_time: datetime | None = None
+        self.monitoring_task: asyncio.Task | None = None
 
         # Quality tracking
-        self.evaluation_history: List[EvaluationResult] = []
-        self.recent_alerts: List[QualityAlert] = []
+        self.evaluation_history: list[EvaluationResult] = []
+        self.recent_alerts: list[QualityAlert] = []
 
         # Configuration
         self.evaluation_interval_hours = config.get("evaluation_interval_hours", 24)
@@ -103,17 +104,17 @@ class QualityMonitor:
         self.max_history_size = config.get("max_history_size", 1000)
 
         # Alert callbacks
-        self.alert_callbacks: List[Callable[[QualityAlert], None]] = []
+        self.alert_callbacks: list[Callable[[QualityAlert], None]] = []
 
         # Sample query generators
-        self.query_generators: List[Callable[[], Dict[str, Any]]] = []
+        self.query_generators: list[Callable[[], dict[str, Any]]] = []
 
     def add_alert_callback(self, callback: Callable[[QualityAlert], None]) -> None:
         """Add callback for quality alerts."""
         self.alert_callbacks.append(callback)
         self.logger.info("Added quality alert callback")
 
-    def add_query_generator(self, generator: Callable[[], Dict[str, Any]]) -> None:
+    def add_query_generator(self, generator: Callable[[], dict[str, Any]]) -> None:
         """Add sample query generator for monitoring."""
         self.query_generators.append(generator)
         self.logger.info("Added sample query generator")
@@ -126,7 +127,7 @@ class QualityMonitor:
 
         self.logger.info("Starting quality monitoring system")
         self.status = MonitoringStatus.STARTING
-        self.start_time = datetime.now(timezone.utc)
+        self.start_time = datetime.now(UTC)
 
         try:
             # Start monitoring task
@@ -150,10 +151,8 @@ class QualityMonitor:
 
         if self.monitoring_task:
             self.monitoring_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.monitoring_task
-            except asyncio.CancelledError:
-                pass
 
         self.status = MonitoringStatus.STOPPED
         self.logger.info("Quality monitoring system stopped")
@@ -225,7 +224,7 @@ class QualityMonitor:
             self.logger.error(f"Error in evaluation cycle: {str(e)}")
             raise
 
-    async def _generate_sample_queries(self) -> List[Dict[str, Any]]:
+    async def _generate_sample_queries(self) -> list[dict[str, Any]]:
         """Generate sample queries for evaluation."""
         sample_queries = []
 
@@ -250,7 +249,7 @@ class QualityMonitor:
 
         return sample_queries
 
-    def _get_default_sample_queries(self) -> List[Dict[str, Any]]:
+    def _get_default_sample_queries(self) -> list[dict[str, Any]]:
         """Get default philosophical sample queries for monitoring."""
         return [
             {
@@ -282,7 +281,7 @@ class QualityMonitor:
             },
         ]
 
-    async def _check_quality_alerts(self, results: List[EvaluationResult]) -> None:
+    async def _check_quality_alerts(self, results: list[EvaluationResult]) -> None:
         """Check for quality alerts based on evaluation results."""
         if not results:
             return
@@ -350,7 +349,7 @@ class QualityMonitor:
                     current_value=current_value,
                     threshold_value=threshold,
                     message=f"{metric_name} quality below threshold: {current_value:.3f} < {threshold:.3f}",
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     query_samples=[
                         r.question for r in results[:3]
                     ],  # Include sample queries
@@ -362,7 +361,7 @@ class QualityMonitor:
         if len(self.evaluation_history) > 20:  # Need sufficient history
             await self._check_quality_drops(current_metrics)
 
-    async def _check_quality_drops(self, current_metrics: Dict[str, float]) -> None:
+    async def _check_quality_drops(self, current_metrics: dict[str, float]) -> None:
         """Check for significant quality drops compared to historical performance."""
         # Get recent historical average (last 20 evaluations before current)
         recent_history = self.evaluation_history[: -len(current_metrics)][-20:]
@@ -400,7 +399,7 @@ class QualityMonitor:
                     current_value=current_value,
                     threshold_value=historical_value - drop_threshold,
                     message=f"Significant {metric_name} quality drop detected: {drop:.3f} decrease from recent average",
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                 )
 
                 await self._trigger_alert(alert)
@@ -425,7 +424,7 @@ class QualityMonitor:
             except Exception as e:
                 self.logger.error(f"Error in alert callback: {str(e)}")
 
-    def get_monitoring_status(self) -> Dict[str, Any]:
+    def get_monitoring_status(self) -> dict[str, Any]:
         """Get current monitoring status and statistics."""
         stats = self.get_monitoring_stats()
 
@@ -460,7 +459,7 @@ class QualityMonitor:
         # Calculate uptime
         uptime_hours = 0.0
         if self.start_time:
-            uptime_delta = datetime.now(timezone.utc) - self.start_time
+            uptime_delta = datetime.now(UTC) - self.start_time
             uptime_hours = uptime_delta.total_seconds() / 3600
 
         # Calculate quality statistics
@@ -492,7 +491,7 @@ class QualityMonitor:
             last_evaluation_time=last_evaluation_time,
         )
 
-    def _calculate_trend_slope(self, scores: List[float]) -> float:
+    def _calculate_trend_slope(self, scores: list[float]) -> float:
         """Calculate trend slope using simple linear regression."""
         n = len(scores)
         if n < 2:
@@ -512,9 +511,9 @@ class QualityMonitor:
 
         return numerator / denominator
 
-    def get_quality_history(self, hours: int = 24) -> List[EvaluationResult]:
+    def get_quality_history(self, hours: int = 24) -> list[EvaluationResult]:
         """Get quality evaluation history for specified time period."""
-        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+        cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
 
         return [
             result
@@ -522,15 +521,15 @@ class QualityMonitor:
             if result.evaluation_timestamp >= cutoff_time
         ]
 
-    def get_recent_alerts(self, hours: int = 24) -> List[QualityAlert]:
+    def get_recent_alerts(self, hours: int = 24) -> list[QualityAlert]:
         """Get recent alerts for specified time period."""
-        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+        cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
 
         return [alert for alert in self.recent_alerts if alert.timestamp >= cutoff_time]
 
     async def run_manual_evaluation(
-        self, sample_size: Optional[int] = None
-    ) -> List[EvaluationResult]:
+        self, sample_size: int | None = None
+    ) -> list[EvaluationResult]:
         """Run manual quality evaluation."""
         self.logger.info("Running manual quality evaluation")
 

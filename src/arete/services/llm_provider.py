@@ -11,12 +11,10 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Dict, Any, Optional, Union
-import json
-import time
+from typing import Any
 
-from arete.services.base import BaseService, ServiceError, ConfigurationError
 from arete.config import Settings
+from arete.services.base import BaseService, ConfigurationError, ServiceError
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -36,7 +34,7 @@ class LLMMessage:
 
     role: MessageRole
     content: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -45,17 +43,16 @@ class LLMResponse:
 
     content: str
     provider: str
-    usage_tokens: Optional[int] = None
-    model: Optional[str] = None
-    finish_reason: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    usage_tokens: int | None = None
+    model: str | None = None
+    finish_reason: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 # LLM Provider Exceptions
 class LLMProviderError(ServiceError):
     """Base exception for LLM provider errors."""
 
-    pass
 
 
 class ProviderUnavailableError(LLMProviderError):
@@ -69,7 +66,7 @@ class ProviderUnavailableError(LLMProviderError):
 class RateLimitError(LLMProviderError):
     """Raised when rate limits are exceeded."""
 
-    def __init__(self, message: str, retry_after: Optional[int] = None):
+    def __init__(self, message: str, retry_after: int | None = None):
         super().__init__(message)
         self.retry_after = retry_after
 
@@ -104,26 +101,23 @@ class LLMProvider(ABC):
     @abstractmethod
     def is_available(self) -> bool:
         """Check if provider is currently available."""
-        pass
 
     @property
     @abstractmethod
-    def supported_models(self) -> List[str]:
+    def supported_models(self) -> list[str]:
         """Get list of supported models for this provider."""
-        pass
 
     @abstractmethod
     def initialize(self) -> None:
         """Initialize the provider (setup connections, validate config, etc.)."""
-        pass
 
     @abstractmethod
     async def generate_response(
         self,
-        messages: List[LLMMessage],
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        messages: list[LLMMessage],
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         **kwargs,
     ) -> LLMResponse:
         """
@@ -145,12 +139,10 @@ class LLMProvider(ABC):
             RateLimitError: If rate limit is exceeded
             AuthenticationError: If authentication fails
         """
-        pass
 
     @abstractmethod
-    def get_health_status(self) -> Dict[str, Any]:
+    def get_health_status(self) -> dict[str, Any]:
         """Get provider health status and diagnostics."""
-        pass
 
 
 class LLMProviderFactory:
@@ -169,7 +161,7 @@ class LLMProviderFactory:
             settings: Application configuration
         """
         self.settings = settings
-        self._providers: Dict[str, LLMProvider] = {}
+        self._providers: dict[str, LLMProvider] = {}
 
     def register_provider(self, name: str, provider: LLMProvider) -> None:
         """
@@ -199,7 +191,7 @@ class LLMProviderFactory:
             raise LLMProviderError(f"Provider '{name}' not found")
         return self._providers[name]
 
-    def list_providers(self) -> List[str]:
+    def list_providers(self) -> list[str]:
         """Get list of registered provider names."""
         return list(self._providers.keys())
 
@@ -263,7 +255,7 @@ class MultiProviderLLMService(BaseService):
         super().__init__(settings)
         self.settings = settings
         self.factory = LLMProviderFactory(settings)
-        self._providers: List[LLMProvider] = []
+        self._providers: list[LLMProvider] = []
 
     def initialize(self) -> None:
         """Initialize the service and all providers."""
@@ -292,11 +284,11 @@ class MultiProviderLLMService(BaseService):
 
     async def generate_response(
         self,
-        messages: List[LLMMessage],
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
-        preferred_provider: Optional[str] = None,
+        messages: list[LLMMessage],
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        preferred_provider: str | None = None,
         **kwargs,
     ) -> LLMResponse:
         """
@@ -373,8 +365,8 @@ class MultiProviderLLMService(BaseService):
         raise LLMProviderError(error_msg)
 
     async def generate_with_consensus(
-        self, messages: List[LLMMessage], consensus_count: int = 2, **kwargs
-    ) -> List[LLMResponse]:
+        self, messages: list[LLMMessage], consensus_count: int = 2, **kwargs
+    ) -> list[LLMResponse]:
         """
         Generate multiple responses for consensus or comparison.
 
@@ -416,12 +408,12 @@ class MultiProviderLLMService(BaseService):
         return successful_responses
 
     async def _generate_with_single_provider(
-        self, provider: LLMProvider, messages: List[LLMMessage], **kwargs
+        self, provider: LLMProvider, messages: list[LLMMessage], **kwargs
     ) -> LLMResponse:
         """Helper method for generating with a single provider."""
         return await provider.generate_response(messages, **kwargs)
 
-    def get_health_status(self) -> Dict[str, Any]:
+    def get_health_status(self) -> dict[str, Any]:
         """
         Get health status of all providers.
 
@@ -467,7 +459,7 @@ class MultiProviderLLMService(BaseService):
 
 
 # Factory function for easy service creation
-def create_llm_service(settings: Optional[Settings] = None) -> MultiProviderLLMService:
+def create_llm_service(settings: Settings | None = None) -> MultiProviderLLMService:
     """
     Create and configure a MultiProviderLLMService instance.
 
@@ -521,7 +513,7 @@ def create_assistant_message(content: str, **metadata) -> LLMMessage:
     return LLMMessage(role=MessageRole.ASSISTANT, content=content, metadata=metadata)
 
 
-def messages_to_dict(messages: List[LLMMessage]) -> List[Dict[str, Any]]:
+def messages_to_dict(messages: list[LLMMessage]) -> list[dict[str, Any]]:
     """Convert LLMMessage list to dictionary format."""
     return [
         {"role": msg.role.value, "content": msg.content, "metadata": msg.metadata}
@@ -529,7 +521,7 @@ def messages_to_dict(messages: List[LLMMessage]) -> List[Dict[str, Any]]:
     ]
 
 
-def dict_to_messages(data: List[Dict[str, Any]]) -> List[LLMMessage]:
+def dict_to_messages(data: list[dict[str, Any]]) -> list[LLMMessage]:
     """Convert dictionary format to LLMMessage list."""
     return [
         LLMMessage(

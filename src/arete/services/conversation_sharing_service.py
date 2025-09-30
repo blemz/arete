@@ -7,16 +7,15 @@ managing permissions, and handling collaborative features.
 
 import hashlib
 import time
-from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 
 from arete.models.sharing_models import (
-    SharedConversation,
-    ShareComment,
-    ShareAnnotation,
-    ShareType,
     ExpirationPeriod,
+    ShareAnnotation,
+    ShareComment,
+    SharedConversation,
     SharePermissions,
+    ShareType,
 )
 from arete.services.chat_service import ChatService
 
@@ -28,9 +27,9 @@ class ConversationSharingService:
         """Initialize the sharing service."""
         self.chat_service = chat_service
         # In a real implementation, these would be database repositories
-        self._shared_conversations: Dict[str, SharedConversation] = {}
-        self._share_comments: Dict[str, List[ShareComment]] = {}
-        self._share_annotations: Dict[str, List[ShareAnnotation]] = {}
+        self._shared_conversations: dict[str, SharedConversation] = {}
+        self._share_comments: dict[str, list[ShareComment]] = {}
+        self._share_annotations: dict[str, list[ShareAnnotation]] = {}
 
     def create_share(
         self,
@@ -39,8 +38,8 @@ class ConversationSharingService:
         share_type: ShareType,
         permissions: SharePermissions,
         expiration: ExpirationPeriod = ExpirationPeriod.NEVER,
-        authorized_users: List[str] = None,
-        password: Optional[str] = None,
+        authorized_users: list[str] = None,
+        password: str | None = None,
     ) -> SharedConversation:
         """Create a new shared conversation."""
         if authorized_users is None:
@@ -81,11 +80,11 @@ class ConversationSharingService:
 
         return shared_conversation
 
-    def get_share(self, share_id: str) -> Optional[SharedConversation]:
+    def get_share(self, share_id: str) -> SharedConversation | None:
         """Get a shared conversation by ID."""
         return self._shared_conversations.get(share_id)
 
-    def get_shares_by_session(self, session_id: str) -> List[SharedConversation]:
+    def get_shares_by_session(self, session_id: str) -> list[SharedConversation]:
         """Get all shares for a specific session."""
         return [
             share
@@ -93,7 +92,7 @@ class ConversationSharingService:
             if share.session_id == session_id
         ]
 
-    def get_shares_by_owner(self, owner_user_id: str) -> List[SharedConversation]:
+    def get_shares_by_owner(self, owner_user_id: str) -> list[SharedConversation]:
         """Get all shares created by a specific user."""
         return [
             share
@@ -104,9 +103,9 @@ class ConversationSharingService:
     def access_share(
         self,
         share_id: str,
-        user_email: Optional[str] = None,
-        password: Optional[str] = None,
-    ) -> Tuple[Optional[SharedConversation], str]:
+        user_email: str | None = None,
+        password: str | None = None,
+    ) -> tuple[SharedConversation | None, str]:
         """
         Access a shared conversation.
 
@@ -207,11 +206,11 @@ class ConversationSharingService:
         share_id: str,
         content: str,
         author_email: str,
-        author_name: Optional[str] = None,
-        message_id: Optional[str] = None,
-        message_position: Optional[int] = None,
-        parent_comment_id: Optional[str] = None,
-    ) -> Optional[ShareComment]:
+        author_name: str | None = None,
+        message_id: str | None = None,
+        message_position: int | None = None,
+        parent_comment_id: str | None = None,
+    ) -> ShareComment | None:
         """Add a comment to a shared conversation."""
         share = self.get_share(share_id)
         if not share or not share.permissions.allow_comments:
@@ -241,13 +240,13 @@ class ConversationSharingService:
 
         return comment
 
-    def get_comments(self, share_id: str) -> List[ShareComment]:
+    def get_comments(self, share_id: str) -> list[ShareComment]:
         """Get all comments for a shared conversation."""
         return self._share_comments.get(share_id, [])
 
     def get_comments_for_message(
         self, share_id: str, message_id: str
-    ) -> List[ShareComment]:
+    ) -> list[ShareComment]:
         """Get comments for a specific message."""
         all_comments = self.get_comments(share_id)
         return [comment for comment in all_comments if comment.message_id == message_id]
@@ -263,10 +262,10 @@ class ConversationSharingService:
         start_position: int,
         end_position: int,
         author_email: str,
-        content: Optional[str] = None,
-        author_name: Optional[str] = None,
+        content: str | None = None,
+        author_name: str | None = None,
         color: str = "yellow",
-    ) -> Optional[ShareAnnotation]:
+    ) -> ShareAnnotation | None:
         """Add an annotation to a shared conversation."""
         share = self.get_share(share_id)
         if not share or not share.permissions.allow_annotations:
@@ -299,13 +298,13 @@ class ConversationSharingService:
 
         return annotation
 
-    def get_annotations(self, share_id: str) -> List[ShareAnnotation]:
+    def get_annotations(self, share_id: str) -> list[ShareAnnotation]:
         """Get all annotations for a shared conversation."""
         return self._share_annotations.get(share_id, [])
 
     def get_annotations_for_message(
         self, share_id: str, message_id: str
-    ) -> List[ShareAnnotation]:
+    ) -> list[ShareAnnotation]:
         """Get annotations for a specific message."""
         all_annotations = self.get_annotations(share_id)
         return [
@@ -316,7 +315,7 @@ class ConversationSharingService:
 
     # Analytics methods
 
-    def get_share_analytics(self, share_id: str, owner_user_id: str) -> Dict[str, any]:
+    def get_share_analytics(self, share_id: str, owner_user_id: str) -> dict[str, any]:
         """Get analytics for a shared conversation."""
         share = self.get_share(share_id)
         if not share or share.owner_user_id != owner_user_id:
@@ -377,7 +376,7 @@ class ConversationSharingService:
         """Generate a complete sharing URL."""
         return f"{base_url}/{share_id}"
 
-    def get_share_statistics(self) -> Dict[str, any]:
+    def get_share_statistics(self) -> dict[str, any]:
         """Get overall sharing statistics."""
         active_shares = sum(
             1 for share in self._shared_conversations.values() if share.is_accessible()

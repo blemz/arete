@@ -3,7 +3,6 @@ Analytics dashboard component for the Arete Reflex application.
 """
 
 import reflex as rx
-from ..reflex_app import AreteState
 
 
 def analytics_card(title: str, value: str, icon: str, description: str = "") -> rx.Component:
@@ -37,7 +36,7 @@ def network_visualization() -> rx.Component:
             rx.heading(
                 "Knowledge Graph Network",
                 size="md",
-                font_weight="semibold", 
+                font_weight="semibold",
                 class_name="mb-4"
             ),
             rx.div(
@@ -64,7 +63,7 @@ def network_visualization() -> rx.Component:
 
 
 def concept_analysis() -> rx.Component:
-    """Concept analysis component.""" 
+    """Concept analysis component."""
     return rx.div(
         rx.div(
             rx.heading(
@@ -120,7 +119,7 @@ def historical_timeline() -> rx.Component:
                     ),
                     rx.div(
                         rx.text("428 BCE", font_weight="bold", class_name="text-primary mb-1"),
-                        rx.text("Birth of Plato", font_weight="medium", class_name="mb-1"), 
+                        rx.text("Birth of Plato", font_weight="medium", class_name="mb-1"),
                         rx.text("Development of idealist philosophy", class_name="text-sm opacity-70"),
                         class_name="py-4 border-b border-base-300"
                     ),
@@ -149,7 +148,7 @@ def analytics_dashboard() -> rx.Component:
             font_weight="bold",
             class_name="mb-8"
         ),
-        
+
         # Metrics row
         rx.div(
             analytics_card("Documents", "2", "📚", "Classical texts ingested"),
@@ -158,19 +157,19 @@ def analytics_dashboard() -> rx.Component:
             analytics_card("Chunks", "227", "📝", "Semantic text segments"),
             class_name="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
         ),
-        
-        # Visualizations row  
+
+        # Visualizations row
         rx.div(
             network_visualization(),
             class_name="mb-8"
         ),
-        
+
         # Analysis row
         rx.div(
             concept_analysis(),
             historical_timeline(),
             class_name="grid grid-cols-1 lg:grid-cols-2 gap-6"
         ),
-        
+
         class_name="max-w-7xl mx-auto"
     )

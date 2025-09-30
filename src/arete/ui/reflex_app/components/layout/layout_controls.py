@@ -1,14 +1,15 @@
 """Advanced layout controls and configuration interface."""
 
+
 import reflex as rx
-from typing import Dict, Any, List
+
 from ...state.layout_state import LayoutState
 from .panel_manager import LayoutPresetManager
 
 
 class LayoutControlPanel(rx.Component):
     """Advanced layout control panel with presets and configuration."""
-    
+
     def render(self) -> rx.Component:
         return rx.box(
             # Main layout controls
@@ -18,7 +19,7 @@ class LayoutControlPanel(rx.Component):
                     size="sm",
                     class_name="text-gray-700 dark:text-gray-300 mb-3"
                 ),
-                
+
                 # Primary layout mode buttons
                 rx.button_group(
                     rx.button(
@@ -59,10 +60,10 @@ class LayoutControlPanel(rx.Component):
                     ),
                     class_name="flex w-full"
                 ),
-                
+
                 class_name="mb-4"
             ),
-            
+
             # Split view configuration
             rx.cond(
                 LayoutState.layout_mode == "split",
@@ -72,7 +73,7 @@ class LayoutControlPanel(rx.Component):
                         size="xs",
                         class_name="text-gray-600 dark:text-gray-400 mb-2"
                     ),
-                    
+
                     # Orientation toggle
                     rx.box(
                         rx.text("Orientation:", class_name="text-sm text-gray-600 dark:text-gray-400 mb-1"),
@@ -105,7 +106,7 @@ class LayoutControlPanel(rx.Component):
                         ),
                         class_name="mb-3"
                     ),
-                    
+
                     # Panel size controls
                     rx.cond(
                         LayoutState.split_orientation == "horizontal",
@@ -142,7 +143,7 @@ class LayoutControlPanel(rx.Component):
                             class_name="mb-3"
                         )
                     ),
-                    
+
                     # Panel expansion controls
                     rx.box(
                         rx.text("Quick Actions:", class_name="text-sm text-gray-600 dark:text-gray-400 mb-2"),
@@ -175,12 +176,12 @@ class LayoutControlPanel(rx.Component):
                         ),
                         class_name="mb-4"
                     ),
-                    
+
                     class_name="border-t border-gray-200 dark:border-gray-700 pt-4"
                 ),
                 rx.box()
             ),
-            
+
             # Layout presets
             rx.box(
                 rx.heading(
@@ -188,7 +189,7 @@ class LayoutControlPanel(rx.Component):
                     size="xs",
                     class_name="text-gray-600 dark:text-gray-400 mb-2"
                 ),
-                
+
                 rx.box(
                     *[
                         self._render_preset_button(preset)
@@ -196,10 +197,10 @@ class LayoutControlPanel(rx.Component):
                     ],
                     class_name="grid grid-cols-2 gap-2"
                 ),
-                
+
                 class_name="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4"
             ),
-            
+
             # Advanced settings
             rx.box(
                 rx.heading(
@@ -207,7 +208,7 @@ class LayoutControlPanel(rx.Component):
                     size="xs",
                     class_name="text-gray-600 dark:text-gray-400 mb-2"
                 ),
-                
+
                 rx.button_group(
                     rx.button(
                         rx.icon("refresh-ccw", size=12),
@@ -227,14 +228,14 @@ class LayoutControlPanel(rx.Component):
                     ),
                     class_name="flex gap-1"
                 ),
-                
+
                 class_name="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4"
             ),
-            
+
             class_name="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 w-80"
         )
-    
-    def _render_preset_button(self, preset: Dict[str, str]) -> rx.Component:
+
+    def _render_preset_button(self, preset: dict[str, str]) -> rx.Component:
         """Render a preset button."""
         return rx.button(
             rx.box(
@@ -257,7 +258,7 @@ class LayoutControlPanel(rx.Component):
 
 class MiniLayoutControls(rx.Component):
     """Compact layout controls for minimal UI footprint."""
-    
+
     def render(self) -> rx.Component:
         return rx.box(
             rx.button_group(
@@ -320,7 +321,7 @@ class MiniLayoutControls(rx.Component):
 
 class ResponsiveLayoutIndicator(rx.Component):
     """Indicator showing current responsive layout state."""
-    
+
     def render(self) -> rx.Component:
         return rx.box(
             rx.cond(

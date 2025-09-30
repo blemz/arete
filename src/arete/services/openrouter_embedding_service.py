@@ -4,11 +4,12 @@ OpenRouter Embedding Service for Arete Graph-RAG system.
 Provides embedding generation using OpenRouter's API with multiple model options.
 """
 
-import asyncio
 import logging
-from typing import List, Optional, Dict, Any
+from typing import Any
+
 import httpx
-from ..config import Settings, get_settings
+
+from arete.config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +31,8 @@ class OpenRouterEmbeddingService:
     def __init__(
         self,
         model_name: str = "openai/text-embedding-3-small",
-        api_key: Optional[str] = None,
-        settings: Optional[Settings] = None,
+        api_key: str | None = None,
+        settings: Settings | None = None,
         max_batch_size: int = 100,
         base_url: str = "https://openrouter.ai/api/v1",
     ):
@@ -78,7 +79,7 @@ class OpenRouterEmbeddingService:
             f"Initialized OpenRouter embedding service with model: {model_name} ({self.dimensions}d)"
         )
 
-    async def generate_embedding(self, text: str) -> List[float]:
+    async def generate_embedding(self, text: str) -> list[float]:
         """
         Generate embedding for a single text.
 
@@ -122,7 +123,7 @@ class OpenRouterEmbeddingService:
                 logger.error(f"OpenRouter embedding generation failed: {e}")
                 raise
 
-    async def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
+    async def generate_embeddings(self, texts: list[str]) -> list[list[float]]:
         """
         Generate embeddings for multiple texts in batches.
 
@@ -203,7 +204,7 @@ class OpenRouterEmbeddingService:
         """Get embedding dimensions."""
         return self.dimensions
 
-    def get_model_info(self) -> Dict[str, Any]:
+    def get_model_info(self) -> dict[str, Any]:
         """Get model information."""
         return {
             "provider": "openrouter",

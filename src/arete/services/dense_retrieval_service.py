@@ -7,16 +7,21 @@ comprehensive retrieval capabilities for the RAG system.
 """
 
 import logging
-import time
 import re
-from typing import List, Dict, Any, Optional, Tuple, Callable, Union
-from uuid import UUID
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
+from uuid import UUID
+
 from pydantic import BaseModel, Field, field_validator
 
-from ..repositories.embedding import EmbeddingRepository, create_embedding_repository
-from ..models.chunk import Chunk
-from ..config import Settings, get_settings
+from arete.config import Settings, get_settings
+from arete.models.chunk import Chunk
+from arete.repositories.embedding import (
+    EmbeddingRepository,
+    create_embedding_repository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -24,19 +29,16 @@ logger = logging.getLogger(__name__)
 class DenseRetrievalError(Exception):
     """Base exception for dense retrieval errors."""
 
-    pass
 
 
 class QueryProcessingError(DenseRetrievalError):
     """Raised when query preprocessing fails."""
 
-    pass
 
 
 class RankingError(DenseRetrievalError):
     """Raised when result ranking fails."""
 
-    pass
 
 
 class SearchResult(BaseModel):
@@ -52,16 +54,16 @@ class SearchResult(BaseModel):
         ..., ge=0.0, le=1.0, description="Base relevance score from vector search"
     )
     query: str = Field(..., description="Original search query")
-    enhanced_score: Optional[float] = Field(
+    enhanced_score: float | None = Field(
         None,
         ge=0.0,
         le=1.0,
         description="Enhanced relevance score after custom scoring",
     )
-    ranking_position: Optional[int] = Field(
+    ranking_position: int | None = Field(
         None, ge=1, description="Position in ranked results"
     )
-    metadata: Dict[str, Any] = Field(
+    metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional metadata about the result"
     )
 
@@ -131,7 +133,7 @@ class RetrievalMetrics:
         self._relevance_sum = 0.0
         self._response_time_sum = 0.0
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get a summary of all metrics."""
         return {
             "queries_processed": self.queries_processed,
@@ -164,8 +166,8 @@ class DenseRetrievalService:
 
     def __init__(
         self,
-        embedding_repository: Optional[EmbeddingRepository] = None,
-        settings: Optional[Settings] = None,
+        embedding_repository: EmbeddingRepository | None = None,
+        settings: Settings | None = None,
     ):
         """
         Initialize dense retrieval service.
@@ -219,13 +221,13 @@ class DenseRetrievalService:
         query: str,
         limit: int = 10,
         min_relevance: float = 0.7,
-        document_ids: Optional[List[UUID]] = None,
-        chunk_types: Optional[List[str]] = None,
+        document_ids: list[UUID] | None = None,
+        chunk_types: list[str] | None = None,
         enhance_scores: bool = True,
         expand_context: bool = False,
         context_window: int = 1,
-        custom_scorer: Optional[Callable[[Chunk, float, str], float]] = None,
-    ) -> List[SearchResult]:
+        custom_scorer: Callable[[Chunk, float, str], float] | None = None,
+    ) -> list[SearchResult]:
         """
         Perform semantic search using text query with advanced processing.
 
@@ -318,11 +320,11 @@ class DenseRetrievalService:
 
     def search_by_vector(
         self,
-        query_vector: List[float],
+        query_vector: list[float],
         limit: int = 10,
         min_relevance: float = 0.7,
         **kwargs,
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """
         Perform semantic search using pre-computed embedding vector.
 
@@ -372,8 +374,8 @@ class DenseRetrievalService:
             raise DenseRetrievalError(f"Vector search failed: {e}") from e
 
     def batch_search(
-        self, queries: List[str], limit: int = 10, **kwargs
-    ) -> Dict[str, List[SearchResult]]:
+        self, queries: list[str], limit: int = 10, **kwargs
+    ) -> dict[str, list[SearchResult]]:
         """
         Process multiple queries in batch for efficiency.
 
@@ -446,10 +448,10 @@ class DenseRetrievalService:
 
     def _enhance_result_scores(
         self,
-        results: List[SearchResult],
+        results: list[SearchResult],
         query: str,
-        custom_scorer: Optional[Callable[[Chunk, float, str], float]] = None,
-    ) -> List[SearchResult]:
+        custom_scorer: Callable[[Chunk, float, str], float] | None = None,
+    ) -> list[SearchResult]:
         """
         Enhance relevance scores using various algorithms.
 
@@ -506,8 +508,8 @@ class DenseRetrievalService:
         return enhanced_score
 
     def _rank_and_filter_results(
-        self, results: List[SearchResult], limit: int, min_relevance: float
-    ) -> List[SearchResult]:
+        self, results: list[SearchResult], limit: int, min_relevance: float
+    ) -> list[SearchResult]:
         """
         Rank results by final score and apply filtering.
 
@@ -537,8 +539,8 @@ class DenseRetrievalService:
             raise RankingError(f"Result ranking failed: {e}") from e
 
     def _expand_context_window(
-        self, results: List[SearchResult], window_size: int
-    ) -> List[SearchResult]:
+        self, results: list[SearchResult], window_size: int
+    ) -> list[SearchResult]:
         """
         Expand search results with surrounding context chunks.
 
@@ -558,8 +560,8 @@ class DenseRetrievalService:
 
 # Factory function following established pattern
 def create_dense_retrieval_service(
-    embedding_repository: Optional[EmbeddingRepository] = None,
-    settings: Optional[Settings] = None,
+    embedding_repository: EmbeddingRepository | None = None,
+    settings: Settings | None = None,
 ) -> DenseRetrievalService:
     """
     Create dense retrieval service with dependency injection.

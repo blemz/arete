@@ -11,21 +11,21 @@ for testability and clean architecture.
 
 from .base import (
     BaseRepository,
-    SearchableRepository,
+    DuplicateEntityError,
+    EntityNotFoundError,
     GraphRepository,
     RepositoryError,
-    EntityNotFoundError,
-    DuplicateEntityError,
+    SearchableRepository,
     ValidationError,
 )
 from .document import DocumentRepository
-from .entity import EntityRepository
 from .embedding import EmbeddingRepository, create_embedding_repository
+from .entity import EntityRepository
 from .retrieval import (
-    RetrievalRepository,
-    RetrievalMethod,
-    HybridStrategy,
     HybridRetrievalConfig,
+    HybridStrategy,
+    RetrievalMethod,
+    RetrievalRepository,
     create_retrieval_repository,
 )
 

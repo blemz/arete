@@ -10,9 +10,9 @@ Provides intelligent, dynamic, and structured prompts that:
 5. Maintain scholarly accuracy with proper citations
 """
 
-from typing import List, Dict, Any, Optional, Set
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 
 class PromptStyle(Enum):
@@ -27,11 +27,11 @@ class PromptStyle(Enum):
 class ContextMetadata:
     """Metadata about the retrieved context."""
 
-    authors: Set[str]
-    works: Set[str]
+    authors: set[str]
+    works: set[str]
     total_chunks: int
-    primary_source: Optional[str] = None
-    citations: Dict[str, str] = None  # work -> citation format mapping
+    primary_source: str | None = None
+    citations: dict[str, str] = None  # work -> citation format mapping
 
     def __post_init__(self):
         if self.citations is None:
@@ -114,14 +114,7 @@ class ContextMetadata:
         }
         aristotle_works = {"nicomachean ethics", "politics", "metaphysics", "poetics"}
 
-        if author_lower == "plato" and any(pw in work_lower for pw in plato_works):
-            return True
-        elif author_lower == "aristotle" and any(
-            aw in work_lower for aw in aristotle_works
-        ):
-            return True
-
-        return False
+        return bool(author_lower == "plato" and any(pw in work_lower for pw in plato_works) or author_lower == "aristotle" and any(aw in work_lower for aw in aristotle_works))
 
 
 class PromptTemplate:
@@ -129,7 +122,7 @@ class PromptTemplate:
 
     @staticmethod
     def extract_context_metadata(
-        search_results: List[Dict[str, Any]],
+        search_results: list[dict[str, Any]],
     ) -> ContextMetadata:
         """
         Extract metadata from search results to build dynamic context.
@@ -221,9 +214,9 @@ class PromptTemplate:
     @staticmethod
     def build_educational_prompt(
         query: str,
-        context_chunks: List[str],
-        entities: List[Dict[str, Any]],
-        search_results: List[Dict[str, Any]],
+        context_chunks: list[str],
+        entities: list[dict[str, Any]],
+        search_results: list[dict[str, Any]],
         style: PromptStyle = PromptStyle.EDUCATIONAL,
     ) -> str:
         """
@@ -352,9 +345,9 @@ List specific passages from the context that support your answer:
     @staticmethod
     def build_comparison_prompt(
         query: str,
-        context_chunks: List[str],
-        entities: List[Dict[str, Any]],
-        search_results: List[Dict[str, Any]],
+        context_chunks: list[str],
+        entities: list[dict[str, Any]],
+        search_results: list[dict[str, Any]],
     ) -> str:
         """Build a specialized prompt for comparative philosophical questions."""
 
@@ -413,8 +406,8 @@ List specific passages from the context that support your answer:
         )
 
         # Check if comparison is possible with available sources
-        authors_in_context = len(metadata.authors)
-        works_in_context = len(metadata.works)
+        len(metadata.authors)
+        len(metadata.works)
 
         prompt = f"""<instructions>
 You are a philosophy teacher specializing in comparative analysis of classical philosophical ideas.
@@ -437,7 +430,7 @@ Answer this comparative question using the provided context from {context_descri
 Structure your comparative analysis in these sections with XML tags:
 
 <direct_comparison>
-Summarize the key differences or similarities in one clear sentence. 
+Summarize the key differences or similarities in one clear sentence.
 If comparing multiple philosophers/works but context only covers one, explicitly state the limitation.
 </direct_comparison>
 
@@ -520,9 +513,9 @@ Provide specific quotes and references from the context:
 
 def build_enhanced_prompt(
     query: str,
-    context_chunks: List[str],
-    entities: List[Dict[str, Any]],
-    search_results: List[Dict[str, Any]],
+    context_chunks: list[str],
+    entities: list[dict[str, Any]],
+    search_results: list[dict[str, Any]],
     style: PromptStyle = PromptStyle.EDUCATIONAL,
 ) -> str:
     """

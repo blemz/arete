@@ -5,17 +5,12 @@ Based on recommendations from philosophical GraphRAG research for improved
 relationship extraction in classical philosophical texts.
 """
 
-from typing import List, Dict, Any, Optional, Tuple
-import asyncio
-import re
+from typing import Any
 from uuid import UUID
 
-from langchain_core.documents import Document as LangChainDocument
-from langchain_experimental.graph_transformers import LLMGraphTransformer
-
+from arete.config import get_settings
 from arete.models.entity import Entity, EntityType
 from arete.services.simple_llm_service import SimpleLLMService
-from arete.config import get_settings
 
 
 class EnhancedKnowledgeGraphService:
@@ -29,7 +24,7 @@ class EnhancedKnowledgeGraphService:
     - Quality validation and filtering
     """
 
-    def __init__(self, llm_service: Optional[SimpleLLMService] = None):
+    def __init__(self, llm_service: SimpleLLMService | None = None):
         """Initialize the enhanced KG service."""
         self.config = get_settings()
 
@@ -157,7 +152,7 @@ class EnhancedKnowledgeGraphService:
         document_id: str,
         chunk_size: int = 2000,  # Optimal size for philosophical context preservation
         max_chunks: int = None,  # Process all chunks with powerful KG model
-    ) -> Tuple[List[Entity], List[Dict[str, Any]]]:
+    ) -> tuple[list[Entity], list[dict[str, Any]]]:
         """
         Extract knowledge graph from text using enhanced philosophical extraction.
 
@@ -202,7 +197,7 @@ class EnhancedKnowledgeGraphService:
 
             except Exception as e:
                 print(f"    WARNING: Error processing chunk {i+1}: {e}")
-                print(f"    Continuing with remaining chunks...")
+                print("    Continuing with remaining chunks...")
                 continue
 
         # Deduplicate and merge entities
@@ -215,7 +210,7 @@ class EnhancedKnowledgeGraphService:
 
     async def _extract_from_chunk(
         self, text: str, chunk_id: str
-    ) -> Tuple[List[Entity], List[Dict[str, Any]]]:
+    ) -> tuple[list[Entity], list[dict[str, Any]]]:
         """Extract entities and relationships from a text chunk."""
         if not self.llm_transformer:
             # Fallback to basic extraction
@@ -245,7 +240,7 @@ class EnhancedKnowledgeGraphService:
 
     async def _fallback_extraction(
         self, text: str, chunk_id: str
-    ) -> Tuple[List[Entity], List[Dict[str, Any]]]:
+    ) -> tuple[list[Entity], list[dict[str, Any]]]:
         """Fallback extraction method using enhanced prompts."""
         prompt = f"""
         You are an expert in classical philosophy. Extract philosophical entities and relationships from this text.
@@ -298,7 +293,7 @@ class EnhancedKnowledgeGraphService:
 
     def _parse_fallback_response(
         self, response: str, chunk_id: str
-    ) -> Tuple[List[Entity], List[Dict[str, Any]]]:
+    ) -> tuple[list[Entity], list[dict[str, Any]]]:
         """Parse the fallback LLM response into entities and relationships."""
         entities = []
         relationships = []
@@ -361,7 +356,7 @@ class EnhancedKnowledgeGraphService:
 
         return entities, relationships
 
-    def _split_text(self, text: str, chunk_size: int) -> List[str]:
+    def _split_text(self, text: str, chunk_size: int) -> list[str]:
         """Split text into chunks for processing."""
         words = text.split()
         chunks = []
@@ -382,7 +377,7 @@ class EnhancedKnowledgeGraphService:
 
         return chunks
 
-    def _merge_entities(self, entities: List[Entity]) -> List[Entity]:
+    def _merge_entities(self, entities: list[Entity]) -> list[Entity]:
         """Merge duplicate entities based on name similarity."""
         merged = {}
 
@@ -399,8 +394,8 @@ class EnhancedKnowledgeGraphService:
         return list(merged.values())
 
     def _validate_relationships(
-        self, relationships: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, relationships: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Validate and filter relationships based on quality criteria."""
         validated = []
 

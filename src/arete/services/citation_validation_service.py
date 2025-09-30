@@ -9,19 +9,19 @@ This service provides comprehensive citation validation and accuracy checking:
 - Integration with expert validation systems
 """
 
+import asyncio
+import difflib
 import logging
 import re
-from typing import List, Dict, Any, Optional, Tuple, Set
 from dataclasses import dataclass, field
 from enum import Enum
-import difflib
+from typing import Any
 from uuid import UUID
-import asyncio
 
-from ..models.citation import Citation, CitationType, CitationContext
-from ..models.document import Document
-from ..models.chunk import Chunk
-from ..services.context_composition_service import ContextResult
+from arete.models.citation import Citation, CitationContext, CitationType
+from arete.models.document import Document
+from arete.services.context_composition_service import ContextResult
+
 from .base import ServiceError
 
 logger = logging.getLogger(__name__)
@@ -30,13 +30,11 @@ logger = logging.getLogger(__name__)
 class CitationValidationError(ServiceError):
     """Base exception for citation validation service errors."""
 
-    pass
 
 
 class ValidationRuleError(CitationValidationError):
     """Exception for validation rule failures."""
 
-    pass
 
 
 class ValidationType(str, Enum):
@@ -73,12 +71,12 @@ class ValidationResult:
     confidence_score: float = 1.0
 
     # Rule-specific results
-    rule_results: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    rule_results: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     # Detailed findings
-    issues: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
-    suggestions: List[str] = field(default_factory=list)
+    issues: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    suggestions: list[str] = field(default_factory=list)
 
     # Source verification
     source_found: bool = False
@@ -95,7 +93,7 @@ class BatchValidationResult:
     """Result of validating multiple citations."""
 
     # Individual results
-    citation_results: List[ValidationResult] = field(default_factory=list)
+    citation_results: list[ValidationResult] = field(default_factory=list)
 
     # Aggregate metrics
     overall_validity: bool = True
@@ -112,8 +110,8 @@ class BatchValidationResult:
     processing_time: float = 0.0
 
     # Quality assessment
-    quality_issues: List[str] = field(default_factory=list)
-    quality_recommendations: List[str] = field(default_factory=list)
+    quality_issues: list[str] = field(default_factory=list)
+    quality_recommendations: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -155,7 +153,7 @@ class CitationValidationService:
     proper attribution, and scholarly integrity in philosophical discourse.
     """
 
-    def __init__(self, config: Optional[CitationValidationConfig] = None):
+    def __init__(self, config: CitationValidationConfig | None = None):
         """
         Initialize citation validation service.
 
@@ -174,8 +172,8 @@ class CitationValidationService:
     async def validate_citation(
         self,
         citation: Citation,
-        source_context: Optional[ContextResult] = None,
-        original_document: Optional[Document] = None,
+        source_context: ContextResult | None = None,
+        original_document: Document | None = None,
     ) -> ValidationResult:
         """
         Validate a single citation for accuracy and proper attribution.
@@ -240,9 +238,9 @@ class CitationValidationService:
 
     async def validate_citations_batch(
         self,
-        citations: List[Citation],
-        source_context: Optional[ContextResult] = None,
-        original_documents: Optional[List[Document]] = None,
+        citations: list[Citation],
+        source_context: ContextResult | None = None,
+        original_documents: list[Document] | None = None,
     ) -> BatchValidationResult:
         """
         Validate multiple citations in batch with parallel processing.
@@ -265,7 +263,7 @@ class CitationValidationService:
 
             # Create validation tasks
             async def validate_with_semaphore(
-                citation: Citation, doc: Optional[Document] = None
+                citation: Citation, doc: Document | None = None
             ):
                 async with semaphore:
                     return await self.validate_citation(citation, source_context, doc)
@@ -292,7 +290,7 @@ class CitationValidationService:
                 citation_results = await asyncio.wait_for(
                     asyncio.gather(*tasks), timeout=self.config.validation_timeout
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning("Batch validation timed out, returning partial results")
                 # Handle timeout by creating error results for incomplete validations
                 citation_results = []
@@ -334,7 +332,7 @@ class CitationValidationService:
                 processing_time=time.time() - start_time,
             )
 
-    def _create_validation_rules(self) -> List[ValidationRule]:
+    def _create_validation_rules(self) -> list[ValidationRule]:
         """Create default validation rules."""
         rules = []
 
@@ -390,9 +388,9 @@ class CitationValidationService:
         self,
         citation: Citation,
         rule: ValidationRule,
-        source_context: Optional[ContextResult],
-        original_document: Optional[Document],
-    ) -> Dict[str, Any]:
+        source_context: ContextResult | None,
+        original_document: Document | None,
+    ) -> dict[str, Any]:
         """Apply a specific validation rule to a citation."""
 
         if rule.validation_type == ValidationType.TEXTUAL_ACCURACY:
@@ -417,9 +415,9 @@ class CitationValidationService:
     async def _validate_textual_accuracy(
         self,
         citation: Citation,
-        source_context: Optional[ContextResult],
+        source_context: ContextResult | None,
         rule: ValidationRule,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Validate textual accuracy of citation against source."""
         if not source_context or not source_context.citations:
             return {
@@ -454,9 +452,9 @@ class CitationValidationService:
     async def _validate_source_attribution(
         self,
         citation: Citation,
-        source_context: Optional[ContextResult],
+        source_context: ContextResult | None,
         rule: ValidationRule,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Validate source attribution accuracy."""
         if not citation.source_author or not citation.source_title:
             return {
@@ -498,9 +496,9 @@ class CitationValidationService:
     async def _validate_contextual_relevance(
         self,
         citation: Citation,
-        source_context: Optional[ContextResult],
+        source_context: ContextResult | None,
         rule: ValidationRule,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Validate contextual relevance of citation."""
 
         # Basic relevance based on citation context type
@@ -535,7 +533,7 @@ class CitationValidationService:
 
     async def _validate_scholarly_format(
         self, citation: Citation, rule: ValidationRule
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Validate scholarly format of citation."""
         score = 0.0
         issues = []
@@ -579,7 +577,7 @@ class CitationValidationService:
         }
 
     def _calculate_confidence_score(
-        self, citation: Citation, rule_results: Dict[str, Dict[str, Any]]
+        self, citation: Citation, rule_results: dict[str, dict[str, Any]]
     ) -> float:
         """Calculate overall confidence score from rule results."""
         if not rule_results:
@@ -646,7 +644,7 @@ class CitationValidationService:
     async def _analyze_contextual_relevance(
         self,
         citation: Citation,
-        source_context: Optional[ContextResult],
+        source_context: ContextResult | None,
         result: ValidationResult,
     ) -> ValidationResult:
         """Analyze contextual relevance of citation."""
@@ -678,7 +676,7 @@ class CitationValidationService:
 
     def _generate_improvement_suggestions(
         self, citation: Citation, result: ValidationResult
-    ) -> List[str]:
+    ) -> list[str]:
         """Generate suggestions for improving citation quality."""
         suggestions = []
 
@@ -765,7 +763,7 @@ class CitationValidationService:
         return batch_result
 
     def _assess_batch_quality(
-        self, batch_result: BatchValidationResult, citations: List[Citation]
+        self, batch_result: BatchValidationResult, citations: list[Citation]
     ) -> BatchValidationResult:
         """Assess overall quality and provide recommendations."""
 
@@ -813,7 +811,7 @@ class CitationValidationService:
 
 # Factory function following established pattern
 def create_citation_validation_service(
-    config: Optional[CitationValidationConfig] = None,
+    config: CitationValidationConfig | None = None,
 ) -> CitationValidationService:
     """
     Create citation validation service with configuration.

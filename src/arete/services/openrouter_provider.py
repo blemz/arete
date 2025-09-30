@@ -6,24 +6,23 @@ cloud-based LLMs through a unified interface, including cost tracking,
 model selection, and rate limit handling.
 """
 
-import asyncio
-import logging
-from typing import List, Dict, Any, Optional, Union
+import contextlib
 import json
+import logging
+from typing import Any
 
 import httpx
 
+from arete.config import Settings
 from arete.services.llm_provider import (
-    LLMProvider,
+    AuthenticationError,
     LLMMessage,
-    LLMResponse,
-    MessageRole,
+    LLMProvider,
     LLMProviderError,
+    LLMResponse,
     ProviderUnavailableError,
     RateLimitError,
-    AuthenticationError,
 )
-from arete.config import Settings
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -65,8 +64,8 @@ class OpenRouterProvider(LLMProvider):
         self.api_key = settings.openrouter_api_key
 
         # Model management
-        self._available_models: List[str] = []
-        self._model_info: Dict[str, Dict[str, Any]] = {}
+        self._available_models: list[str] = []
+        self._model_info: dict[str, dict[str, Any]] = {}
         self._default_model = "anthropic/claude-3-haiku"
 
     @property
@@ -75,7 +74,7 @@ class OpenRouterProvider(LLMProvider):
         return self._initialized
 
     @property
-    def supported_models(self) -> List[str]:
+    def supported_models(self) -> list[str]:
         """Get list of supported models."""
         if not self._initialized:
             return []
@@ -101,14 +100,12 @@ class OpenRouterProvider(LLMProvider):
 
             # Run the async check
             loop = None
-            try:
+            with contextlib.suppress(RuntimeError):
                 loop = asyncio.get_running_loop()
-            except RuntimeError:
-                pass
 
             if loop is not None:
                 # We're in an async context, create a task
-                task = loop.create_task(self._init_async())
+                loop.create_task(self._init_async())
                 self._initialized = True
             else:
                 # We're not in an async context, run synchronously
@@ -117,7 +114,7 @@ class OpenRouterProvider(LLMProvider):
 
         except Exception as e:
             logger.error(f"Failed to initialize OpenRouter provider: {e}")
-            if isinstance(e, (ProviderUnavailableError, AuthenticationError)):
+            if isinstance(e, ProviderUnavailableError | AuthenticationError):
                 raise
             raise LLMProviderError(f"OpenRouter initialization failed: {e}")
 
@@ -133,7 +130,7 @@ class OpenRouterProvider(LLMProvider):
         except Exception as e:
             logger.warning(f"Async initialization warning: {e}")
 
-    async def _get_available_models(self) -> List[str]:
+    async def _get_available_models(self) -> list[str]:
         """Get list of available models from OpenRouter API."""
         try:
             headers = self._get_headers()
@@ -179,17 +176,17 @@ class OpenRouterProvider(LLMProvider):
                 f"OpenRouter API unavailable: {e}", provider=self.name
             )
         except Exception as e:
-            if isinstance(e, (AuthenticationError, ProviderUnavailableError)):
+            if isinstance(e, AuthenticationError | ProviderUnavailableError):
                 raise
             logger.error(f"Error getting available models: {e}")
             return []
 
     async def generate_response(
         self,
-        messages: List[LLMMessage],
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        messages: list[LLMMessage],
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         stream: bool = False,
         **kwargs,
     ) -> LLMResponse:
@@ -243,7 +240,7 @@ class OpenRouterProvider(LLMProvider):
 
     async def _generate_standard(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         model: str,
         max_tokens: int,
         temperature: float,
@@ -288,7 +285,7 @@ class OpenRouterProvider(LLMProvider):
 
     async def _generate_streaming(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         model: str,
         max_tokens: int,
         temperature: float,
@@ -393,10 +390,8 @@ class OpenRouterProvider(LLMProvider):
         elif response.status_code == 429:
             retry_after = None
             if "retry-after" in response.headers:
-                try:
+                with contextlib.suppress(ValueError):
                     retry_after = int(response.headers["retry-after"])
-                except ValueError:
-                    pass
 
             raise RateLimitError(
                 f"OpenRouter API rate limit exceeded: {error_message}",
@@ -414,13 +409,13 @@ class OpenRouterProvider(LLMProvider):
 
     def _build_request_params(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         model: str,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         stream: bool = False,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Build request parameters for OpenRouter API."""
         params = {
             "model": model,
@@ -436,7 +431,7 @@ class OpenRouterProvider(LLMProvider):
 
         return params
 
-    def _format_messages(self, messages: List[LLMMessage]) -> List[Dict[str, str]]:
+    def _format_messages(self, messages: list[LLMMessage]) -> list[dict[str, str]]:
         """Format messages for OpenRouter API."""
         return [
             {"role": message.role.value, "content": message.content}
@@ -444,8 +439,8 @@ class OpenRouterProvider(LLMProvider):
         ]
 
     def _extract_content_from_response(
-        self, response_data: Dict[str, Any]
-    ) -> tuple[str, Optional[int], Optional[str]]:
+        self, response_data: dict[str, Any]
+    ) -> tuple[str, int | None, str | None]:
         """Extract content, tokens, and finish reason from OpenRouter response."""
         content = ""
         tokens = None
@@ -467,7 +462,7 @@ class OpenRouterProvider(LLMProvider):
 
         return content, tokens, finish_reason
 
-    def _get_default_model(self, available_models: List[str]) -> str:
+    def _get_default_model(self, available_models: list[str]) -> str:
         """Get default model to use."""
         if not available_models:
             return self._default_model
@@ -489,13 +484,13 @@ class OpenRouterProvider(LLMProvider):
         return available_models[0]
 
     def _get_headers(
-        self, app_name: Optional[str] = None, site_url: Optional[str] = None
-    ) -> Dict[str, str]:
+        self, app_name: str | None = None, site_url: str | None = None
+    ) -> dict[str, str]:
         """Get HTTP headers for API requests."""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
-            "User-Agent": f"Arete-Graph-RAG/1.0 (https://github.com/your-org/arete)",
+            "User-Agent": "Arete-Graph-RAG/1.0 (https://github.com/your-org/arete)",
         }
 
         # Add optional headers for cost tracking
@@ -507,7 +502,7 @@ class OpenRouterProvider(LLMProvider):
 
         return headers
 
-    def _extract_pricing_info(self, model_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_pricing_info(self, model_data: dict[str, Any]) -> dict[str, Any]:
         """Extract pricing information from model data."""
         pricing = model_data.get("pricing", {})
 
@@ -517,13 +512,13 @@ class OpenRouterProvider(LLMProvider):
             "currency": "USD",
         }
 
-    def get_model_info(self, model_id: str) -> Optional[Dict[str, Any]]:
+    def get_model_info(self, model_id: str) -> dict[str, Any] | None:
         """Get detailed information about a specific model."""
         return self._model_info.get(model_id)
 
     def estimate_cost(
         self, model_id: str, prompt_tokens: int, completion_tokens: int
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Estimate cost for a request."""
         model_info = self._model_info.get(model_id, {})
         pricing = model_info.get("pricing", {})
@@ -544,7 +539,7 @@ class OpenRouterProvider(LLMProvider):
             "currency": "USD",
         }
 
-    def get_health_status(self) -> Dict[str, Any]:
+    def get_health_status(self) -> dict[str, Any]:
         """Get provider health status and diagnostics."""
         if not self._initialized:
             return {
@@ -580,7 +575,7 @@ class OpenRouterProvider(LLMProvider):
 
 # Factory function for easy OpenRouter provider creation
 def create_openrouter_provider(
-    settings: Optional[Settings] = None,
+    settings: Settings | None = None,
 ) -> OpenRouterProvider:
     """
     Create and initialize an OpenRouter provider.

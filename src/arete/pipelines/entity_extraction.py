@@ -1,4 +1,3 @@
-from typing import List, Optional
 
 from arete.models.entity import Entity
 from arete.processing import EntityExtractor
@@ -8,8 +7,8 @@ async def run_entity_extraction(
 	text: str,
 	document_id,
 	repository,
-	extractor: Optional[EntityExtractor] = None,
-) -> List[Entity]:
+	extractor: EntityExtractor | None = None,
+) -> list[Entity]:
 	"""Extract entities from text and persist them using the repository.
 
 	Args:
@@ -25,7 +24,7 @@ async def run_entity_extraction(
 		extractor = EntityExtractor()
 
 	entities = extractor.extract_entities(text=text, document_id=document_id)
-	results: List[Entity] = []
+	results: list[Entity] = []
 	for entity in entities:
 		created = await repository.create(entity)
 		results.append(created)

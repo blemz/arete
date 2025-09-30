@@ -3,8 +3,9 @@ Analytics page for the Arete Reflex application.
 """
 
 import reflex as rx
-from ..components.layout import base_layout
+
 from ..components.analytics import analytics_dashboard
+from ..components.layout import base_layout
 
 
 def analytics_page() -> rx.Component:

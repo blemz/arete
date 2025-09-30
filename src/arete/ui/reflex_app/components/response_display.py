@@ -5,15 +5,16 @@ Beautiful, structured display components for philosophical responses
 from the enhanced prompt system.
 """
 
+
 import reflex as rx
-from typing import List, Dict
-from response_parser import ParsedResponse, ResponseParser
+from response_parser import ResponseParser
+
 
 def direct_answer_card(content: str) -> rx.Component:
     """Display the direct answer section."""
     if not content:
         return rx.fragment()
-    
+
     return rx.box(
         rx.vstack(
             rx.hstack(
@@ -48,7 +49,7 @@ def detailed_explanation_card(content: str) -> rx.Component:
     """Display the detailed explanation section."""
     if not content:
         return rx.fragment()
-    
+
     return rx.box(
         rx.vstack(
             rx.hstack(
@@ -84,7 +85,7 @@ def broader_connections_card(content: str) -> rx.Component:
     """Display the broader connections section."""
     if not content:
         return rx.fragment()
-    
+
     return rx.box(
         rx.vstack(
             rx.hstack(
@@ -120,10 +121,10 @@ def references_card(content: str) -> rx.Component:
     """Display the references section with citations."""
     if not content:
         return rx.fragment()
-    
+
     # Parse citations
     citations = ResponseParser.extract_citations(content)
-    
+
     return rx.box(
         rx.vstack(
             rx.hstack(
@@ -163,19 +164,19 @@ def references_card(content: str) -> rx.Component:
         _hover={"box_shadow": "0 4px 12px rgba(249, 115, 22, 0.15)"}
     )
 
-def citation_item(citation: Dict[str, str]) -> rx.Component:
+def citation_item(citation: dict[str, str]) -> rx.Component:
     """Display a single citation."""
     return rx.box(
         rx.vstack(
             rx.text(
-                citation.get('source', 'Citation'),
+                citation.get("source", "Citation"),
                 font_size="sm",
                 font_weight="600",
                 color="orange.800",
                 letter_spacing="0.01em"
             ),
             rx.text(
-                citation.get('text', ''),
+                citation.get("text", ""),
                 font_size="sm",
                 line_height="1.6",
                 color="gray.700",
@@ -198,7 +199,7 @@ def citation_item(citation: Dict[str, str]) -> rx.Component:
 
 def formatted_response(response_text: str) -> rx.Component:
     """Main component to display a formatted philosophical response."""
-    
+
     # For now, just display as a simple styled response
     # We'll handle XML parsing on the backend before passing to UI
     return rx.box(
@@ -234,7 +235,7 @@ def formatted_response(response_text: str) -> rx.Component:
 
 def simple_message(message: str, is_user: bool = False) -> rx.Component:
     """Simple message component for user messages and fallbacks."""
-    
+
     return rx.cond(
         is_user,
         # User message
@@ -306,7 +307,7 @@ def thinking_animation() -> rx.Component:
                 ),
                 rx.box(
                     bg="blue.500",
-                    width="8px", 
+                    width="8px",
                     height="8px",
                     border_radius="50%",
                     animation="bounce 1.4s ease-in-out infinite both",
@@ -315,7 +316,7 @@ def thinking_animation() -> rx.Component:
                 rx.box(
                     bg="blue.500",
                     width="8px",
-                    height="8px", 
+                    height="8px",
                     border_radius="50%",
                     animation="bounce 1.4s ease-in-out infinite both",
                     animation_delay="0.32s"

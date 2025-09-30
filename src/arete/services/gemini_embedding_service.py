@@ -6,9 +6,11 @@ Provides embedding generation using Google's Gemini API.
 
 import asyncio
 import logging
-from typing import List, Optional, Dict, Any
+from typing import Any
+
 import httpx
-from ..config import Settings, get_settings
+
+from arete.config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +29,8 @@ class GeminiEmbeddingService:
     def __init__(
         self,
         model_name: str = "text-embedding-004",
-        api_key: Optional[str] = None,
-        settings: Optional[Settings] = None,
+        api_key: str | None = None,
+        settings: Settings | None = None,
         max_batch_size: int = 100,
         base_url: str = "https://generativelanguage.googleapis.com/v1beta",
     ):
@@ -78,7 +80,7 @@ class GeminiEmbeddingService:
             f"Initialized Gemini embedding service with model: {model_name} ({self.dimensions}d)"
         )
 
-    async def generate_embedding(self, text: str) -> List[float]:
+    async def generate_embedding(self, text: str) -> list[float]:
         """
         Generate embedding for a single text.
 
@@ -126,7 +128,7 @@ class GeminiEmbeddingService:
                 logger.error(f"Gemini embedding generation failed: {e}")
                 raise
 
-    async def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
+    async def generate_embeddings(self, texts: list[str]) -> list[list[float]]:
         """
         Generate embeddings for multiple texts.
 
@@ -145,7 +147,7 @@ class GeminiEmbeddingService:
         # Use semaphore to limit concurrent requests
         semaphore = asyncio.Semaphore(10)  # Max 10 concurrent requests
 
-        async def generate_single(text: str) -> List[float]:
+        async def generate_single(text: str) -> list[float]:
             async with semaphore:
                 try:
                     return await self.generate_embedding(text)
@@ -173,7 +175,7 @@ class GeminiEmbeddingService:
         """Get embedding dimensions."""
         return self.dimensions
 
-    def get_model_info(self) -> Dict[str, Any]:
+    def get_model_info(self) -> dict[str, Any]:
         """Get model information."""
         return {
             "provider": "gemini",

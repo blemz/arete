@@ -38,7 +38,7 @@ def hero_section() -> rx.Component:
                     ),
                     rx.link(
                         "Explore Documents",
-                        href="/documents", 
+                        href="/documents",
                         class_name="btn btn-outline btn-lg"
                     ),
                     spacing="4",

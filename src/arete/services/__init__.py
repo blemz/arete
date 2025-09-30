@@ -5,27 +5,26 @@ This package contains service layer components that provide business logic
 and coordinate between different system components.
 """
 
+from .dense_retrieval_service import (
+    DenseRetrievalService,
+    RetrievalMetrics,
+    SearchResult,
+    create_dense_retrieval_service,
+)
 from .embedding_service import (
+    BatchProcessingError,
     EmbeddingService,
     EmbeddingServiceError,
     ModelNotLoadedError,
-    BatchProcessingError,
-    get_embedding_service,
     clear_embedding_service_cache,
+    get_embedding_service,
 )
-
 from .expert_validation_service import ExpertValidationService
 from .knowledge_graph_service import KnowledgeGraphService
-from .dense_retrieval_service import (
-    DenseRetrievalService,
-    SearchResult,
-    RetrievalMetrics,
-    create_dense_retrieval_service,
-)
 from .sparse_retrieval_service import (
-    SparseRetrievalService,
     BaseSparseRetriever,
     BM25Retriever,
+    SparseRetrievalService,
     SPLADERetriever,
     create_sparse_retrieval_service,
 )

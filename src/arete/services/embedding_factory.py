@@ -5,8 +5,8 @@ Selects embedding service based on the configured EMBEDDING_PROVIDER variable.
 """
 
 import logging
-from typing import Optional, Union
-from ..config import Settings, get_settings
+
+from arete.config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -17,11 +17,11 @@ class EmbeddingServiceFactory:
     @classmethod
     def create_service(
         cls,
-        provider: Optional[str] = None,
-        model_name: Optional[str] = None,
-        device: Optional[str] = None,
-        base_url: Optional[str] = None,
-        settings: Optional[Settings] = None,
+        provider: str | None = None,
+        model_name: str | None = None,
+        device: str | None = None,
+        base_url: str | None = None,
+        settings: Settings | None = None,
     ):
         """
         Create appropriate embedding service based on provider configuration.
@@ -131,11 +131,11 @@ class EmbeddingServiceFactory:
 
 # Convenience function that matches the existing API
 def get_embedding_service(
-    provider: Optional[str] = None,
-    model_name: Optional[str] = None,
-    device: Optional[str] = None,
-    base_url: Optional[str] = None,
-    settings: Optional[Settings] = None,
+    provider: str | None = None,
+    model_name: str | None = None,
+    device: str | None = None,
+    base_url: str | None = None,
+    settings: Settings | None = None,
 ):
     """
     Get appropriate embedding service instance.

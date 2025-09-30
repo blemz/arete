@@ -3,8 +3,9 @@ Chat page for the Arete Reflex application.
 """
 
 import reflex as rx
-from ..components.layout import base_layout
+
 from ..components.chat import chat_interface
+from ..components.layout import base_layout
 
 
 def chat_page() -> rx.Component:

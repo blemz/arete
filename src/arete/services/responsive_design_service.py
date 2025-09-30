@@ -5,9 +5,9 @@ This service provides responsive design capabilities for the Arete Streamlit
 interface, ensuring optimal user experience across different devices and screen sizes.
 """
 
-from typing import Dict, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 
 class BreakpointSize(Enum):
@@ -45,7 +45,7 @@ class ResponsiveConfig:
 class ResponsiveDesignService:
     """Service for implementing responsive design in Streamlit."""
 
-    def __init__(self, config: Optional[ResponsiveConfig] = None):
+    def __init__(self, config: ResponsiveConfig | None = None):
         """Initialize the responsive design service."""
         self.config = config or ResponsiveConfig()
 
@@ -86,24 +86,24 @@ class ResponsiveDesignService:
         return """
         <style>
         /* Base Responsive Design */
-        
+
         /* Responsive containers */
         .main {
             max-width: 100% !important;
             overflow-x: hidden !important;
         }
-        
+
         /* Responsive images */
         img {
             max-width: 100% !important;
             height: auto !important;
         }
-        
+
         /* Flexible layouts */
         .stColumns {
             flex-wrap: wrap !important;
         }
-        
+
         /* Responsive text */
         .stMarkdown {
             word-wrap: break-word !important;
@@ -124,30 +124,30 @@ class ResponsiveDesignService:
             .main {{
                 padding: 0.5rem !important;
             }}
-            
+
             .stSidebar {{
                 width: 100% !important;
                 position: relative !important;
             }}
-            
+
             /* Stack columns on mobile */
             .stColumns > div {{
                 width: 100% !important;
                 margin-bottom: 1rem !important;
             }}
-            
+
             /* Larger touch targets for mobile */
             .stButton > button {{
                 min-height: 44px !important;
                 min-width: 44px !important;
                 font-size: 1.1rem !important;
             }}
-            
+
             /* Prevent zoom on input focus */
             .stTextInput input, .stTextArea textarea {{
                 font-size: 16px !important;
             }}
-            
+
             /* Mobile-friendly chat */
             .stChatMessage {{
                 margin: 0.25rem 0 !important;
@@ -169,17 +169,17 @@ class ResponsiveDesignService:
             .main {{
                 padding: 1rem 0.75rem !important;
             }}
-            
+
             .stSidebar {{
                 width: 250px !important;
             }}
-            
+
             /* Tablet button sizing */
             .stButton > button {{
                 min-height: 40px !important;
                 min-width: 40px !important;
             }}
-            
+
             /* Tablet chat sizing */
             .stChatMessage {{
                 margin: 0.5rem 0 !important;
@@ -200,11 +200,11 @@ class ResponsiveDesignService:
                 max-width: 1200px !important;
                 margin: 0 auto !important;
             }}
-            
+
             .stSidebar {{
                 width: 300px !important;
             }}
-            
+
             /* Desktop spacing */
             .stChatMessage {{
                 margin: 0.75rem 0 !important;
@@ -222,16 +222,16 @@ class ResponsiveDesignService:
         .main {
             padding-top: 0.5rem !important;
         }
-        
+
         .stChatMessage {
             margin: 0.25rem 0 !important;
             padding: 0.5rem !important;
         }
-        
+
         .stButton > button {
             padding: 0.25rem 0.5rem !important;
         }
-        
+
         h1, h2, h3, h4, h5, h6 {
             margin: 0.5rem 0 !important;
         }
@@ -246,7 +246,7 @@ class ResponsiveDesignService:
         .main {{
             font-size: {scale}rem !important;
         }}
-        
+
         h1 {{ font-size: {scale * 2.5}rem !important; }}
         h2 {{ font-size: {scale * 2}rem !important; }}
         h3 {{ font-size: {scale * 1.75}rem !important; }}
@@ -283,8 +283,8 @@ class ResponsiveDesignService:
         return DeviceType.DESKTOP
 
     def get_responsive_layout_config(
-        self, device_type: Optional[DeviceType] = None
-    ) -> Dict[str, Any]:
+        self, device_type: DeviceType | None = None
+    ) -> dict[str, Any]:
         """Get responsive layout configuration for the given device type."""
         if device_type is None:
             device_type = self.detect_device_type()
@@ -303,7 +303,7 @@ class ResponsiveDesignService:
         """Generate viewport meta tag for responsive design."""
         return '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">'
 
-    def get_responsive_css(self, device_type: Optional[DeviceType] = None) -> str:
+    def get_responsive_css(self, device_type: DeviceType | None = None) -> str:
         """Get responsive CSS for the given device type."""
         return self.generate_responsive_css(
             compact_mode=(device_type == DeviceType.MOBILE if device_type else False),
@@ -315,4 +315,3 @@ class ResponsiveDesignService:
         # This is a placeholder method for mobile optimization
         # In a real implementation, this might adjust configuration settings
         # or prepare mobile-specific resources
-        pass

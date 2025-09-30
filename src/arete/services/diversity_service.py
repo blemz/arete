@@ -14,20 +14,19 @@ Designed for philosophical content with domain-specific optimizations for
 classical texts and concepts.
 """
 
+import hashlib
+import logging
 import time
-from typing import List, Dict, Any, Optional, Tuple, Set
-from enum import Enum
 from dataclasses import dataclass, field
-from uuid import UUID
+from enum import Enum
+from typing import Any
+
 import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import cosine_similarity
-import hashlib
-import logging
 
-from arete.services.dense_retrieval_service import SearchResult
-from arete.models.chunk import Chunk
 from arete.config import Settings
+from arete.services.dense_retrieval_service import SearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +43,6 @@ class DiversityMethod(Enum):
 class DiversityError(Exception):
     """Custom exception for diversity service errors."""
 
-    pass
 
 
 @dataclass
@@ -52,10 +50,10 @@ class ClusterInfo:
     """Information about a result cluster."""
 
     cluster_id: int
-    center_embedding: List[float]
+    center_embedding: list[float]
     size: int
     coherence: float
-    topic_keywords: List[str] = field(default_factory=list)
+    topic_keywords: list[str] = field(default_factory=list)
     representative_text: str = ""
 
     def calculate_similarity(self, other: "ClusterInfo") -> float:
@@ -146,11 +144,11 @@ class DiversityMetrics:
     total_diversification_requests: int = 0
     total_processing_time: float = 0.0
     total_results_processed: int = 0
-    method_usage: Dict[str, int] = field(default_factory=dict)
+    method_usage: dict[str, int] = field(default_factory=dict)
     clustering_efficiency: float = 0.0
     average_diversity_improvement: float = 0.0
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get summary of diversity metrics."""
         if self.total_diversification_requests == 0:
             return {
@@ -201,7 +199,7 @@ class DiversityService:
         self.config = config
         self.settings = settings
         self.metrics = DiversityMetrics()
-        self.cache: Dict[str, List[DiversityResult]] = {}
+        self.cache: dict[str, list[DiversityResult]] = {}
         self.is_initialized = True
 
         # Validate configuration
@@ -252,9 +250,9 @@ class DiversityService:
 
     def diversify(
         self,
-        search_results: List[SearchResult],
-        method: Optional[DiversityMethod] = None,
-    ) -> List[DiversityResult]:
+        search_results: list[SearchResult],
+        method: DiversityMethod | None = None,
+    ) -> list[DiversityResult]:
         """
         Diversify search results to reduce redundancy.
 
@@ -275,7 +273,7 @@ class DiversityService:
             # Check cache
             cache_key = self._generate_cache_key(search_results, method)
             if cache_key in self.cache:
-                logger.debug(f"Using cached diversification results")
+                logger.debug("Using cached diversification results")
                 return self.cache[cache_key]
 
             # Validate method
@@ -320,8 +318,8 @@ class DiversityService:
             raise DiversityError(f"Diversification failed: {e}")
 
     def _mmr_diversification(
-        self, results: List[SearchResult]
-    ) -> List[DiversityResult]:
+        self, results: list[SearchResult]
+    ) -> list[DiversityResult]:
         """Apply Maximum Marginal Relevance diversification."""
         if len(results) <= 1:
             if results:
@@ -334,7 +332,7 @@ class DiversityService:
 
         selected = []
         remaining = results[:]
-        embeddings = [result.chunk.embedding_vector for result in results]
+        [result.chunk.embedding_vector for result in results]
 
         # Select first result (highest relevance)
         best_result = max(remaining, key=lambda x: x.relevance_score)
@@ -402,8 +400,8 @@ class DiversityService:
         return diversity_results
 
     def _clustering_diversification(
-        self, results: List[SearchResult]
-    ) -> List[DiversityResult]:
+        self, results: list[SearchResult]
+    ) -> list[DiversityResult]:
         """Apply clustering-based diversification."""
         if len(results) <= self.config.num_clusters:
             # Not enough results to cluster effectively
@@ -422,7 +420,7 @@ class DiversityService:
 
         # Create cluster info
         clusters = {}
-        for i, label in enumerate(cluster_labels):
+        for _i, label in enumerate(cluster_labels):
             if label not in clusters:
                 clusters[label] = ClusterInfo(
                     cluster_id=label,
@@ -474,8 +472,8 @@ class DiversityService:
         return diversity_results[: self.config.max_results]
 
     def _semantic_distance_diversification(
-        self, results: List[SearchResult]
-    ) -> List[DiversityResult]:
+        self, results: list[SearchResult]
+    ) -> list[DiversityResult]:
         """Apply semantic distance-based diversification."""
         if len(results) <= 1:
             if results:
@@ -553,8 +551,8 @@ class DiversityService:
         return diversity_results
 
     def _hybrid_diversification(
-        self, results: List[SearchResult]
-    ) -> List[DiversityResult]:
+        self, results: list[SearchResult]
+    ) -> list[DiversityResult]:
         """Apply hybrid diversification combining multiple methods."""
         # Get results from different methods
         mmr_results = self._mmr_diversification(results)
@@ -578,7 +576,7 @@ class DiversityService:
         combined_results = list(all_results.values())
 
         # Recalculate diversity scores for hybrid method
-        for i, result in enumerate(combined_results):
+        for _i, result in enumerate(combined_results):
             topical_diversity = self._calculate_topical_diversity(
                 result.original_result, results
             )
@@ -596,7 +594,7 @@ class DiversityService:
         return combined_results[: self.config.max_results]
 
     def _calculate_overall_diversity_score(
-        self, target_result: SearchResult, selected_results: List[SearchResult]
+        self, target_result: SearchResult, selected_results: list[SearchResult]
     ) -> float:
         """Calculate overall diversity score for a result against selected results."""
         if len(selected_results) <= 1:
@@ -621,7 +619,7 @@ class DiversityService:
         return max(0.0, 1.0 - avg_similarity)
 
     def _calculate_topical_diversity(
-        self, result: SearchResult, all_results: List[SearchResult]
+        self, result: SearchResult, all_results: list[SearchResult]
     ) -> float:
         """Calculate topical diversity based on concept coverage."""
         result_text = result.chunk.text.lower()
@@ -654,7 +652,7 @@ class DiversityService:
         return min(1.0, concept_diversity + 0.5)  # Boost base score
 
     def _calculate_semantic_novelty(
-        self, target_result: SearchResult, other_results: List[SearchResult]
+        self, target_result: SearchResult, other_results: list[SearchResult]
     ) -> float:
         """Calculate semantic novelty score."""
         if (
@@ -677,7 +675,7 @@ class DiversityService:
 
         return max(0.0, 1.0 - max_similarity)
 
-    def _extract_topics(self, results: List[SearchResult]) -> Dict[str, float]:
+    def _extract_topics(self, results: list[SearchResult]) -> dict[str, float]:
         """Extract topics from search results."""
         topic_counts = {}
 
@@ -703,7 +701,7 @@ class DiversityService:
         return topic_counts
 
     def _calculate_cosine_similarity(
-        self, embedding1: List[float], embedding2: List[float]
+        self, embedding1: list[float], embedding2: list[float]
     ) -> float:
         """Calculate cosine similarity between two embeddings."""
         if len(embedding1) != len(embedding2):
@@ -746,7 +744,7 @@ class DiversityService:
         )
 
     def _generate_cache_key(
-        self, results: List[SearchResult], method: DiversityMethod
+        self, results: list[SearchResult], method: DiversityMethod
     ) -> str:
         """Generate cache key for results and method."""
         # Create hash from result texts and method
@@ -759,7 +757,7 @@ class DiversityService:
         method: str,
         num_results: int,
         processing_time: float,
-        diversified_results: List[DiversityResult],
+        diversified_results: list[DiversityResult],
     ):
         """Update service metrics."""
         self.metrics.total_diversification_requests += 1
@@ -780,12 +778,12 @@ class DiversityService:
 
         # Calculate clustering efficiency (for clustering methods)
         if method == "clustering" and diversified_results:
-            unique_clusters = len(set(r.cluster_id for r in diversified_results))
+            unique_clusters = len({r.cluster_id for r in diversified_results})
             self.metrics.clustering_efficiency = unique_clusters / max(
                 1, len(diversified_results)
             )
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get service performance metrics."""
         return self.metrics.get_summary()
 
@@ -795,7 +793,7 @@ class DiversityService:
 
 
 def create_diversity_service(
-    settings: Settings, config: Optional[DiversityConfig] = None
+    settings: Settings, config: DiversityConfig | None = None
 ) -> DiversityService:
     """
     Factory function to create a configured DiversityService.

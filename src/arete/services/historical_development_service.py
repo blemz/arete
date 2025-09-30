@@ -15,20 +15,18 @@ and research analysis.
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple, Any, Set
-from dataclasses import dataclass, field
-from enum import Enum
-import asyncio
-from collections import defaultdict, Counter
 import re
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any
 
 from neo4j import AsyncSession
-from pydantic import BaseModel, Field, ConfigDict
 
 from arete.config import get_settings
 from arete.database.client import Neo4jClient
-from arete.models.entity import Entity, EntityType
+from arete.models.entity import EntityType
 
 logger = logging.getLogger(__name__)
 
@@ -47,13 +45,11 @@ class TimePeriod(str, Enum):
 class HistoricalAnalysisError(Exception):
     """Base exception for historical analysis errors."""
 
-    pass
 
 
 class TimelineConstructionError(HistoricalAnalysisError):
     """Exception raised during timeline construction."""
 
-    pass
 
 
 @dataclass
@@ -63,11 +59,11 @@ class HistoricalEvent:
     entity_id: str
     entity_name: str
     entity_type: EntityType
-    date: Optional[datetime] = None
-    date_string: Optional[str] = None  # Original date string
-    period: Optional[TimePeriod] = None
-    description: Optional[str] = None
-    related_entities: List[str] = field(default_factory=list)
+    date: datetime | None = None
+    date_string: str | None = None  # Original date string
+    period: TimePeriod | None = None
+    description: str | None = None
+    related_entities: list[str] = field(default_factory=list)
     confidence_score: float = 1.0  # Confidence in date accuracy
 
 
@@ -77,14 +73,14 @@ class ConceptEvolution:
 
     concept_id: str
     concept_name: str
-    timeline: List[HistoricalEvent] = field(default_factory=list)
-    key_developments: List[Tuple[datetime, str, str]] = field(
+    timeline: list[HistoricalEvent] = field(default_factory=list)
+    key_developments: list[tuple[datetime, str, str]] = field(
         default_factory=list
     )  # (date, entity, development)
-    evolution_periods: Dict[TimePeriod, List[str]] = field(
+    evolution_periods: dict[TimePeriod, list[str]] = field(
         default_factory=dict
     )  # period -> contributors
-    influence_chain: List[Tuple[str, str, datetime]] = field(
+    influence_chain: list[tuple[str, str, datetime]] = field(
         default_factory=list
     )  # (from, to, date)
 
@@ -93,11 +89,11 @@ class ConceptEvolution:
 class HistoricalTimeline:
     """Complete historical timeline for philosophical development."""
 
-    start_date: Optional[datetime] = None
-    end_date: Optional[datetime] = None
-    events: List[HistoricalEvent] = field(default_factory=list)
-    periods: Dict[TimePeriod, List[HistoricalEvent]] = field(default_factory=dict)
-    concept_evolutions: Dict[str, ConceptEvolution] = field(default_factory=dict)
+    start_date: datetime | None = None
+    end_date: datetime | None = None
+    events: list[HistoricalEvent] = field(default_factory=list)
+    periods: dict[TimePeriod, list[HistoricalEvent]] = field(default_factory=dict)
+    concept_evolutions: dict[str, ConceptEvolution] = field(default_factory=dict)
     total_events: int = 0
 
 
@@ -108,18 +104,18 @@ class PeriodAnalysis:
     period: TimePeriod
     start_year: int
     end_year: int
-    key_figures: List[Tuple[str, str]] = field(default_factory=list)  # (id, name)
-    dominant_concepts: List[Tuple[str, str]] = field(default_factory=list)  # (id, name)
-    influential_works: List[str] = field(default_factory=list)
-    schools_of_thought: List[str] = field(default_factory=list)
-    period_characteristics: List[str] = field(default_factory=list)
+    key_figures: list[tuple[str, str]] = field(default_factory=list)  # (id, name)
+    dominant_concepts: list[tuple[str, str]] = field(default_factory=list)  # (id, name)
+    influential_works: list[str] = field(default_factory=list)
+    schools_of_thought: list[str] = field(default_factory=list)
+    period_characteristics: list[str] = field(default_factory=list)
 
 
 class HistoricalDevelopmentService:
     """Service for tracking historical development in philosophical thought."""
 
     def __init__(
-        self, neo4j_client: Optional[Neo4jClient] = None, settings: Optional[Any] = None
+        self, neo4j_client: Neo4jClient | None = None, settings: Any | None = None
     ):
         """Initialize historical development service."""
         self.settings = settings or get_settings()
@@ -142,7 +138,7 @@ class HistoricalDevelopmentService:
             self.neo4j_client = Neo4jClient()
         return self.neo4j_client
 
-    def _parse_date(self, date_string: str) -> Tuple[Optional[datetime], float]:
+    def _parse_date(self, date_string: str) -> tuple[datetime | None, float]:
         """
         Parse date string and return datetime with confidence score.
 
@@ -210,9 +206,9 @@ class HistoricalDevelopmentService:
 
     async def construct_historical_timeline(
         self,
-        entity_types: Optional[List[EntityType]] = None,
-        start_year: Optional[int] = None,
-        end_year: Optional[int] = None,
+        entity_types: list[EntityType] | None = None,
+        start_year: int | None = None,
+        end_year: int | None = None,
     ) -> HistoricalTimeline:
         """
         Construct comprehensive historical timeline of philosophical development.
@@ -265,8 +261,8 @@ class HistoricalDevelopmentService:
             raise TimelineConstructionError(f"Failed to construct timeline: {str(e)}")
 
     async def _extract_historical_events(
-        self, session: AsyncSession, entity_types: Optional[List[EntityType]]
-    ) -> List[HistoricalEvent]:
+        self, session: AsyncSession, entity_types: list[EntityType] | None
+    ) -> list[HistoricalEvent]:
         """Extract historical events from the knowledge graph."""
         type_filter = ""
         if entity_types:
@@ -335,10 +331,10 @@ class HistoricalDevelopmentService:
 
     def _filter_events_by_date_range(
         self,
-        events: List[HistoricalEvent],
-        start_year: Optional[int],
-        end_year: Optional[int],
-    ) -> List[HistoricalEvent]:
+        events: list[HistoricalEvent],
+        start_year: int | None,
+        end_year: int | None,
+    ) -> list[HistoricalEvent]:
         """Filter events by date range."""
         filtered_events = []
 
@@ -360,8 +356,8 @@ class HistoricalDevelopmentService:
         return filtered_events
 
     async def _analyze_concept_evolutions(
-        self, session: AsyncSession, events: List[HistoricalEvent]
-    ) -> Dict[str, ConceptEvolution]:
+        self, session: AsyncSession, events: list[HistoricalEvent]
+    ) -> dict[str, ConceptEvolution]:
         """Analyze how concepts evolved over time."""
         concept_evolutions = {}
 
@@ -471,7 +467,7 @@ class HistoricalDevelopmentService:
                 f"Failed to analyze period {period}: {str(e)}"
             )
 
-    def _get_period_boundaries(self, period: TimePeriod) -> Tuple[int, int]:
+    def _get_period_boundaries(self, period: TimePeriod) -> tuple[int, int]:
         """Get start and end years for a historical period."""
         boundaries = {
             TimePeriod.ANCIENT: (-3000, 500),
@@ -483,7 +479,7 @@ class HistoricalDevelopmentService:
         }
         return boundaries.get(period, (0, 2024))
 
-    def _get_period_characteristics(self, period: TimePeriod) -> List[str]:
+    def _get_period_characteristics(self, period: TimePeriod) -> list[str]:
         """Get characteristic features of a historical period."""
         characteristics = {
             TimePeriod.ANCIENT: [
@@ -615,7 +611,7 @@ class HistoricalDevelopmentService:
 
 
 def create_historical_development_service(
-    neo4j_client: Optional[Neo4jClient] = None, settings: Optional[Any] = None
+    neo4j_client: Neo4jClient | None = None, settings: Any | None = None
 ) -> HistoricalDevelopmentService:
     """Create a HistoricalDevelopmentService instance."""
     return HistoricalDevelopmentService(neo4j_client=neo4j_client, settings=settings)

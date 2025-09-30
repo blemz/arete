@@ -6,22 +6,22 @@ and integration with the SimpleLLMService for philosophical tutoring scenarios.
 """
 
 import logging
-from typing import Dict, List, Optional, Type, Any
 from dataclasses import dataclass
+from typing import Any
 
+from arete.config import Settings, get_settings
+from arete.services.llm_provider import LLMMessage, LLMResponse, MessageRole
 from arete.services.prompt_template import (
     BasePromptTemplate,
-    PhilosophicalTutoringTemplate,
+    Citation,
     ExplanationTemplate,
-    PromptType,
+    PhilosophicalContext,
+    PhilosophicalTutoringTemplate,
     PromptContext,
     PromptResult,
-    PhilosophicalContext,
-    Citation,
+    PromptType,
 )
 from arete.services.simple_llm_service import SimpleLLMService
-from arete.services.llm_provider import LLMMessage, MessageRole, LLMResponse
-from arete.config import Settings, get_settings
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -37,8 +37,8 @@ class PromptTemplateFactory:
 
     def __init__(self):
         """Initialize template factory."""
-        self._template_cache: Dict[str, BasePromptTemplate] = {}
-        self._template_registry: Dict[PromptType, Type[BasePromptTemplate]] = {
+        self._template_cache: dict[str, BasePromptTemplate] = {}
+        self._template_registry: dict[PromptType, type[BasePromptTemplate]] = {
             PromptType.TUTORING: PhilosophicalTutoringTemplate,
             PromptType.EXPLANATION: ExplanationTemplate,
             # Additional templates can be registered here
@@ -79,7 +79,7 @@ class PromptTemplateFactory:
         return template
 
     def register_template(
-        self, prompt_type: PromptType, template_class: Type[BasePromptTemplate]
+        self, prompt_type: PromptType, template_class: type[BasePromptTemplate]
     ) -> None:
         """
         Register a new template type.
@@ -91,7 +91,7 @@ class PromptTemplateFactory:
         self._template_registry[prompt_type] = template_class
         logger.info(f"Registered template class for {prompt_type.value}")
 
-    def list_supported_types(self) -> List[PromptType]:
+    def list_supported_types(self) -> list[PromptType]:
         """Get list of supported prompt types."""
         return list(self._template_registry.keys())
 
@@ -107,14 +107,14 @@ class TutoringRequest:
 
     query: str
     student_level: str = "undergraduate"
-    philosophical_context: Optional[PhilosophicalContext] = None
-    learning_objective: Optional[str] = None
-    retrieved_passages: Optional[List[str]] = None
-    citations: Optional[List[Citation]] = None
-    previous_context: Optional[str] = None
-    provider: Optional[str] = None
+    philosophical_context: PhilosophicalContext | None = None
+    learning_objective: str | None = None
+    retrieved_passages: list[str] | None = None
+    citations: list[Citation] | None = None
+    previous_context: str | None = None
+    provider: str | None = None
     prompt_type: PromptType = PromptType.TUTORING
-    metadata: Dict[str, Any] = None
+    metadata: dict[str, Any] = None
 
     def __post_init__(self):
         """Initialize default values."""
@@ -133,8 +133,8 @@ class TutoringResponse:
     content: str
     prompt_used: PromptResult
     llm_response: LLMResponse
-    citations_provided: List[Citation]
-    metadata: Dict[str, Any] = None
+    citations_provided: list[Citation]
+    metadata: dict[str, Any] = None
 
     def __post_init__(self):
         """Initialize default values."""
@@ -152,8 +152,8 @@ class PromptService:
 
     def __init__(
         self,
-        settings: Optional[Settings] = None,
-        llm_service: Optional[SimpleLLMService] = None,
+        settings: Settings | None = None,
+        llm_service: SimpleLLMService | None = None,
     ):
         """
         Initialize prompt service.
@@ -245,7 +245,7 @@ class PromptService:
         self,
         context: PromptContext,
         prompt_type: PromptType = PromptType.TUTORING,
-        provider: Optional[str] = None,
+        provider: str | None = None,
     ) -> PromptResult:
         """
         Generate a prompt for the specified context and type.
@@ -277,9 +277,9 @@ class PromptService:
         self,
         text: str,
         source: str,
-        author: Optional[str] = None,
-        work: Optional[str] = None,
-        reference: Optional[str] = None,
+        author: str | None = None,
+        work: str | None = None,
+        reference: str | None = None,
         confidence: float = 1.0,
     ) -> Citation:
         """
@@ -305,11 +305,11 @@ class PromptService:
             confidence=confidence,
         )
 
-    def get_supported_prompt_types(self) -> List[PromptType]:
+    def get_supported_prompt_types(self) -> list[PromptType]:
         """Get list of supported prompt types."""
         return self.template_factory.list_supported_types()
 
-    def get_provider_info(self) -> Dict[str, Any]:
+    def get_provider_info(self) -> dict[str, Any]:
         """Get information about available providers and configuration."""
         llm_info = self.llm_service.get_provider_info()
         return {
@@ -327,17 +327,17 @@ class PromptService:
 
 
 # Convenience functions
-def get_prompt_service(settings: Optional[Settings] = None) -> PromptService:
+def get_prompt_service(settings: Settings | None = None) -> PromptService:
     """Get a PromptService instance."""
     return PromptService(settings)
 
 
 async def quick_tutoring_response(
     query: str,
-    retrieved_passages: Optional[List[str]] = None,
-    citations: Optional[List[Citation]] = None,
+    retrieved_passages: list[str] | None = None,
+    citations: list[Citation] | None = None,
     student_level: str = "undergraduate",
-    provider: Optional[str] = None,
+    provider: str | None = None,
 ) -> str:
     """
     Quick utility function for generating tutoring responses.

@@ -6,13 +6,13 @@ philosophical entity and relationship schemas for classical philosophical texts.
 """
 
 import asyncio
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any
 from uuid import UUID
 
+from langchain_anthropic import ChatAnthropic
 from langchain_core.documents import Document as LangChainDocument
 from langchain_experimental.graph_transformers import LLMGraphTransformer
 from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
 
 from arete.config import get_settings
 from arete.models.entity import Entity, EntityType
@@ -27,7 +27,7 @@ class PhilosophicalLLMGraphTransformer:
     knowledge, optimized prompts, and post-processing for classical texts.
     """
 
-    def __init__(self, llm_service: Optional[SimpleLLMService] = None):
+    def __init__(self, llm_service: SimpleLLMService | None = None):
         """Initialize the philosophical graph transformer."""
         self.config = get_settings()
         self.llm_service = llm_service or SimpleLLMService()
@@ -93,7 +93,7 @@ class PhilosophicalLLMGraphTransformer:
         # Initialize the LLMGraphTransformer
         self.transformer = self._create_transformer()
 
-    def _create_transformer(self) -> Optional[LLMGraphTransformer]:
+    def _create_transformer(self) -> LLMGraphTransformer | None:
         """Create and configure the LLMGraphTransformer."""
         try:
             # Get the appropriate LLM based on current configuration
@@ -110,12 +110,12 @@ class PhilosophicalLLMGraphTransformer:
             try:
                 test_response = llm.invoke("Test connection")
                 if not test_response or not test_response.content:
-                    print(f"[WARN] LLM test failed - no response content")
+                    print("[WARN] LLM test failed - no response content")
                     return None
-                print(f"[OK] LLM connection test successful")
+                print("[OK] LLM connection test successful")
             except Exception as test_error:
                 print(f"[WARN] LLM connection test failed: {test_error}")
-                print(f"[INFO] This is likely due to missing API key or network issues")
+                print("[INFO] This is likely due to missing API key or network issues")
                 return None
 
             # Create philosophical extraction prompt
@@ -188,7 +188,7 @@ class PhilosophicalLLMGraphTransformer:
         text: str,
         document_id: str,
         chunk_size: int = 2000,  # Optimal size for maintaining context in philosophical texts
-    ) -> Tuple[List[Entity], List[Dict[str, Any]]]:
+    ) -> tuple[list[Entity], list[dict[str, Any]]]:
         """
         Extract knowledge graph from philosophical text.
 
@@ -255,12 +255,12 @@ class PhilosophicalLLMGraphTransformer:
                         ),
                         timeout=180.0,  # Increased to 180 seconds for complex philosophical texts
                     )
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     print(
                         f"    [ERROR] LLM transform timed out for chunk {i+1} after 180s"
                     )
                     print(
-                        f"    [DEBUG] This may be due to rate limits (500 RPM) or API issues"
+                        "    [DEBUG] This may be due to rate limits (500 RPM) or API issues"
                     )
                     kg_provider = (
                         self.config.kg_llm_provider or self.config.selected_llm_provider
@@ -280,7 +280,7 @@ class PhilosophicalLLMGraphTransformer:
                         print(
                             f"    [ERROR] Rate limit hit for chunk {i+1}: {transform_error}"
                         )
-                        print(f"    [INFO] Waiting 10 seconds before retrying...")
+                        print("    [INFO] Waiting 10 seconds before retrying...")
                         await asyncio.sleep(10)
                         # Retry once after rate limit
                         try:
@@ -343,8 +343,8 @@ class PhilosophicalLLMGraphTransformer:
         return merged_entities, validated_relationships
 
     def _process_graph_documents(
-        self, graph_docs: List, document_id: str
-    ) -> Tuple[List[Entity], List[Dict[str, Any]]]:
+        self, graph_docs: list, document_id: str
+    ) -> tuple[list[Entity], list[dict[str, Any]]]:
         """Process LangChain graph documents into our domain models."""
         entities = []
         relationships = []
@@ -397,7 +397,7 @@ class PhilosophicalLLMGraphTransformer:
 
     async def _fallback_extraction(
         self, text: str, document_id: str
-    ) -> Tuple[List[Entity], List[Dict[str, Any]]]:
+    ) -> tuple[list[Entity], list[dict[str, Any]]]:
         """Fallback extraction using direct LLM prompting."""
         prompt = f"""
 You are an expert in classical philosophy. Extract philosophical entities and relationships from this text.
@@ -448,7 +448,7 @@ Analysis:"""
 
     def _parse_json_response(
         self, response: str, document_id: str
-    ) -> Tuple[List[Entity], List[Dict[str, Any]]]:
+    ) -> tuple[list[Entity], list[dict[str, Any]]]:
         """Parse JSON response from fallback extraction."""
         import json
         import re
@@ -495,7 +495,7 @@ Analysis:"""
 
         return entities, relationships
 
-    def _split_text(self, text: str, chunk_size: int) -> List[str]:
+    def _split_text(self, text: str, chunk_size: int) -> list[str]:
         """Split text into chunks preserving sentence boundaries."""
         # Simple sentence-aware chunking
         sentences = text.split(". ")
@@ -518,7 +518,7 @@ Analysis:"""
 
         return chunks
 
-    def _merge_entities(self, entities: List[Entity]) -> List[Entity]:
+    def _merge_entities(self, entities: list[Entity]) -> list[Entity]:
         """Merge duplicate entities based on name similarity."""
         merged = {}
 
@@ -547,8 +547,8 @@ Analysis:"""
         return list(merged.values())
 
     def _validate_relationships(
-        self, relationships: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, relationships: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Validate and filter relationships."""
         validated = []
 
@@ -558,7 +558,7 @@ Analysis:"""
 
         return validated
 
-    def _is_valid_relationship(self, rel: Dict[str, Any]) -> bool:
+    def _is_valid_relationship(self, rel: dict[str, Any]) -> bool:
         """Check if relationship is valid."""
         required_keys = ["subject", "relation", "object"]
 
@@ -571,13 +571,7 @@ Analysis:"""
             return False
 
         # Check entity validity
-        if not (
-            self._is_valid_entity_name(rel["subject"])
-            and self._is_valid_entity_name(rel["object"])
-        ):
-            return False
-
-        return True
+        return self._is_valid_entity_name(rel["subject"]) and self._is_valid_entity_name(rel["object"])
 
     def _is_valid_entity_name(self, name: str) -> bool:
         """Check if entity name is valid."""
@@ -648,13 +642,13 @@ class LLMGraphTransformerService:
     to use LLMGraphTransformer functionality.
     """
 
-    def __init__(self, llm_service: Optional[SimpleLLMService] = None):
+    def __init__(self, llm_service: SimpleLLMService | None = None):
         """Initialize the service."""
         self.transformer = PhilosophicalLLMGraphTransformer(llm_service)
 
     async def extract_knowledge_graph(
         self, text: str, document_id: str, **kwargs
-    ) -> Tuple[List[Entity], List[Dict[str, Any]]]:
+    ) -> tuple[list[Entity], list[dict[str, Any]]]:
         """
         Extract knowledge graph from text.
 
@@ -670,11 +664,11 @@ class LLMGraphTransformerService:
             text, document_id, **kwargs
         )
 
-    def get_supported_node_types(self) -> List[str]:
+    def get_supported_node_types(self) -> list[str]:
         """Get list of supported node types."""
         return self.transformer.allowed_nodes.copy()
 
-    def get_supported_relationships(self) -> List[Tuple[str, str, str]]:
+    def get_supported_relationships(self) -> list[tuple[str, str, str]]:
         """Get list of supported relationship types."""
         return self.transformer.allowed_relationships.copy()
 

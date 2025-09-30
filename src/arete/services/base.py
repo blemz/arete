@@ -7,13 +7,13 @@ the application.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class ServiceError(Exception):
     """Base exception for service layer errors."""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
         """
         Initialize service error.
 
@@ -34,25 +34,21 @@ class ServiceError(Exception):
 class ConfigurationError(ServiceError):
     """Raised when service configuration is invalid."""
 
-    pass
 
 
 class InitializationError(ServiceError):
     """Raised when service initialization fails."""
 
-    pass
 
 
 class ValidationError(ServiceError):
     """Raised when input validation fails."""
 
-    pass
 
 
 class ProcessingError(ServiceError):
     """Raised when data processing fails."""
 
-    pass
 
 
 class BaseService(ABC):
@@ -63,7 +59,7 @@ class BaseService(ABC):
     patterns for all service implementations.
     """
 
-    def __init__(self, settings: Optional[Any] = None):
+    def __init__(self, settings: Any | None = None):
         """
         Initialize base service.
 
@@ -81,7 +77,6 @@ class BaseService(ABC):
     @abstractmethod
     def initialize(self) -> None:
         """Initialize the service (must be implemented by subclasses)."""
-        pass
 
     def validate_initialization(self) -> None:
         """Validate that service is properly initialized."""
@@ -91,10 +86,8 @@ class BaseService(ABC):
             )
 
     @abstractmethod
-    def get_health_status(self) -> Dict[str, Any]:
+    def get_health_status(self) -> dict[str, Any]:
         """Get service health status (must be implemented by subclasses)."""
-        pass
 
     def cleanup(self) -> None:
         """Cleanup service resources (override if needed)."""
-        pass

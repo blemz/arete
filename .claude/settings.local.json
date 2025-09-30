@@ -52,7 +52,8 @@
       "mcp__serena__list_memories",
       "Bash(findstr:*)",
       "Bash(mypy:*)",
-      "Bash(black:*)"
+      "Bash(black:*)",
+      "Bash(ruff check:*)"
     ],
     "deny": []
   },

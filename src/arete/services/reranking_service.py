@@ -12,13 +12,13 @@ Supports multiple re-ranking methods:
 
 import logging
 import time
-from typing import List, Dict, Any, Optional, Union
-from enum import Enum
 from dataclasses import dataclass, field
-from uuid import UUID
+from enum import Enum
+from typing import Any
 
-from ..config import Settings, get_settings
-from ..services.dense_retrieval_service import SearchResult
+from arete.config import Settings, get_settings
+from arete.services.dense_retrieval_service import SearchResult
+
 from .base import ServiceError
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,6 @@ class RerankingMethod(str, Enum):
 class RerankingError(ServiceError):
     """Base exception for re-ranking service errors."""
 
-    pass
 
 
 @dataclass
@@ -103,13 +102,13 @@ class RerankingResult:
     # Method and metadata
     reranking_method: RerankingMethod = RerankingMethod.CROSS_ENCODER
     processing_time_ms: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def get_final_score(
         self,
         combination_method: str = "weighted",
-        original_weight: Optional[float] = None,
-        rerank_weight: Optional[float] = None,
+        original_weight: float | None = None,
+        rerank_weight: float | None = None,
     ) -> float:
         """Calculate final score combining original and rerank scores."""
         if combination_method == "rerank_only":
@@ -172,7 +171,7 @@ class RerankingMetrics:
         """Record an error occurrence."""
         self.error_count += 1
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get summary of metrics."""
         avg_time = (
             self.total_processing_time / self.total_queries
@@ -201,8 +200,8 @@ class RerankingService:
 
     def __init__(
         self,
-        config: Optional[RerankingConfig] = None,
-        settings: Optional[Settings] = None,
+        config: RerankingConfig | None = None,
+        settings: Settings | None = None,
     ):
         """Initialize re-ranking service.
 
@@ -295,10 +294,10 @@ class RerankingService:
     def rerank(
         self,
         query: str,
-        search_results: List[SearchResult],
-        method: Optional[RerankingMethod] = None,
-        top_k: Optional[int] = None,
-    ) -> List[RerankingResult]:
+        search_results: list[SearchResult],
+        method: RerankingMethod | None = None,
+        top_k: int | None = None,
+    ) -> list[RerankingResult]:
         """
         Re-rank search results using specified method.
 
@@ -394,8 +393,8 @@ class RerankingService:
             raise RerankingError(f"Re-ranking operation failed: {e}") from e
 
     def _rerank_cross_encoder(
-        self, query: str, search_results: List[SearchResult]
-    ) -> List[RerankingResult]:
+        self, query: str, search_results: list[SearchResult]
+    ) -> list[RerankingResult]:
         """Re-rank using cross-encoder model."""
         if not self.cross_encoder:
             raise RerankingError("Cross-encoder model not initialized")
@@ -412,7 +411,7 @@ class RerankingService:
 
         # Create re-ranking results
         reranked_results = []
-        for i, (result, score) in enumerate(zip(search_results, all_scores)):
+        for i, (result, score) in enumerate(zip(search_results, all_scores, strict=False)):
             rerank_result = RerankingResult(
                 original_result=result,
                 rerank_score=float(score),
@@ -429,8 +428,8 @@ class RerankingService:
         return reranked_results
 
     def _rerank_semantic_similarity(
-        self, query: str, search_results: List[SearchResult]
-    ) -> List[RerankingResult]:
+        self, query: str, search_results: list[SearchResult]
+    ) -> list[RerankingResult]:
         """Re-rank using semantic similarity."""
         if not self.embedding_service:
             raise RerankingError("Embedding service not initialized")
@@ -467,8 +466,8 @@ class RerankingService:
         return reranked_results
 
     def _rerank_hybrid(
-        self, query: str, search_results: List[SearchResult]
-    ) -> List[RerankingResult]:
+        self, query: str, search_results: list[SearchResult]
+    ) -> list[RerankingResult]:
         """Re-rank using hybrid approach combining multiple methods."""
         # Get scores from both methods
         cross_encoder_results = self._rerank_cross_encoder(query, search_results)
@@ -476,7 +475,7 @@ class RerankingService:
 
         # Combine scores
         hybrid_results = []
-        for ce_result, sem_result in zip(cross_encoder_results, semantic_results):
+        for ce_result, sem_result in zip(cross_encoder_results, semantic_results, strict=False):
             # Weighted combination of scores
             hybrid_score = ce_result.rerank_score * 0.7 + sem_result.rerank_score * 0.3
 
@@ -500,8 +499,8 @@ class RerankingService:
         return hybrid_results
 
     def _rerank_listwise(
-        self, query: str, search_results: List[SearchResult]
-    ) -> List[RerankingResult]:
+        self, query: str, search_results: list[SearchResult]
+    ) -> list[RerankingResult]:
         """Re-rank using listwise approach (placeholder for future implementation)."""
         logger.warning(
             "Listwise re-ranking not yet implemented, falling back to cross-encoder"
@@ -566,7 +565,7 @@ class RerankingService:
         return result
 
     def _calculate_cosine_similarity(
-        self, vec1: List[float], vec2: List[float]
+        self, vec1: list[float], vec2: list[float]
     ) -> float:
         """Calculate cosine similarity between two vectors."""
         try:
@@ -586,7 +585,7 @@ class RerankingService:
 
         except ImportError:
             # Fallback implementation without numpy
-            dot_product = sum(a * b for a, b in zip(vec1, vec2))
+            dot_product = sum(a * b for a, b in zip(vec1, vec2, strict=False))
             norm1 = sum(a * a for a in vec1) ** 0.5
             norm2 = sum(b * b for b in vec2) ** 0.5
 
@@ -596,7 +595,7 @@ class RerankingService:
             return dot_product / (norm1 * norm2)
 
     def _get_cache_key(
-        self, query: str, search_results: List[SearchResult], method: RerankingMethod
+        self, query: str, search_results: list[SearchResult], method: RerankingMethod
     ) -> str:
         """Generate cache key for query and results."""
         result_ids = [
@@ -604,7 +603,7 @@ class RerankingService:
         ]  # Use first 10 for key
         return f"{query}:{method.value}:{':'.join(result_ids)}"
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get re-ranking service metrics."""
         return self.metrics.get_summary()
 
@@ -621,7 +620,7 @@ class RerankingService:
 
 # Factory function following established pattern
 def create_reranking_service(
-    config: Optional[RerankingConfig] = None, settings: Optional[Settings] = None
+    config: RerankingConfig | None = None, settings: Settings | None = None
 ) -> RerankingService:
     """
     Create re-ranking service with dependency injection.

@@ -6,17 +6,17 @@ following the established repository pattern with dual persistence architecture.
 """
 
 import logging
-from typing import List, Optional, Dict, Any, Union, Tuple
-from uuid import UUID
-import asyncio
 from contextlib import contextmanager
 from dataclasses import dataclass
+from typing import Any
+from uuid import UUID
 
-from .base import SearchableRepository, RepositoryError
-from ..models.chunk import Chunk
-from ..database.client import Neo4jClient
-from ..database.weaviate_client import WeaviateClient
-from ..config import Settings, get_settings
+from arete.config import Settings, get_settings
+from arete.database.client import Neo4jClient
+from arete.database.weaviate_client import WeaviateClient
+from arete.models.chunk import Chunk
+
+from .base import RepositoryError, SearchableRepository
 
 logger = logging.getLogger(__name__)
 
@@ -24,25 +24,21 @@ logger = logging.getLogger(__name__)
 class EmbeddingRepositoryError(RepositoryError):
     """Base exception for embedding repository errors."""
 
-    pass
 
 
 class EmbeddingGenerationError(EmbeddingRepositoryError):
     """Raised when embedding generation fails."""
 
-    pass
 
 
 class EmbeddingStorageError(EmbeddingRepositoryError):
     """Raised when embedding storage fails."""
 
-    pass
 
 
 class SemanticSearchError(EmbeddingRepositoryError):
     """Raised when semantic search fails."""
 
-    pass
 
 
 @dataclass
@@ -70,10 +66,10 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
 
     def __init__(
         self,
-        neo4j_client: Optional[Neo4jClient] = None,
-        weaviate_client: Optional[WeaviateClient] = None,
-        embedding_service: Optional[Any] = None,
-        settings: Optional[Settings] = None,
+        neo4j_client: Neo4jClient | None = None,
+        weaviate_client: WeaviateClient | None = None,
+        embedding_service: Any | None = None,
+        settings: Settings | None = None,
     ):
         """
         Initialize embedding repository.
@@ -104,7 +100,7 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
     def embedding_service(self):
         """Get embedding service with lazy initialization."""
         if self._embedding_service is None:
-            from ..services.embedding_factory import get_embedding_service
+            from arete.services.embedding_factory import get_embedding_service
 
             self._embedding_service = get_embedding_service(settings=self.settings)
 
@@ -125,7 +121,7 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
 
         return self._embedding_service
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get repository statistics."""
         stats = {
             "embeddings_generated": self._embeddings_generated,
@@ -186,12 +182,12 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
 
     def batch_generate_and_store(
         self,
-        chunks: List[Chunk],
-        batch_size: Optional[int] = None,
+        chunks: list[Chunk],
+        batch_size: int | None = None,
         use_vectorizable_text: bool = True,
         store_immediately: bool = True,
-        progress_callback: Optional[callable] = None,
-    ) -> List[Chunk]:
+        progress_callback: callable | None = None,
+    ) -> list[Chunk]:
         """
         Generate embeddings for multiple chunks efficiently.
 
@@ -223,7 +219,7 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
 
             # Update chunks with embeddings
             updated_chunks = []
-            for chunk, embedding in zip(chunks, embeddings):
+            for chunk, embedding in zip(chunks, embeddings, strict=False):
                 chunk.embedding_vector = embedding
                 updated_chunks.append(chunk)
 
@@ -247,8 +243,8 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
             ) from e
 
     def update_chunk_embeddings(
-        self, chunks: List[Chunk], force_regenerate: bool = False
-    ) -> List[Chunk]:
+        self, chunks: list[Chunk], force_regenerate: bool = False
+    ) -> list[Chunk]:
         """
         Update embeddings for chunks, generating only if missing or forced.
 
@@ -280,10 +276,10 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
         limit: int = 10,
         similarity_threshold: float = 0.7,
         min_certainty: float = None,
-        document_ids: Optional[List[UUID]] = None,
-        chunk_types: Optional[List[str]] = None,
+        document_ids: list[UUID] | None = None,
+        chunk_types: list[str] | None = None,
         **kwargs,
-    ) -> List[SearchResultWithScore]:
+    ) -> list[SearchResultWithScore]:
         """
         Semantic search method expected by the updated code.
 
@@ -321,9 +317,9 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
         query_text: str,
         limit: int = 10,
         min_certainty: float = 0.7,
-        document_ids: Optional[List[UUID]] = None,
-        chunk_types: Optional[List[str]] = None,
-    ) -> List[Tuple[Chunk, float]]:
+        document_ids: list[UUID] | None = None,
+        chunk_types: list[str] | None = None,
+    ) -> list[tuple[Chunk, float]]:
         """Legacy search_by_text method."""
         return self._search_by_text_impl(
             query_text=query_text,
@@ -338,9 +334,9 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
         query_text: str,
         limit: int = 10,
         min_certainty: float = 0.7,
-        document_ids: Optional[List[UUID]] = None,
-        chunk_types: Optional[List[str]] = None,
-    ) -> List[Tuple[Chunk, float]]:
+        document_ids: list[UUID] | None = None,
+        chunk_types: list[str] | None = None,
+    ) -> list[tuple[Chunk, float]]:
         """
         Perform semantic search using text query.
 
@@ -376,12 +372,12 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
 
     def search_by_vector(
         self,
-        query_vector: List[float],
+        query_vector: list[float],
         limit: int = 10,
         min_certainty: float = 0.7,
-        document_ids: Optional[List[UUID]] = None,
-        chunk_types: Optional[List[str]] = None,
-    ) -> List[Tuple[Chunk, float]]:
+        document_ids: list[UUID] | None = None,
+        chunk_types: list[str] | None = None,
+    ) -> list[tuple[Chunk, float]]:
         """
         Perform semantic search using embedding vector.
 
@@ -435,8 +431,8 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
             raise SemanticSearchError(f"Vector search failed: {e}") from e
 
     def search(
-        self, query: Union[str, List[float]], limit: int = 10, **kwargs
-    ) -> List[Chunk]:
+        self, query: str | list[float], limit: int = 10, **kwargs
+    ) -> list[Chunk]:
         """
         General search method supporting both text and vector queries.
 
@@ -451,7 +447,7 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
         try:
             if isinstance(query, str):
                 results = self.search_by_text(query, limit=limit, **kwargs)
-            elif isinstance(query, (list, tuple)):
+            elif isinstance(query, list | tuple):
                 results = self.search_by_vector(query, limit=limit, **kwargs)
             else:
                 raise ValueError(f"Unsupported query type: {type(query)}")
@@ -477,15 +473,14 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
 
             # Store metadata in Neo4j if available
             if self.neo4j_client:
-                neo4j_data = chunk.to_neo4j_dict()
+                chunk.to_neo4j_dict()
                 # Note: Neo4j storage would be handled by ChunkRepository
-                pass
 
         except Exception as e:
             logger.error(f"Failed to store chunk with embedding: {e}")
             raise EmbeddingStorageError(f"Storage failed: {e}") from e
 
-    def _batch_store_chunks_with_embeddings(self, chunks: List[Chunk]) -> None:
+    def _batch_store_chunks_with_embeddings(self, chunks: list[Chunk]) -> None:
         """Store multiple chunks with embeddings efficiently."""
         if not chunks:
             return
@@ -514,7 +509,7 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
 
     # Utility Methods
 
-    def _weaviate_result_to_chunk(self, result: Dict[str, Any]) -> Chunk:
+    def _weaviate_result_to_chunk(self, result: dict[str, Any]) -> Chunk:
         """Convert Weaviate search result to Chunk model."""
         properties = result.get("properties", {})
 
@@ -539,17 +534,14 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
     def _passes_filters(
         self,
         chunk: Chunk,
-        document_ids: Optional[List[UUID]],
-        chunk_types: Optional[List[str]],
+        document_ids: list[UUID] | None,
+        chunk_types: list[str] | None,
     ) -> bool:
         """Check if chunk passes the specified filters."""
         if document_ids and chunk.document_id not in document_ids:
             return False
 
-        if chunk_types and chunk.chunk_type.value not in chunk_types:
-            return False
-
-        return True
+        return not (chunk_types and chunk.chunk_type.value not in chunk_types)
 
     # Context Managers
 
@@ -572,7 +564,7 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
         """Create a new chunk with embedding."""
         return self.generate_and_store_embedding(entity, store_immediately=True)
 
-    async def get_by_id(self, entity_id: Union[UUID, str]) -> Optional[Chunk]:
+    async def get_by_id(self, entity_id: UUID | str) -> Chunk | None:
         """Get chunk by ID from Neo4j."""
         # This would need actual implementation with Neo4j query
         logger.warning(f"get_by_id not fully implemented for chunk {entity_id}")
@@ -582,7 +574,7 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
         """Update an existing chunk."""
         return self.generate_and_store_embedding(entity, store_immediately=True)
 
-    async def delete(self, entity_id: Union[UUID, str]) -> bool:
+    async def delete(self, entity_id: UUID | str) -> bool:
         """Delete a chunk by ID."""
         logger.warning(f"delete not fully implemented for chunk {entity_id}")
         return False
@@ -591,18 +583,18 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
         self,
         limit: int = 100,
         offset: int = 0,
-        filters: Optional[Dict[str, Any]] = None,
-    ) -> List[Chunk]:
+        filters: dict[str, Any] | None = None,
+    ) -> list[Chunk]:
         """List all chunks."""
         logger.warning("list_all not fully implemented")
         return []
 
-    async def count(self, filters: Optional[Dict[str, Any]] = None) -> int:
+    async def count(self, filters: dict[str, Any] | None = None) -> int:
         """Count chunks matching filters."""
         logger.warning("count not fully implemented")
         return 0
 
-    async def exists(self, entity_id: Union[UUID, str]) -> bool:
+    async def exists(self, entity_id: UUID | str) -> bool:
         """Check if chunk exists by ID."""
         logger.warning(f"exists not fully implemented for chunk {entity_id}")
         return False
@@ -615,7 +607,7 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
         similarity_threshold: float = 0.7,
         min_certainty: float = None,
         **kwargs,
-    ) -> List[Tuple[Chunk, float]]:
+    ) -> list[tuple[Chunk, float]]:
         """Search chunks by text similarity - synchronous version."""
         # Handle both parameter names for compatibility
         search_query = query_text or query
@@ -643,7 +635,7 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
         similarity_threshold: float = 0.7,
         min_certainty: float = None,
         **kwargs,
-    ) -> List[Tuple[Chunk, float]]:
+    ) -> list[tuple[Chunk, float]]:
         """Search chunks by text similarity - async version."""
         # Just delegate to sync version for now
         return self.search_by_text(
@@ -656,8 +648,8 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
         )
 
     async def search_by_embedding(
-        self, embedding: List[float], limit: int = 10, similarity_threshold: float = 0.7
-    ) -> List[Tuple[Chunk, float]]:
+        self, embedding: list[float], limit: int = 10, similarity_threshold: float = 0.7
+    ) -> list[tuple[Chunk, float]]:
         """Search chunks by embedding similarity."""
         results = self.similarity_search(
             query_embedding=embedding,
@@ -678,10 +670,10 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
 
 # Factory function following established pattern
 def create_embedding_repository(
-    settings: Optional[Settings] = None,
-    neo4j_client: Optional[Neo4jClient] = None,
-    weaviate_client: Optional[WeaviateClient] = None,
-    embedding_service: Optional[Any] = None,
+    settings: Settings | None = None,
+    neo4j_client: Neo4jClient | None = None,
+    weaviate_client: WeaviateClient | None = None,
+    embedding_service: Any | None = None,
 ) -> EmbeddingRepository:
     """
     Create embedding repository with dependency injection.
@@ -701,12 +693,12 @@ def create_embedding_repository(
 
     # Create clients if not provided
     if neo4j_client is None:
-        from ..database.client import Neo4jClient
+        from arete.database.client import Neo4jClient
 
         neo4j_client = Neo4jClient()  # Uses default settings
 
     if weaviate_client is None:
-        from ..database.weaviate_client import WeaviateClient
+        from arete.database.weaviate_client import WeaviateClient
 
         weaviate_client = WeaviateClient()
 

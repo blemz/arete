@@ -15,19 +15,17 @@ and research analysis.
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple, Any, Set
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from enum import Enum
-import asyncio
-from collections import defaultdict, Counter
+from typing import Any
 
 from neo4j import AsyncSession
-from pydantic import BaseModel, Field, ConfigDict
 
 from arete.config import get_settings
 from arete.database.client import Neo4jClient
-from arete.models.entity import Entity, EntityType
+from arete.models.entity import EntityType
 
 logger = logging.getLogger(__name__)
 
@@ -45,19 +43,16 @@ class CentralityMetric(str, Enum):
 class AnalysisError(Exception):
     """Base exception for graph analytics errors."""
 
-    pass
 
 
 class CentralityAnalysisError(AnalysisError):
     """Exception raised during centrality analysis."""
 
-    pass
 
 
 class CommunityDetectionError(AnalysisError):
     """Exception raised during community detection."""
 
-    pass
 
 
 @dataclass
@@ -65,16 +60,16 @@ class CentralityResult:
     """Result of centrality analysis."""
 
     metric: CentralityMetric
-    scores: Dict[str, float] = field(default_factory=dict)  # entity_id -> score
-    top_entities: List[Tuple[str, str, float]] = field(
+    scores: dict[str, float] = field(default_factory=dict)  # entity_id -> score
+    top_entities: list[tuple[str, str, float]] = field(
         default_factory=list
     )  # (id, name, score)
     analysis_timestamp: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
     total_entities: int = 0
 
-    def get_top_n(self, n: int = 10) -> List[Tuple[str, str, float]]:
+    def get_top_n(self, n: int = 10) -> list[tuple[str, str, float]]:
         """Get top N entities by centrality score."""
         return self.top_entities[:n]
 
@@ -84,15 +79,15 @@ class CommunityResult:
     """Result of community detection analysis."""
 
     algorithm: str
-    communities: Dict[int, List[str]] = field(
+    communities: dict[int, list[str]] = field(
         default_factory=dict
     )  # community_id -> entity_ids
-    entity_community: Dict[str, int] = field(
+    entity_community: dict[str, int] = field(
         default_factory=dict
     )  # entity_id -> community_id
     modularity_score: float = 0.0
     analysis_timestamp: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
     total_communities: int = 0
 
@@ -101,17 +96,17 @@ class CommunityResult:
 class InfluenceNetwork:
     """Result of influence network analysis."""
 
-    influences: Dict[str, List[str]] = field(
+    influences: dict[str, list[str]] = field(
         default_factory=dict
     )  # influencer -> influenced_list
-    influence_scores: Dict[Tuple[str, str], float] = field(
+    influence_scores: dict[tuple[str, str], float] = field(
         default_factory=dict
     )  # (from, to) -> strength
-    temporal_influences: Dict[str, List[Tuple[str, datetime]]] = field(
+    temporal_influences: dict[str, list[tuple[str, datetime]]] = field(
         default_factory=dict
     )  # chronological
     analysis_timestamp: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
 
@@ -120,23 +115,23 @@ class ConceptCluster:
     """Result of concept clustering analysis."""
 
     cluster_id: int
-    entities: List[str]
+    entities: list[str]
     central_concept: str
     similarity_threshold: float
-    cluster_keywords: List[str] = field(default_factory=list)
+    cluster_keywords: list[str] = field(default_factory=list)
 
 
 @dataclass
 class TopicClusteringResult:
     """Result of topic clustering analysis."""
 
-    clusters: List[ConceptCluster] = field(default_factory=list)
-    outliers: List[str] = field(
+    clusters: list[ConceptCluster] = field(default_factory=list)
+    outliers: list[str] = field(
         default_factory=list
     )  # entities not assigned to clusters
     silhouette_score: float = 0.0
     analysis_timestamp: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
 
@@ -144,7 +139,7 @@ class GraphAnalyticsService:
     """Service for advanced graph analytics on philosophical knowledge graphs."""
 
     def __init__(
-        self, neo4j_client: Optional[Neo4jClient] = None, settings: Optional[Any] = None
+        self, neo4j_client: Neo4jClient | None = None, settings: Any | None = None
     ):
         """Initialize graph analytics service."""
         self.settings = settings or get_settings()
@@ -163,7 +158,7 @@ class GraphAnalyticsService:
     async def analyze_centrality(
         self,
         metric: CentralityMetric,
-        entity_types: Optional[List[EntityType]] = None,
+        entity_types: list[EntityType] | None = None,
         limit: int = 100,
     ) -> CentralityResult:
         """
@@ -215,7 +210,7 @@ class GraphAnalyticsService:
     async def _analyze_degree_centrality(
         self,
         session: AsyncSession,
-        entity_types: Optional[List[EntityType]],
+        entity_types: list[EntityType] | None,
         limit: int,
     ) -> CentralityResult:
         """Compute degree centrality for entities."""
@@ -259,7 +254,7 @@ class GraphAnalyticsService:
     async def _analyze_betweenness_centrality(
         self,
         session: AsyncSession,
-        entity_types: Optional[List[EntityType]],
+        entity_types: list[EntityType] | None,
         limit: int,
     ) -> CentralityResult:
         """Compute betweenness centrality using Neo4j GDS library if available."""
@@ -308,7 +303,7 @@ class GraphAnalyticsService:
     async def _analyze_closeness_centrality(
         self,
         session: AsyncSession,
-        entity_types: Optional[List[EntityType]],
+        entity_types: list[EntityType] | None,
         limit: int,
     ) -> CentralityResult:
         """Compute closeness centrality."""
@@ -355,7 +350,7 @@ class GraphAnalyticsService:
     async def _analyze_eigenvector_centrality(
         self,
         session: AsyncSession,
-        entity_types: Optional[List[EntityType]],
+        entity_types: list[EntityType] | None,
         limit: int,
     ) -> CentralityResult:
         """Compute eigenvector centrality (simplified)."""
@@ -371,7 +366,7 @@ class GraphAnalyticsService:
         WHERE e.id IS NOT NULL {type_filter}
         OPTIONAL MATCH (e)-[r]-(connected:Entity)-[r2]-(second_level:Entity)
         WHERE connected.id IS NOT NULL
-        WITH e, count(DISTINCT connected) as direct_connections, 
+        WITH e, count(DISTINCT connected) as direct_connections,
              count(DISTINCT second_level) as second_level_connections
         WITH e, direct_connections + (second_level_connections * 0.5) as eigenvector_score
         WHERE eigenvector_score > 0
@@ -404,7 +399,7 @@ class GraphAnalyticsService:
     async def _analyze_pagerank_centrality(
         self,
         session: AsyncSession,
-        entity_types: Optional[List[EntityType]],
+        entity_types: list[EntityType] | None,
         limit: int,
     ) -> CentralityResult:
         """Compute PageRank centrality (simplified)."""
@@ -423,7 +418,7 @@ class GraphAnalyticsService:
         OPTIONAL MATCH (e)-[r2]->(outgoing:Entity)
         WHERE outgoing.id IS NOT NULL
         WITH e, incoming_links, count(r2) as outgoing_links
-        WITH e, incoming_links, 
+        WITH e, incoming_links,
              CASE WHEN outgoing_links = 0 THEN 1 ELSE outgoing_links END as out_degree
         WITH e, toFloat(incoming_links) / out_degree as pagerank_score
         WHERE pagerank_score > 0
@@ -511,7 +506,7 @@ class GraphAnalyticsService:
 
         # Iterate until convergence or max iterations
         max_iterations = 10
-        for iteration in range(max_iterations):
+        for _iteration in range(max_iterations):
             new_labels = labels.copy()
             changed = False
 
@@ -686,7 +681,7 @@ class GraphAnalyticsService:
                     clustered.add(concept_id)
 
                     # Find similar concepts
-                    for other_id, (other_name, other_attrs) in concepts.items():
+                    for other_id, (_other_name, other_attrs) in concepts.items():
                         if other_id in clustered:
                             continue
 
@@ -733,7 +728,7 @@ class GraphAnalyticsService:
 
 
 def create_graph_analytics_service(
-    neo4j_client: Optional[Neo4jClient] = None, settings: Optional[Any] = None
+    neo4j_client: Neo4jClient | None = None, settings: Any | None = None
 ) -> GraphAnalyticsService:
     """Create a GraphAnalyticsService instance."""
     return GraphAnalyticsService(neo4j_client=neo4j_client, settings=settings)

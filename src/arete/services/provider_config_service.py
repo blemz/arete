@@ -9,15 +9,16 @@ import json
 import logging
 import os
 import time
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
-from dataclasses import dataclass, asdict
 from enum import Enum
+from pathlib import Path
+from typing import Any
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict, model_serializer
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_serializer
+
 from arete.config import Settings, get_settings
-from arete.services.llm_provider import LLMProviderFactory, LLMProviderError
+from arete.services.llm_provider import LLMProviderFactory
 
 logger = logging.getLogger(__name__)
 
@@ -50,12 +51,12 @@ class ProviderHealth:
     provider: str
     status: ProviderStatus
     last_check: datetime
-    response_time: Optional[float] = None
-    error_message: Optional[str] = None
+    response_time: float | None = None
+    error_message: str | None = None
     consecutive_failures: int = 0
-    last_success: Optional[datetime] = None
+    last_success: datetime | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "provider": self.provider,
@@ -70,7 +71,7 @@ class ProviderHealth:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ProviderHealth":
+    def from_dict(cls, data: dict[str, Any]) -> "ProviderHealth":
         """Create from dictionary."""
         return cls(
             provider=data["provider"],
@@ -92,18 +93,18 @@ class ProviderConfiguration(BaseModel):
 
     provider: str = Field(..., description="Provider name")
     enabled: bool = Field(default=True, description="Whether provider is enabled")
-    api_key: Optional[str] = Field(default=None, description="API key", repr=False)
-    base_url: Optional[str] = Field(default=None, description="Base URL")
-    default_model: Optional[str] = Field(default=None, description="Default model")
-    models: List[str] = Field(default_factory=list, description="Available models")
+    api_key: str | None = Field(default=None, description="API key", repr=False)
+    base_url: str | None = Field(default=None, description="Base URL")
+    default_model: str | None = Field(default=None, description="Default model")
+    models: list[str] = Field(default_factory=list, description="Available models")
     timeout: int = Field(default=30, ge=1, le=300, description="Request timeout")
     max_retries: int = Field(default=3, ge=1, le=10, description="Maximum retries")
-    rate_limit: Optional[int] = Field(
+    rate_limit: int | None = Field(
         default=None, ge=1, description="Rate limit per minute"
     )
     priority: int = Field(default=1, ge=1, le=10, description="Provider priority")
-    tags: List[str] = Field(default_factory=list, description="Provider tags")
-    metadata: Dict[str, Any] = Field(
+    tags: list[str] = Field(default_factory=list, description="Provider tags")
+    metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional metadata"
     )
     created_at: datetime = Field(default_factory=datetime.now)
@@ -142,7 +143,7 @@ class ProviderConfigurationService:
     """
 
     def __init__(
-        self, settings: Optional[Settings] = None, config_dir: Optional[Path] = None
+        self, settings: Settings | None = None, config_dir: Path | None = None
     ):
         """
         Initialize configuration service.
@@ -162,8 +163,8 @@ class ProviderConfigurationService:
         self.backup_dir.mkdir(exist_ok=True)
 
         # In-memory state
-        self._configurations: Dict[str, ProviderConfiguration] = {}
-        self._health_status: Dict[str, ProviderHealth] = {}
+        self._configurations: dict[str, ProviderConfiguration] = {}
+        self._health_status: dict[str, ProviderHealth] = {}
         self._factory = LLMProviderFactory(self.settings)
 
         # Health monitoring
@@ -179,7 +180,7 @@ class ProviderConfigurationService:
     # Configuration Management
 
     def create_configuration(
-        self, provider: str, api_key: Optional[str] = None, **kwargs
+        self, provider: str, api_key: str | None = None, **kwargs
     ) -> ProviderConfiguration:
         """
         Create new provider configuration.
@@ -242,7 +243,7 @@ class ProviderConfigurationService:
             self._save_configurations()
             logger.info(f"Deleted configuration for provider: {provider}")
 
-    def get_configuration(self, provider: str) -> Optional[ProviderConfiguration]:
+    def get_configuration(self, provider: str) -> ProviderConfiguration | None:
         """
         Get provider configuration.
 
@@ -254,11 +255,11 @@ class ProviderConfigurationService:
         """
         return self._configurations.get(provider)
 
-    def list_configurations(self) -> List[ProviderConfiguration]:
+    def list_configurations(self) -> list[ProviderConfiguration]:
         """Get all provider configurations."""
         return list(self._configurations.values())
 
-    def get_enabled_providers(self) -> List[str]:
+    def get_enabled_providers(self) -> list[str]:
         """Get list of enabled providers."""
         return [
             provider
@@ -270,8 +271,8 @@ class ProviderConfigurationService:
 
     def sync_with_environment(self) -> None:
         """Synchronize configurations with environment variables."""
-        env_provider = os.getenv("SELECTED_LLM_PROVIDER")
-        env_model = os.getenv("SELECTED_LLM_MODEL")
+        os.getenv("SELECTED_LLM_PROVIDER")
+        os.getenv("SELECTED_LLM_MODEL")
 
         # Update from environment variables
         api_keys = {
@@ -294,7 +295,7 @@ class ProviderConfigurationService:
         logger.info("Synchronized configurations with environment")
 
     def set_active_provider(
-        self, provider: str, model: Optional[str] = None, persist: bool = True
+        self, provider: str, model: str | None = None, persist: bool = True
     ) -> None:
         """
         Set active provider and optionally model.
@@ -404,7 +405,7 @@ class ProviderConfigurationService:
 
     async def check_all_providers_health(
         self, force: bool = False
-    ) -> Dict[str, ProviderHealth]:
+    ) -> dict[str, ProviderHealth]:
         """
         Check health of all configured providers.
 
@@ -416,7 +417,7 @@ class ProviderConfigurationService:
         """
         results = {}
 
-        for provider in self._configurations.keys():
+        for provider in self._configurations:
             try:
                 results[provider] = await self.check_provider_health(provider, force)
             except Exception as e:
@@ -430,11 +431,11 @@ class ProviderConfigurationService:
 
         return results
 
-    def get_provider_health(self, provider: str) -> Optional[ProviderHealth]:
+    def get_provider_health(self, provider: str) -> ProviderHealth | None:
         """Get cached health status for provider."""
         return self._health_status.get(provider)
 
-    def get_healthy_providers(self) -> List[str]:
+    def get_healthy_providers(self) -> list[str]:
         """Get list of healthy providers."""
         return [
             provider
@@ -444,7 +445,7 @@ class ProviderConfigurationService:
 
     # Backup and Restore
 
-    def create_backup(self, name: Optional[str] = None) -> Path:
+    def create_backup(self, name: str | None = None) -> Path:
         """
         Create configuration backup.
 
@@ -503,7 +504,7 @@ class ProviderConfigurationService:
 
         logger.info(f"Restored configuration from backup: {backup_file}")
 
-    def list_backups(self) -> List[Tuple[Path, datetime]]:
+    def list_backups(self) -> list[tuple[Path, datetime]]:
         """
         List available backups.
 
@@ -538,7 +539,7 @@ class ProviderConfigurationService:
 
     # Validation
 
-    def validate_configuration(self, provider: str) -> List[str]:
+    def validate_configuration(self, provider: str) -> list[str]:
         """
         Validate provider configuration.
 
@@ -573,7 +574,7 @@ class ProviderConfigurationService:
 
         return errors
 
-    def validate_all_configurations(self) -> Dict[str, List[str]]:
+    def validate_all_configurations(self) -> dict[str, list[str]]:
         """
         Validate all provider configurations.
 
@@ -582,7 +583,7 @@ class ProviderConfigurationService:
         """
         results = {}
 
-        for provider in self._configurations.keys():
+        for provider in self._configurations:
             errors = self.validate_configuration(provider)
             if errors:
                 results[provider] = errors
@@ -660,7 +661,7 @@ class ProviderConfigurationService:
 
 
 def get_config_service(
-    settings: Optional[Settings] = None,
+    settings: Settings | None = None,
 ) -> ProviderConfigurationService:
     """Get a ProviderConfigurationService instance."""
     return ProviderConfigurationService(settings)

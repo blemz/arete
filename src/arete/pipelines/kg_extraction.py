@@ -1,4 +1,3 @@
-from typing import List, Dict, Tuple, Optional
 
 from arete.models.entity import Entity, EntityType, MentionData
 from arete.processing import EntityExtractor, RelationshipExtractor, TripleValidator
@@ -20,18 +19,18 @@ def _map_label_to_entity_type(label: str) -> EntityType:
 async def run_kg_extraction(
     text: str,
     document_id,
-    entity_patterns: Optional[List[Dict[str, str]]] = None,
+    entity_patterns: list[dict[str, str]] | None = None,
     min_triple_confidence: float = 0.6,
-) -> Tuple[List[Entity], List[Dict[str, object]]]:
+) -> tuple[list[Entity], list[dict[str, object]]]:
     entity_extractor = EntityExtractor(patterns=entity_patterns)
     rel_extractor = RelationshipExtractor()
     validator = TripleValidator()
 
-    entities: List[Entity] = entity_extractor.extract_entities(text=text, document_id=document_id)
+    entities: list[Entity] = entity_extractor.extract_entities(text=text, document_id=document_id)
 
     # Deterministic fallback: if spaCy pipeline unavailable, build entities from patterns
     if not entities and entity_patterns:
-        name_to_mentions: Dict[str, List[MentionData]] = {}
+        name_to_mentions: dict[str, list[MentionData]] = {}
         for pat in entity_patterns:
             name = pat.get("pattern", "").strip()
             if not name:

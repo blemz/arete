@@ -10,8 +10,7 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Dict, Any, Optional, Union
-import re
+from typing import Any
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -44,11 +43,11 @@ class Citation:
 
     text: str
     source: str
-    author: Optional[str] = None
-    work: Optional[str] = None
-    reference: Optional[str] = None  # e.g., "Republic 514a"
+    author: str | None = None
+    work: str | None = None
+    reference: str | None = None  # e.g., "Republic 514a"
     confidence: float = 1.0
-    context: Optional[str] = None
+    context: str | None = None
 
 
 @dataclass
@@ -56,13 +55,13 @@ class PromptContext:
     """Context information for prompt generation."""
 
     query: str
-    retrieved_passages: List[str] = field(default_factory=list)
-    citations: List[Citation] = field(default_factory=list)
-    philosophical_context: Optional[PhilosophicalContext] = None
+    retrieved_passages: list[str] = field(default_factory=list)
+    citations: list[Citation] = field(default_factory=list)
+    philosophical_context: PhilosophicalContext | None = None
     student_level: str = "undergraduate"  # undergraduate, graduate, advanced
-    learning_objective: Optional[str] = None
-    previous_context: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    learning_objective: str | None = None
+    previous_context: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -73,9 +72,9 @@ class PromptResult:
     user_prompt: str
     prompt_type: PromptType
     provider: str
-    citations_included: List[Citation]
+    citations_included: list[Citation]
     token_estimate: int
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class BasePromptTemplate(ABC):
@@ -96,7 +95,7 @@ class BasePromptTemplate(ABC):
         """
         self.provider = provider
         self.prompt_type = prompt_type
-        self._template_cache: Dict[str, str] = {}
+        self._template_cache: dict[str, str] = {}
 
     @abstractmethod
     def generate(self, context: PromptContext) -> PromptResult:
@@ -109,7 +108,6 @@ class BasePromptTemplate(ABC):
         Returns:
             Generated prompt result
         """
-        pass
 
     def _estimate_tokens(self, text: str) -> int:
         """
@@ -124,7 +122,7 @@ class BasePromptTemplate(ABC):
         # Simple estimation: ~4 characters per token
         return len(text) // 4
 
-    def _format_citations(self, citations: List[Citation]) -> str:
+    def _format_citations(self, citations: list[Citation]) -> str:
         """
         Format citations for inclusion in prompts.
 
@@ -211,7 +209,7 @@ class PhilosophicalTutoringTemplate(BasePromptTemplate):
         )
 
     def _build_system_prompt(
-        self, context: PromptContext, config: Dict[str, Any]
+        self, context: PromptContext, config: dict[str, Any]
     ) -> str:
         """Build provider-specific system prompt."""
         base_role = config["base_role"]
@@ -260,7 +258,7 @@ class PhilosophicalTutoringTemplate(BasePromptTemplate):
 
         return "\n\n".join(prompt_parts)
 
-    def _load_provider_configs(self) -> Dict[str, Dict[str, Any]]:
+    def _load_provider_configs(self) -> dict[str, dict[str, Any]]:
         """Load provider-specific configuration templates."""
         return {
             "default": {

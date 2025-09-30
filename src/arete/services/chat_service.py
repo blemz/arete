@@ -7,15 +7,14 @@ for the Arete Graph-RAG philosophical tutoring system.
 
 import uuid
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
-from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
-from ..models.chat_session import (
-    ChatSession,
-    ChatMessage,
-    SessionStatus,
+from arete.models.chat_session import (
     ChatContext,
+    ChatMessage,
+    ChatSession,
     MessageType,
+    SessionStatus,
 )
 
 
@@ -25,11 +24,11 @@ class ChatService:
     def __init__(self):
         """Initialize chat service."""
         # In-memory storage for sessions (to be replaced with persistent storage)
-        self._sessions: Dict[str, ChatSession] = {}
-        self._user_sessions: Dict[str, List[str]] = {}  # user_id -> [session_ids]
+        self._sessions: dict[str, ChatSession] = {}
+        self._user_sessions: dict[str, list[str]] = {}  # user_id -> [session_ids]
 
     def create_session(
-        self, user_id: str, title: str, context: Optional[ChatContext] = None
+        self, user_id: str, title: str, context: ChatContext | None = None
     ) -> ChatSession:
         """Create a new chat session."""
         session_id = str(uuid.uuid4())
@@ -51,18 +50,18 @@ class ChatService:
 
         return session
 
-    def get_session(self, session_id: str) -> Optional[ChatSession]:
+    def get_session(self, session_id: str) -> ChatSession | None:
         """Retrieve a session by ID."""
         return self._sessions.get(session_id)
 
     def list_user_sessions(
         self,
         user_id: str,
-        status_filter: Optional[SessionStatus] = None,
-        limit: Optional[int] = None,
+        status_filter: SessionStatus | None = None,
+        limit: int | None = None,
         bookmarked_only: bool = False,
         sort_by: str = "updated_at",
-    ) -> List[ChatSession]:
+    ) -> list[ChatSession]:
         """List sessions for a user with enhanced filtering options."""
         session_ids = self._user_sessions.get(user_id, [])
         sessions = []
@@ -101,10 +100,10 @@ class ChatService:
     def update_session(
         self,
         session_id: str,
-        title: Optional[str] = None,
-        status: Optional[SessionStatus] = None,
-        context: Optional[ChatContext] = None,
-    ) -> Optional[ChatSession]:
+        title: str | None = None,
+        status: SessionStatus | None = None,
+        context: ChatContext | None = None,
+    ) -> ChatSession | None:
         """Update session properties."""
         session = self.get_session(session_id)
         if not session:
@@ -148,7 +147,7 @@ class ChatService:
 
     def add_message_to_session(
         self, session_id: str, message: ChatMessage
-    ) -> Optional[ChatSession]:
+    ) -> ChatSession | None:
         """Add a message to a session."""
         session = self.get_session(session_id)
         if not session:
@@ -162,8 +161,8 @@ class ChatService:
         user_id: str,
         query: str,
         search_content: bool = True,
-        status_filter: Optional[SessionStatus] = None,
-    ) -> List[ChatSession]:
+        status_filter: SessionStatus | None = None,
+    ) -> list[ChatSession]:
         """Search sessions by title, content, tags, and citations."""
         sessions = self.list_user_sessions(user_id)
         results = []
@@ -178,15 +177,7 @@ class ChatService:
             match_found = False
 
             # Search in title
-            if query_lower in session.title.lower():
-                match_found = True
-
-            # Search in tags
-            elif any(query_lower in tag.lower() for tag in session.tags):
-                match_found = True
-
-            # Search in summary
-            elif session.summary and query_lower in session.summary.lower():
+            if query_lower in session.title.lower() or any(query_lower in tag.lower() for tag in session.tags) or session.summary and query_lower in session.summary.lower():
                 match_found = True
 
             # Search in message content and citations if enabled
@@ -225,7 +216,7 @@ class ChatService:
 
         return cleanup_count
 
-    def get_session_statistics(self, user_id: str) -> Dict[str, Any]:
+    def get_session_statistics(self, user_id: str) -> dict[str, Any]:
         """Get statistics for user's sessions."""
         sessions = self.list_user_sessions(user_id)
 
@@ -255,7 +246,7 @@ class ChatService:
 
     def export_session(
         self, session_id: str, format: str = "dict"
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Export session data in specified format."""
         session = self.get_session(session_id)
         if not session:
@@ -267,7 +258,7 @@ class ChatService:
         # Add other export formats as needed
         return session.to_dict()
 
-    def import_session(self, session_data: Dict[str, Any]) -> ChatSession:
+    def import_session(self, session_data: dict[str, Any]) -> ChatSession:
         """Import session from data."""
         session = ChatSession.from_dict(session_data)
 
@@ -295,7 +286,7 @@ class ChatService:
         session.bookmark(bookmarked)
         return True
 
-    def add_session_tags(self, session_id: str, tags: List[str]) -> bool:
+    def add_session_tags(self, session_id: str, tags: list[str]) -> bool:
         """Add tags to a session."""
         session = self.get_session(session_id)
         if not session:
@@ -304,7 +295,7 @@ class ChatService:
         session.add_tags(tags)
         return True
 
-    def remove_session_tags(self, session_id: str, tags: List[str]) -> bool:
+    def remove_session_tags(self, session_id: str, tags: list[str]) -> bool:
         """Remove tags from a session."""
         session = self.get_session(session_id)
         if not session:
@@ -314,8 +305,8 @@ class ChatService:
         return True
 
     def search_sessions_by_tags(
-        self, user_id: str, tags: List[str]
-    ) -> List[ChatSession]:
+        self, user_id: str, tags: list[str]
+    ) -> list[ChatSession]:
         """Search sessions by tags."""
         sessions = self.list_user_sessions(user_id)
         results = []
@@ -332,8 +323,8 @@ class ChatService:
         return results
 
     def get_conversation_history(
-        self, session_id: str, limit: Optional[int] = None, offset: int = 0
-    ) -> List[ChatMessage]:
+        self, session_id: str, limit: int | None = None, offset: int = 0
+    ) -> list[ChatMessage]:
         """Get paginated conversation history for a session."""
         session = self.get_session(session_id)
         if not session:
@@ -351,7 +342,7 @@ class ChatService:
 
     def get_conversation_thread(
         self, session_id: str, message_id: str, context_size: int = 3
-    ) -> List[ChatMessage]:
+    ) -> list[ChatMessage]:
         """Get conversation thread around a specific message."""
         session = self.get_session(session_id)
         if not session:
@@ -359,7 +350,7 @@ class ChatService:
 
         return session.get_message_thread(message_id, context_size)
 
-    def get_session_activity_timeline(self, session_id: str) -> List[Dict[str, Any]]:
+    def get_session_activity_timeline(self, session_id: str) -> list[dict[str, Any]]:
         """Get chronological timeline of session activity."""
         session = self.get_session(session_id)
         if not session:
@@ -367,7 +358,7 @@ class ChatService:
 
         return session.get_conversation_timeline()
 
-    def generate_conversation_summary(self, session_id: str) -> Optional[str]:
+    def generate_conversation_summary(self, session_id: str) -> str | None:
         """Generate a summary of the conversation (placeholder for AI implementation)."""
         session = self.get_session(session_id)
         if not session or not session.messages:
@@ -423,7 +414,7 @@ class ChatService:
             else "Philosophical discussion session"
         )
 
-    def get_detailed_user_statistics(self, user_id: str) -> Dict[str, Any]:
+    def get_detailed_user_statistics(self, user_id: str) -> dict[str, Any]:
         """Get detailed statistics for a user's sessions."""
         sessions = self.list_user_sessions(user_id)
 
@@ -477,7 +468,7 @@ class ChatService:
             "average_session_length": average_session_length,
         }
 
-    def analyze_philosophical_topics(self, session_id: str) -> Dict[str, Any]:
+    def analyze_philosophical_topics(self, session_id: str) -> dict[str, Any]:
         """Analyze philosophical topics and themes in a session."""
         session = self.get_session(session_id)
         if not session:
@@ -534,7 +525,7 @@ class ChatService:
             "ethical_themes": list(set(ethical_themes)),
         }
 
-    def prepare_session_for_sharing(self, session_id: str) -> Optional[Dict[str, Any]]:
+    def prepare_session_for_sharing(self, session_id: str) -> dict[str, Any] | None:
         """Prepare session data for sharing or collaboration."""
         session = self.get_session(session_id)
         if not session:

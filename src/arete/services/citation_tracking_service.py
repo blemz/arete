@@ -10,16 +10,14 @@ This service provides comprehensive citation tracking and provenance management:
 """
 
 import logging
-from typing import List, Dict, Any, Optional, Tuple, Set
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from datetime import datetime, timezone, timedelta
+from typing import Any
 from uuid import UUID, uuid4
-import json
 
-from ..models.citation import Citation, CitationType, CitationContext
-from ..models.document import Document
-from ..models.chunk import Chunk
+from arete.models.citation import Citation, CitationContext, CitationType
+
 from .base import ServiceError
 
 logger = logging.getLogger(__name__)
@@ -28,13 +26,11 @@ logger = logging.getLogger(__name__)
 class CitationTrackingError(ServiceError):
     """Base exception for citation tracking service errors."""
 
-    pass
 
 
 class ProvenanceError(CitationTrackingError):
     """Exception for provenance tracking failures."""
 
-    pass
 
 
 class TrackingEventType(str, Enum):
@@ -68,12 +64,12 @@ class ProvenanceRecord:
 
     # Event information
     event_type: TrackingEventType = TrackingEventType.CREATED
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     # Source information
     source_type: CitationSource = CitationSource.ORIGINAL_TEXT
-    source_id: Optional[UUID] = None
-    source_metadata: Dict[str, Any] = field(default_factory=dict)
+    source_id: UUID | None = None
+    source_metadata: dict[str, Any] = field(default_factory=dict)
 
     # Processing information
     processor: str = ""  # Service or component that created/modified citation
@@ -81,12 +77,12 @@ class ProvenanceRecord:
     confidence_score: float = 0.0
 
     # Change information
-    previous_state: Optional[Dict[str, Any]] = None
-    current_state: Dict[str, Any] = field(default_factory=dict)
-    changes: List[str] = field(default_factory=list)
+    previous_state: dict[str, Any] | None = None
+    current_state: dict[str, Any] = field(default_factory=dict)
+    changes: list[str] = field(default_factory=list)
 
     # Context
-    context: Dict[str, Any] = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -103,7 +99,7 @@ class CitationRelationship:
     confidence: float = 0.8  # Confidence in relationship accuracy
 
     # Metadata
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     created_by: str = ""  # Service or user that created relationship
 
     # Validation
@@ -116,16 +112,16 @@ class CitationNetwork:
     """A network of related citations."""
 
     # Network nodes and edges
-    citations: List[Citation] = field(default_factory=list)
-    relationships: List[CitationRelationship] = field(default_factory=list)
+    citations: list[Citation] = field(default_factory=list)
+    relationships: list[CitationRelationship] = field(default_factory=list)
 
     # Network metadata
     network_id: UUID = field(default_factory=uuid4)
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     # Analysis results
-    centrality_scores: Dict[UUID, float] = field(default_factory=dict)
-    community_clusters: Dict[UUID, int] = field(default_factory=dict)
+    centrality_scores: dict[UUID, float] = field(default_factory=dict)
+    community_clusters: dict[UUID, int] = field(default_factory=dict)
 
     # Statistics
     total_citations: int = 0
@@ -149,13 +145,13 @@ class CitationUsageStats:
     validation_rate: float = 0.0
 
     # Temporal data
-    first_used: Optional[datetime] = None
-    last_used: Optional[datetime] = None
-    usage_frequency: Dict[str, int] = field(default_factory=dict)  # by time period
+    first_used: datetime | None = None
+    last_used: datetime | None = None
+    usage_frequency: dict[str, int] = field(default_factory=dict)  # by time period
 
     # Context analysis
-    contexts_used: Dict[CitationContext, int] = field(default_factory=dict)
-    citation_types: Dict[CitationType, int] = field(default_factory=dict)
+    contexts_used: dict[CitationContext, int] = field(default_factory=dict)
+    citation_types: dict[CitationType, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -191,7 +187,7 @@ class CitationTrackingService:
     provide analytical insights.
     """
 
-    def __init__(self, config: Optional[CitationTrackingConfig] = None):
+    def __init__(self, config: CitationTrackingConfig | None = None):
         """
         Initialize citation tracking service.
 
@@ -201,14 +197,14 @@ class CitationTrackingService:
         self.config = config or CitationTrackingConfig()
 
         # Storage for tracking data
-        self._provenance_records: Dict[UUID, List[ProvenanceRecord]] = {}
-        self._relationships: Dict[UUID, List[CitationRelationship]] = {}
-        self._usage_stats: Dict[UUID, CitationUsageStats] = {}
-        self._networks: Dict[UUID, CitationNetwork] = {}
+        self._provenance_records: dict[UUID, list[ProvenanceRecord]] = {}
+        self._relationships: dict[UUID, list[CitationRelationship]] = {}
+        self._usage_stats: dict[UUID, CitationUsageStats] = {}
+        self._networks: dict[UUID, CitationNetwork] = {}
 
         # Caching
-        self._cache: Dict[str, Any] = {}
-        self._cache_timestamps: Dict[str, datetime] = {}
+        self._cache: dict[str, Any] = {}
+        self._cache_timestamps: dict[str, datetime] = {}
 
         logger.info("Initialized CitationTrackingService")
 
@@ -218,8 +214,8 @@ class CitationTrackingService:
         event_type: TrackingEventType,
         source_type: CitationSource = CitationSource.SYSTEM_GENERATED,
         processor: str = "",
-        context: Optional[Dict[str, Any]] = None,
-        previous_state: Optional[Citation] = None,
+        context: dict[str, Any] | None = None,
+        previous_state: Citation | None = None,
     ) -> ProvenanceRecord:
         """
         Record a citation tracking event.
@@ -350,8 +346,8 @@ class CitationTrackingService:
             raise CitationTrackingError(f"Relationship creation failed: {e}") from e
 
     def get_citation_provenance(
-        self, citation_id: UUID, limit: Optional[int] = None
-    ) -> List[ProvenanceRecord]:
+        self, citation_id: UUID, limit: int | None = None
+    ) -> list[ProvenanceRecord]:
         """
         Get provenance records for a citation.
 
@@ -373,8 +369,8 @@ class CitationTrackingService:
         return records
 
     def get_citation_relationships(
-        self, citation_id: UUID, relationship_type: Optional[str] = None
-    ) -> List[CitationRelationship]:
+        self, citation_id: UUID, relationship_type: str | None = None
+    ) -> list[CitationRelationship]:
         """
         Get relationships for a citation.
 
@@ -397,7 +393,7 @@ class CitationTrackingService:
         return relationships
 
     def build_citation_network(
-        self, citations: List[Citation], include_automatic_relationships: bool = True
+        self, citations: list[Citation], include_automatic_relationships: bool = True
     ) -> CitationNetwork:
         """
         Build a citation network from a list of citations.
@@ -482,7 +478,7 @@ class CitationTrackingService:
 
     def analyze_citation_impact(
         self, citation_id: UUID, time_window_days: int = 30
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Analyze the impact and influence of a citation.
 
@@ -506,7 +502,7 @@ class CitationTrackingService:
             )
 
             # Recent usage analysis
-            recent_cutoff = datetime.now(timezone.utc) - timedelta(
+            recent_cutoff = datetime.now(UTC) - timedelta(
                 days=time_window_days
             )
             recent_usage = self._calculate_recent_usage(citation_id, recent_cutoff)
@@ -537,7 +533,7 @@ class CitationTrackingService:
 
     def _detect_changes(
         self, old_citation: Citation, new_citation: Citation
-    ) -> List[str]:
+    ) -> list[str]:
         """Detect changes between citation versions."""
         changes = []
 
@@ -563,7 +559,7 @@ class CitationTrackingService:
             self._usage_stats[citation.id] = CitationUsageStats(citation_id=citation.id)
 
         stats = self._usage_stats[citation.id]
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Update based on event type
         if event_type == TrackingEventType.REFERENCED:
@@ -595,8 +591,8 @@ class CitationTrackingService:
         ) / total_events
 
     def _detect_automatic_relationships(
-        self, citations: List[Citation]
-    ) -> List[CitationRelationship]:
+        self, citations: list[Citation]
+    ) -> list[CitationRelationship]:
         """Detect automatic relationships between citations."""
         relationships = []
 
@@ -688,7 +684,7 @@ class CitationTrackingService:
         self,
         citation_id: UUID,
         stats: CitationUsageStats,
-        relationships: List[CitationRelationship],
+        relationships: list[CitationRelationship],
     ) -> float:
         """Calculate impact score for a citation."""
         # Base score from usage
@@ -703,7 +699,7 @@ class CitationTrackingService:
         return (usage_score + relationship_score) / 2 * quality_multiplier
 
     def _calculate_influence_score(
-        self, citation_id: UUID, relationships: List[CitationRelationship]
+        self, citation_id: UUID, relationships: list[CitationRelationship]
     ) -> float:
         """Calculate influence score based on relationships."""
         if not relationships:
@@ -737,7 +733,7 @@ class CitationTrackingService:
 
 # Factory function following established pattern
 def create_citation_tracking_service(
-    config: Optional[CitationTrackingConfig] = None,
+    config: CitationTrackingConfig | None = None,
 ) -> CitationTrackingService:
     """
     Create citation tracking service with configuration.

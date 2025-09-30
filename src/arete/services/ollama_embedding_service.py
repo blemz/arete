@@ -5,14 +5,15 @@ Provides access to state-of-the-art embedding models via Ollama,
 including dengcao/Qwen3-Embedding-8B:Q8_0 for maximum quality.
 """
 
-import logging
-import requests
-from typing import List, Optional, Union, Dict, Any, Callable
 import hashlib
+import logging
 import time
+from typing import Any
 
-from ..config import Settings, get_settings
-from ..models.chunk import Chunk
+import requests
+
+from arete.config import Settings, get_settings
+from arete.models.chunk import Chunk
 
 logger = logging.getLogger(__name__)
 
@@ -20,19 +21,16 @@ logger = logging.getLogger(__name__)
 class OllamaEmbeddingError(Exception):
     """Base exception for Ollama embedding errors."""
 
-    pass
 
 
 class OllamaConnectionError(OllamaEmbeddingError):
     """Raised when cannot connect to Ollama server."""
 
-    pass
 
 
 class OllamaModelError(OllamaEmbeddingError):
     """Raised when model is not available or fails."""
 
-    pass
 
 
 class OllamaEmbeddingService:
@@ -49,9 +47,9 @@ class OllamaEmbeddingService:
 
     def __init__(
         self,
-        model_name: Optional[str] = None,
-        base_url: Optional[str] = None,
-        settings: Optional[Settings] = None,
+        model_name: str | None = None,
+        base_url: str | None = None,
+        settings: Settings | None = None,
     ):
         """
         Initialize Ollama embedding service.
@@ -72,11 +70,11 @@ class OllamaEmbeddingService:
         self._batch_count = 0
 
         # Simple embedding cache
-        self._embedding_cache: Dict[str, List[float]] = {}
+        self._embedding_cache: dict[str, list[float]] = {}
         self._cache_hits = 0
 
         # Model info cache
-        self._model_info: Optional[Dict[str, Any]] = None
+        self._model_info: dict[str, Any] | None = None
 
         logger.info(
             f"Initialized OllamaEmbeddingService with model={self.model_name}, url={self.base_url}"
@@ -134,7 +132,7 @@ class OllamaEmbeddingService:
             logger.error(f"Failed to pull model {self.model_name}: {e}")
             return False
 
-    def get_model_info(self) -> Dict[str, Any]:
+    def get_model_info(self) -> dict[str, Any]:
         """Get information about the current model."""
         if self._model_info is None:
             try:
@@ -201,7 +199,7 @@ class OllamaEmbeddingService:
         max_retries: int = 3,
         retry_delay: float = 2.0,
         **kwargs,
-    ) -> List[float]:
+    ) -> list[float]:
         """
         Generate embedding for a single text using Ollama with retry logic.
 
@@ -308,12 +306,12 @@ class OllamaEmbeddingService:
 
     def generate_embeddings_batch(
         self,
-        texts: List[str],
-        batch_size: Optional[int] = None,
+        texts: list[str],
+        batch_size: int | None = None,
         normalize: bool = True,
         show_progress: bool = True,
         **kwargs,
-    ) -> List[List[float]]:
+    ) -> list[list[float]]:
         """
         Generate embeddings for multiple texts.
 
@@ -356,11 +354,11 @@ class OllamaEmbeddingService:
 
     async def generate_embeddings(
         self,
-        texts: List[str],
+        texts: list[str],
         normalize: bool = True,
         show_progress: bool = True,
         **kwargs,
-    ) -> List[List[float]]:
+    ) -> list[list[float]]:
         """
         Generate embeddings for multiple texts (async interface).
 
@@ -388,7 +386,7 @@ class OllamaEmbeddingService:
         use_vectorizable_text: bool = True,
         normalize: bool = True,
         **kwargs,
-    ) -> List[float]:
+    ) -> list[float]:
         """
         Generate embedding for a Chunk model using Ollama.
 
@@ -401,21 +399,18 @@ class OllamaEmbeddingService:
         Returns:
             Embedding vector as list of floats
         """
-        if use_vectorizable_text:
-            text = chunk.get_vectorizable_text()
-        else:
-            text = chunk.text
+        text = chunk.get_vectorizable_text() if use_vectorizable_text else chunk.text
 
         return self.generate_embedding(text, normalize=normalize, **kwargs)
 
     def generate_chunk_embeddings_batch(
         self,
-        chunks: List[Chunk],
+        chunks: list[Chunk],
         use_vectorizable_text: bool = True,
         normalize: bool = True,
         show_progress: bool = True,
         **kwargs,
-    ) -> List[List[float]]:
+    ) -> list[list[float]]:
         """
         Generate embeddings for multiple Chunk models.
 
@@ -454,9 +449,9 @@ class OllamaEmbeddingService:
 
 # Factory function for easy integration
 def create_ollama_embedding_service(
-    model_name: Optional[str] = None,
-    base_url: Optional[str] = None,
-    settings: Optional[Settings] = None,
+    model_name: str | None = None,
+    base_url: str | None = None,
+    settings: Settings | None = None,
 ) -> OllamaEmbeddingService:
     """
     Create Ollama embedding service with dependency injection.

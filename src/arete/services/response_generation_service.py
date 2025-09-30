@@ -9,34 +9,27 @@ This service provides complete response generation functionality including:
 - Performance optimization with caching and token management
 """
 
+import asyncio
+import hashlib
 import logging
 import time
-import hashlib
-from typing import List, Dict, Any, Optional, Union, Tuple
 from dataclasses import dataclass, field
-from enum import Enum
-import asyncio
+from typing import Any
 
-from ..config import Settings, get_settings
-from ..services.context_composition_service import ContextResult
-from ..services.simple_llm_service import SimpleLLMService
-from ..services.expert_validation_service import ExpertValidationService
-from ..services.citation_extraction_service import (
-    CitationExtractionService,
-    CitationExtractionConfig,
-)
-from ..services.citation_validation_service import (
-    CitationValidationService,
-    CitationValidationConfig,
-)
-from ..services.citation_tracking_service import (
-    CitationTrackingService,
-    CitationTrackingConfig,
-    TrackingEventType,
+from arete.config import Settings, get_settings
+from arete.models.citation import Citation
+from arete.services.citation_extraction_service import CitationExtractionService
+from arete.services.citation_tracking_service import (
     CitationSource,
+    CitationTrackingService,
+    TrackingEventType,
 )
-from ..services.llm_provider import LLMMessage, LLMResponse, MessageRole
-from ..models.citation import Citation
+from arete.services.citation_validation_service import CitationValidationService
+from arete.services.context_composition_service import ContextResult
+from arete.services.expert_validation_service import ExpertValidationService
+from arete.services.llm_provider import LLMMessage, LLMResponse, MessageRole
+from arete.services.simple_llm_service import SimpleLLMService
+
 from .base import ServiceError
 
 logger = logging.getLogger(__name__)
@@ -45,19 +38,17 @@ logger = logging.getLogger(__name__)
 class ResponseGenerationError(ServiceError):
     """Base exception for response generation service errors."""
 
-    pass
 
 
 class ValidationError(ResponseGenerationError):
     """Exception for validation failures."""
 
-    pass
 
 
 class CitationError(ResponseGenerationError):
     """Exception for citation-related errors."""
 
-    def __init__(self, message: str, citation_id: Optional[str] = None):
+    def __init__(self, message: str, citation_id: str | None = None):
         super().__init__(message)
         self.citation_id = citation_id
 
@@ -89,8 +80,8 @@ class ResponseGenerationConfig:
     cache_ttl: int = 3600  # Cache time-to-live in seconds
 
     # Provider selection
-    preferred_provider: Optional[str] = None
-    fallback_providers: List[str] = field(default_factory=list)
+    preferred_provider: str | None = None
+    fallback_providers: list[str] = field(default_factory=list)
 
     def __post_init__(self):
         """Validate configuration values."""
@@ -113,11 +104,11 @@ class ResponseValidation:
     is_valid: bool
     accuracy_score: float
     citation_coverage: float
-    issues: List[str] = field(default_factory=list)
+    issues: list[str] = field(default_factory=list)
 
     # Detailed validation metrics
-    claim_verification: Dict[str, float] = field(default_factory=dict)
-    citation_accuracy: Dict[str, float] = field(default_factory=dict)
+    claim_verification: dict[str, float] = field(default_factory=dict)
+    citation_accuracy: dict[str, float] = field(default_factory=dict)
     educational_quality: float = 0.0
 
     def is_high_quality(
@@ -141,7 +132,7 @@ class ResponseResult:
     query: str
 
     # Citations and sources
-    citations: List[Citation]
+    citations: list[Citation]
     source_attribution: str = ""
 
     # Validation results
@@ -152,9 +143,9 @@ class ResponseResult:
     )
 
     # Generation metadata
-    llm_response_metadata: Dict[str, Any] = field(default_factory=dict)
+    llm_response_metadata: dict[str, Any] = field(default_factory=dict)
     generation_time: float = 0.0
-    token_usage: Dict[str, int] = field(default_factory=dict)
+    token_usage: dict[str, int] = field(default_factory=dict)
 
     # Pipeline information
     context_tokens_used: int = 0
@@ -162,7 +153,7 @@ class ResponseResult:
     provider_used: str = ""
 
     # Additional metadata
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class ResponseGenerationService:
@@ -175,13 +166,13 @@ class ResponseGenerationService:
 
     def __init__(
         self,
-        llm_service: Optional[SimpleLLMService] = None,
-        validation_service: Optional[ExpertValidationService] = None,
-        citation_extraction_service: Optional[CitationExtractionService] = None,
-        citation_validation_service: Optional[CitationValidationService] = None,
-        citation_tracking_service: Optional[CitationTrackingService] = None,
-        config: Optional[ResponseGenerationConfig] = None,
-        settings: Optional[Settings] = None,
+        llm_service: SimpleLLMService | None = None,
+        validation_service: ExpertValidationService | None = None,
+        citation_extraction_service: CitationExtractionService | None = None,
+        citation_validation_service: CitationValidationService | None = None,
+        citation_tracking_service: CitationTrackingService | None = None,
+        config: ResponseGenerationConfig | None = None,
+        settings: Settings | None = None,
     ):
         """
         Initialize response generation service.
@@ -212,8 +203,8 @@ class ResponseGenerationService:
         )
 
         # Initialize caching
-        self._response_cache: Dict[str, ResponseResult] = {}
-        self._cache_timestamps: Dict[str, float] = {}
+        self._response_cache: dict[str, ResponseResult] = {}
+        self._cache_timestamps: dict[str, float] = {}
 
         logger.info(
             f"Initialized ResponseGenerationService with max_tokens: {self.config.max_response_tokens}, "
@@ -224,7 +215,7 @@ class ResponseGenerationService:
         self,
         context_result: ContextResult,
         query: str,
-        config: Optional[ResponseGenerationConfig] = None,
+        config: ResponseGenerationConfig | None = None,
     ) -> ResponseResult:
         """
         Generate educational response from composed context.
@@ -283,7 +274,7 @@ class ResponseGenerationService:
                 validated_citations = [
                     citation
                     for citation, result in zip(
-                        extraction_result.citations, validation_results.citation_results
+                        extraction_result.citations, validation_results.citation_results, strict=False
                     )
                     if result.is_valid or not generation_config.fail_on_validation_error
                 ]
@@ -380,10 +371,10 @@ class ResponseGenerationService:
 
     async def generate_response_batch(
         self,
-        context_results: List[ContextResult],
-        queries: List[str],
-        config: Optional[ResponseGenerationConfig] = None,
-    ) -> List[ResponseResult]:
+        context_results: list[ContextResult],
+        queries: list[str],
+        config: ResponseGenerationConfig | None = None,
+    ) -> list[ResponseResult]:
         """
         Generate responses for multiple queries in batch.
 
@@ -403,7 +394,7 @@ class ResponseGenerationService:
         # Process all requests concurrently
         tasks = [
             self.generate_response(context_result, query, config)
-            for context_result, query in zip(context_results, queries)
+            for context_result, query in zip(context_results, queries, strict=False)
         ]
 
         try:
@@ -440,7 +431,7 @@ class ResponseGenerationService:
 
     def _build_messages(
         self, context_result: ContextResult, query: str
-    ) -> List[LLMMessage]:
+    ) -> list[LLMMessage]:
         """
         Build LLM messages from context and query.
 
@@ -506,7 +497,7 @@ class ResponseGenerationService:
         return "\n\n".join(prompt_parts)
 
     async def _generate_llm_response(
-        self, messages: List[LLMMessage], config: ResponseGenerationConfig
+        self, messages: list[LLMMessage], config: ResponseGenerationConfig
     ) -> LLMResponse:
         """Generate response using LLM service."""
         try:
@@ -549,7 +540,7 @@ class ResponseGenerationService:
 
     def _process_citations(
         self, context_result: ContextResult, config: ResponseGenerationConfig
-    ) -> List[Citation]:
+    ) -> list[Citation]:
         """Process and format citations from context."""
         if not context_result.citations:
             return []
@@ -569,7 +560,7 @@ class ResponseGenerationService:
         except Exception as e:
             raise CitationError(f"Citation processing failed: {e}") from e
 
-    def _deduplicate_citations(self, citations: List[Citation]) -> List[Citation]:
+    def _deduplicate_citations(self, citations: list[Citation]) -> list[Citation]:
         """Remove duplicate citations while preserving order."""
         seen_references = set()
         unique_citations = []
@@ -585,7 +576,7 @@ class ResponseGenerationService:
         return unique_citations
 
     def _format_citations(
-        self, citations: List[Citation], format_style: str = "classical"
+        self, citations: list[Citation], format_style: str = "classical"
     ) -> str:
         """Format citations according to specified style."""
         if not citations:
@@ -637,7 +628,7 @@ class ResponseGenerationService:
     def _format_source_attribution(
         self,
         context_result: ContextResult,
-        citations: List[Citation],
+        citations: list[Citation],
         config: ResponseGenerationConfig,
     ) -> str:
         """Format complete source attribution."""
@@ -715,7 +706,7 @@ class ResponseGenerationService:
         key_string = "|".join(key_components)
         return hashlib.md5(key_string.encode()).hexdigest()
 
-    def _get_cached_result(self, cache_key: str) -> Optional[ResponseResult]:
+    def _get_cached_result(self, cache_key: str) -> ResponseResult | None:
         """Get cached response result if valid."""
         if cache_key not in self._response_cache:
             return None
@@ -749,7 +740,7 @@ class ResponseGenerationService:
         self._cache_timestamps.clear()
         logger.info("Response generation cache cleared")
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         return {
             "cached_responses": len(self._response_cache),
@@ -761,7 +752,7 @@ class ResponseGenerationService:
             ),
         }
 
-    def get_service_stats(self) -> Dict[str, Any]:
+    def get_service_stats(self) -> dict[str, Any]:
         """Get service statistics."""
         return {
             "llm_service_info": (
@@ -780,13 +771,13 @@ class ResponseGenerationService:
 
 # Factory function following established pattern
 def create_response_generation_service(
-    llm_service: Optional[SimpleLLMService] = None,
-    validation_service: Optional[ExpertValidationService] = None,
-    citation_extraction_service: Optional[CitationExtractionService] = None,
-    citation_validation_service: Optional[CitationValidationService] = None,
-    citation_tracking_service: Optional[CitationTrackingService] = None,
-    config: Optional[ResponseGenerationConfig] = None,
-    settings: Optional[Settings] = None,
+    llm_service: SimpleLLMService | None = None,
+    validation_service: ExpertValidationService | None = None,
+    citation_extraction_service: CitationExtractionService | None = None,
+    citation_validation_service: CitationValidationService | None = None,
+    citation_tracking_service: CitationTrackingService | None = None,
+    config: ResponseGenerationConfig | None = None,
+    settings: Settings | None = None,
 ) -> ResponseGenerationService:
     """
     Create response generation service with optional dependencies.

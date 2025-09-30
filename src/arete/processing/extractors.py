@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 from xml.etree import ElementTree as ET
 
 from pydantic import BaseModel, Field, field_validator
@@ -22,19 +22,19 @@ from arete.models.entity import Entity, EntityType, MentionData
 class PDFMetadata(BaseModel):
     """Metadata extracted from PDF documents."""
 
-    title: Optional[str] = Field(None, description="Document title")
-    author: Optional[str] = Field(None, description="Document author")
-    subject: Optional[str] = Field(None, description="Document subject")
-    creator: Optional[str] = Field(None, description="Application that created the PDF")
-    producer: Optional[str] = Field(None, description="PDF producer")
-    creation_date: Optional[str] = Field(None, description="Creation date")
-    modification_date: Optional[str] = Field(None, description="Last modification date")
+    title: str | None = Field(None, description="Document title")
+    author: str | None = Field(None, description="Document author")
+    subject: str | None = Field(None, description="Document subject")
+    creator: str | None = Field(None, description="Application that created the PDF")
+    producer: str | None = Field(None, description="PDF producer")
+    creation_date: str | None = Field(None, description="Creation date")
+    modification_date: str | None = Field(None, description="Last modification date")
     page_count: int = Field(..., gt=0, description="Number of pages")
-    language: Optional[str] = Field(None, description="Document language")
+    language: str | None = Field(None, description="Document language")
 
     @field_validator("title", "author", "subject", "creator", "producer", "language")
     @classmethod
-    def validate_string_fields(cls, v: Optional[str]) -> Optional[str]:
+    def validate_string_fields(cls, v: str | None) -> str | None:
         """Validate and normalize string fields."""
         if v is None:
             return None
@@ -60,10 +60,10 @@ class PDFExtractor:
         extract_images: bool = False,
         preserve_layout: bool = False,
         extract_annotations: bool = False,
-        password: Optional[str] = None
+        password: str | None = None
     ):
         """Initialize PDF extractor.
-        
+
         Args:
             extract_images: Whether to extract images from PDFs
             preserve_layout: Whether to preserve document layout
@@ -75,121 +75,122 @@ class PDFExtractor:
         self.extract_annotations = extract_annotations
         self.password = password
 
-    def extract_from_file(self, file_path: str) -> Dict[str, Any]:
+    def extract_from_file(self, file_path: str) -> dict[str, Any]:
         """Extract text and metadata from a PDF file.
-        
+
         Args:
             file_path: Path to the PDF file
-            
+
         Returns:
             Dictionary containing extracted text, metadata, and page texts
-            
+
         Raises:
             FileNotFoundError: If file doesn't exist
             ValueError: If file is not a PDF
         """
         path = Path(file_path)
-        
+
         if not path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
-            
-        if path.suffix.lower() != '.pdf':
+
+        if path.suffix.lower() != ".pdf":
             raise ValueError("File must have .pdf extension")
-            
+
         # Read file bytes and delegate to extract_from_bytes
-        with open(file_path, 'rb') as f:
+        with open(file_path, "rb") as f:
             pdf_bytes = f.read()
-            
+
         return self.extract_from_bytes(pdf_bytes)
 
-    def extract_from_bytes(self, pdf_data: bytes) -> Dict[str, Any]:
+    def extract_from_bytes(self, pdf_data: bytes) -> dict[str, Any]:
         """Extract text and metadata from PDF bytes.
-        
+
         Args:
             pdf_data: PDF file data as bytes
-            
+
         Returns:
             Dictionary containing extracted text, metadata, and page texts
-            
+
         Raises:
             ValueError: If PDF data is invalid or empty
         """
         if not pdf_data:
             raise ValueError("PDF data cannot be empty")
-            
-        if not pdf_data.startswith(b'%PDF'):
+
+        if not pdf_data.startswith(b"%PDF"):
             raise ValueError("Invalid PDF data: missing PDF header")
-            
+
         if len(pdf_data) < 100:  # Assume very small files are corrupted
             raise ValueError("Invalid PDF data")
-            
+
         try:
-            import pymupdf4llm
-            import fitz  # PyMuPDF
-            import tempfile
             import os
             import re
+            import tempfile
             from pathlib import Path
-            
+
+            import fitz  # PyMuPDF
+            import pymupdf4llm
+
             # Create temporary file with better handling for Windows
             tmp_fd = None
             tmp_path = None
             doc = None
-            
+
             try:
                 # Create temporary file with explicit close handling for Windows
-                tmp_fd, tmp_path = tempfile.mkstemp(suffix='.pdf')
-                
+                tmp_fd, tmp_path = tempfile.mkstemp(suffix=".pdf")
+
                 # Write PDF data to temporary file
-                with os.fdopen(tmp_fd, 'wb') as tmp_file:
+                with os.fdopen(tmp_fd, "wb") as tmp_file:
                     tmp_file.write(pdf_data)
                 tmp_fd = None  # File is now closed
-                
+
                 # Extract text using pymupdf4llm (optimized for LLM processing)
                 md_text = pymupdf4llm.to_markdown(tmp_path)
-                
+
                 # Also extract using basic PyMuPDF for metadata and page-by-page text
                 doc = fitz.open(tmp_path)
-                
+
                 # Extract metadata
                 metadata = doc.metadata
                 page_texts = []
-                
+
                 # Extract text from each page
                 for page_num in range(doc.page_count):
                     page = doc[page_num]
                     page_text = page.get_text()
                     if page_text.strip():
                         page_texts.append(self._clean_text(page_text))
-                
+
                 # Combine all page texts
                 full_text = "\n\n".join(page_texts) if page_texts else md_text
-                
+
                 # Smart metadata extraction from content if PDF metadata is missing/poor
-                title = metadata.get('title', '') or ''
-                author = metadata.get('author', '') or ''
-                
+                title = metadata.get("title", "") or ""
+                author = metadata.get("author", "") or ""
+
                 # If metadata is missing or generic, try to extract from content
-                if not title or title in ['Unknown Title', '63221pre 1..42']:
+                if not title or title in ["Unknown Title", "63221pre 1..42"]:
                     title = self._extract_title_from_text(full_text)
-                
-                if not author or author == 'Unknown Author':
+
+                if not author or author == "Unknown Author":
                     author = self._extract_author_from_text(full_text)
-                
+
                 # Create PDFMetadata object with enhanced extraction
                 pdf_metadata = PDFMetadata(
-                    title=title or 'Classical Philosophical Text',
-                    author=author or 'Classical Philosopher', 
-                    subject=metadata.get('subject'),
-                    keywords=metadata.get('keywords'),
-                    creator=metadata.get('creator'),
-                    producer=metadata.get('producer'),
-                    creation_date=metadata.get('creationDate'),
-                    modification_date=metadata.get('modDate'),
+                    title=title or "Classical Philosophical Text",
+                    author=author or "Classical Philosopher",
+                    subject=metadata.get("subject"),
+                    keywords=metadata.get("keywords"),
+                    creator=metadata.get("creator"),
+                    producer=metadata.get("producer"),
+                    creation_date=metadata.get("creationDate"),
+                    modification_date=metadata.get("modDate"),
                     page_count=doc.page_count,
                     language=None  # PyMuPDF doesn't extract language directly
                 )
-                
+
                 return {
                     "text": self._clean_text(full_text),
                     "metadata": pdf_metadata,
@@ -197,7 +198,7 @@ class PDFExtractor:
                     "markdown_text": md_text,  # LLM-optimized markdown format
                     "images": []  # TODO: Implement image extraction if needed
                 }
-                
+
             finally:
                 # Ensure proper cleanup in the correct order
                 if doc:
@@ -210,7 +211,7 @@ class PDFExtractor:
                     except (OSError, PermissionError) as e:
                         # Log warning but don't fail - temp file will be cleaned by OS
                         print(f"Warning: Could not delete temporary file {tmp_path}: {e}")
-                        
+
         except ImportError as e:
             # Fallback to mock if libraries aren't available
             if "pymupdf4llm" in str(e) or "fitz" in str(e):
@@ -224,94 +225,94 @@ class PDFExtractor:
     def _extract_title_from_text(self, text: str) -> str:
         """Extract title from PDF text content."""
         if not text:
-            return 'Classical Philosophical Text'
-            
+            return "Classical Philosophical Text"
+
         # Look for common philosophical work patterns
         first_500_chars = text[:500].upper()
-        
+
         # Check for known classical works
-        if 'REPUBLIC' in first_500_chars:
-            return 'The Republic'
-        elif 'NICOMACHEAN ETHICS' in first_500_chars or 'ETHICS' in first_500_chars:
-            return 'Nicomachean Ethics'
-        elif 'SOCRATIC' in first_500_chars and 'DIALOGUE' in first_500_chars:
-            return 'Socratic Dialogues'
-        elif 'MEDITATIONS' in first_500_chars:
-            return 'Meditations'
-        elif 'PHAEDO' in first_500_chars:
-            return 'Phaedo'
-        elif 'APOLOGY' in first_500_chars:
-            return 'Apology'
-        elif 'SYMPOSIUM' in first_500_chars:
-            return 'Symposium'
-        elif 'CONFESSIONS' in first_500_chars:
-            return 'Confessions'
-        
+        if "REPUBLIC" in first_500_chars:
+            return "The Republic"
+        elif "NICOMACHEAN ETHICS" in first_500_chars or "ETHICS" in first_500_chars:
+            return "Nicomachean Ethics"
+        elif "SOCRATIC" in first_500_chars and "DIALOGUE" in first_500_chars:
+            return "Socratic Dialogues"
+        elif "MEDITATIONS" in first_500_chars:
+            return "Meditations"
+        elif "PHAEDO" in first_500_chars:
+            return "Phaedo"
+        elif "APOLOGY" in first_500_chars:
+            return "Apology"
+        elif "SYMPOSIUM" in first_500_chars:
+            return "Symposium"
+        elif "CONFESSIONS" in first_500_chars:
+            return "Confessions"
+
         # Try to extract from first line or title-like patterns
-        lines = text.split('\n')[:10]  # First 10 lines
+        lines = text.split("\n")[:10]  # First 10 lines
         for line in lines:
             line = line.strip()
             if len(line) > 5 and len(line) < 100:
                 # Look for title-like patterns
-                if any(word in line.upper() for word in ['THE', 'OF', 'ON', 'BOOK', 'PART']):
+                if any(word in line.upper() for word in ["THE", "OF", "ON", "BOOK", "PART"]):
                     return line
-                    
-        return 'Classical Philosophical Text'
-    
+
+        return "Classical Philosophical Text"
+
     def _extract_author_from_text(self, text: str) -> str:
         """Extract author from PDF text content."""
         if not text:
-            return 'Classical Philosopher'
-            
+            return "Classical Philosopher"
+
         first_1000_chars = text[:1000].upper()
-        
+
         # Check for known classical philosophers
-        if 'PLATO' in first_1000_chars:
-            return 'Plato'
-        elif 'ARISTOTLE' in first_1000_chars:
-            return 'Aristotle' 
-        elif 'MARCUS AURELIUS' in first_1000_chars:
-            return 'Marcus Aurelius'
-        elif 'AUGUSTINE' in first_1000_chars or 'ST. AUGUSTINE' in first_1000_chars:
-            return 'Augustine'
-        elif 'AQUINAS' in first_1000_chars or 'THOMAS AQUINAS' in first_1000_chars:
-            return 'Thomas Aquinas'
-        elif 'CICERO' in first_1000_chars:
-            return 'Cicero'
-        elif 'SENECA' in first_1000_chars:
-            return 'Seneca'
-        elif 'EPICTETUS' in first_1000_chars:
-            return 'Epictetus'
-        
+        if "PLATO" in first_1000_chars:
+            return "Plato"
+        elif "ARISTOTLE" in first_1000_chars:
+            return "Aristotle"
+        elif "MARCUS AURELIUS" in first_1000_chars:
+            return "Marcus Aurelius"
+        elif "AUGUSTINE" in first_1000_chars or "ST. AUGUSTINE" in first_1000_chars:
+            return "Augustine"
+        elif "AQUINAS" in first_1000_chars or "THOMAS AQUINAS" in first_1000_chars:
+            return "Thomas Aquinas"
+        elif "CICERO" in first_1000_chars:
+            return "Cicero"
+        elif "SENECA" in first_1000_chars:
+            return "Seneca"
+        elif "EPICTETUS" in first_1000_chars:
+            return "Epictetus"
+
         # Look for author patterns like "by [Name]" or "[Name] translated by"
         import re
         author_patterns = [
-            r'by\s+([A-Z][a-z]+ [A-Z][a-z]+)',
-            r'([A-Z][A-Z\s]+)\s+translated',
-            r'([A-Z][a-z]+ [A-Z][a-z]+)\s*\n',
+            r"by\s+([A-Z][a-z]+ [A-Z][a-z]+)",
+            r"([A-Z][A-Z\s]+)\s+translated",
+            r"([A-Z][a-z]+ [A-Z][a-z]+)\s*\n",
         ]
-        
+
         for pattern in author_patterns:
             match = re.search(pattern, text[:1000])
             if match:
                 author = match.group(1).strip()
                 if len(author) > 3 and len(author) < 50:
                     return author
-                    
-        return 'Classical Philosopher'
+
+        return "Classical Philosopher"
 
     def extract_metadata(self, file_path: str) -> PDFMetadata:
         """Extract only metadata from a PDF file.
-        
+
         Args:
             file_path: Path to the PDF file
-            
+
         Returns:
             PDFMetadata object
         """
         if not Path(file_path).exists():
             raise FileNotFoundError(f"File not found: {file_path}")
-            
+
         # Mock metadata extraction
         return PDFMetadata(
             title="Sample Document",
@@ -321,40 +322,40 @@ class PDFExtractor:
 
     def _clean_text(self, text: str) -> str:
         """Clean extracted text by normalizing whitespace and formatting.
-        
+
         Args:
             text: Raw extracted text
-            
+
         Returns:
             Cleaned text
         """
         if not text:
             return ""
-            
+
         # Normalize line endings
-        text = text.replace('\r\n', '\n').replace('\r', '\n')
-        
+        text = text.replace("\r\n", "\n").replace("\r", "\n")
+
         # Replace multiple spaces with single space
-        text = re.sub(r' +', ' ', text)
-        
+        text = re.sub(r" +", " ", text)
+
         # Replace multiple tabs with single space
-        text = re.sub(r'\t+', ' ', text)
-        
+        text = re.sub(r"\t+", " ", text)
+
         # Preserve paragraph breaks (double newlines) but clean up extras
-        text = re.sub(r'\n{3,}', '\n\n', text)
-        
+        text = re.sub(r"\n{3,}", "\n\n", text)
+
         # Replace single newlines with spaces (joining broken lines)
         # but preserve double newlines (paragraph breaks)
-        text = re.sub(r'(?<!\n)\n(?!\n)', ' ', text)
-        
+        text = re.sub(r"(?<!\n)\n(?!\n)", " ", text)
+
         # Clean up extra whitespace
         text = text.strip()
-        
+
         return text
 
-    def _mock_extraction_result(self) -> Dict[str, Any]:
+    def _mock_extraction_result(self) -> dict[str, Any]:
         """Create a mock extraction result for testing.
-        
+
         Returns:
             Mock extraction result
         """
@@ -363,7 +364,7 @@ class PDFExtractor:
             "Aristotle's conception of virtue as a mean between extremes provides a framework "
             "for understanding ethical behavior in practical contexts."
         )
-        
+
         return {
             "text": sample_text,
             "metadata": PDFMetadata(
@@ -383,298 +384,297 @@ class TEIXMLExtractor:
 
     def __init__(self, preserve_structure: bool = True):
         """Initialize TEI-XML extractor.
-        
+
         Args:
             preserve_structure: Whether to preserve document structure
         """
         self.preserve_structure = preserve_structure
         # Define TEI namespaces
         self.namespaces = {
-            'tei': 'http://www.tei-c.org/ns/1.0',
-            '': 'http://www.tei-c.org/ns/1.0'
+            "tei": "http://www.tei-c.org/ns/1.0",
+            "": "http://www.tei-c.org/ns/1.0"
         }
 
-    def extract_from_file(self, file_path: str) -> Dict[str, Any]:
+    def extract_from_file(self, file_path: str) -> dict[str, Any]:
         """Extract text and metadata from a TEI-XML file.
-        
+
         Args:
             file_path: Path to the TEI-XML file
-            
+
         Returns:
             Dictionary containing extracted text and metadata
         """
         path = Path(file_path)
-        
+
         if not path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
-            
-        if path.suffix.lower() not in ['.xml', '.tei']:
+
+        if path.suffix.lower() not in [".xml", ".tei"]:
             raise ValueError("File must have .xml or .tei extension")
-            
+
         # Read and parse XML content
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             xml_content = f.read()
-            
+
         return self.extract_from_string(xml_content)
 
-    def extract_from_string(self, xml_content: str) -> Dict[str, Any]:
+    def extract_from_string(self, xml_content: str) -> dict[str, Any]:
         """Extract text and metadata from TEI-XML string.
-        
+
         Args:
             xml_content: TEI-XML content as string
-            
+
         Returns:
             Dictionary containing extracted text and metadata
         """
         if not xml_content.strip():
             raise ValueError("XML content cannot be empty")
-            
+
         # Basic validation for TEI structure
-        if '<TEI' not in xml_content and '<tei' not in xml_content:
+        if "<TEI" not in xml_content and "<tei" not in xml_content:
             raise ValueError("Invalid TEI-XML: missing TEI root element")
-            
+
         try:
             # Parse the XML
             root = ET.fromstring(xml_content)
-            
+
             # Register TEI namespace if present
-            if 'http://www.tei-c.org/ns/1.0' in xml_content:
-                ET.register_namespace('tei', 'http://www.tei-c.org/ns/1.0')
-            
+            if "http://www.tei-c.org/ns/1.0" in xml_content:
+                ET.register_namespace("tei", "http://www.tei-c.org/ns/1.0")
+
             # Extract metadata from teiHeader
             metadata = self._extract_metadata(root)
-            
+
             # Extract text content
             text = self._extract_text(root)
-            
+
             # Extract structure if requested
             structure = self._extract_structure(root) if self.preserve_structure else {}
-            
+
             # Extract citations and references
             citations = self._extract_citations(root)
-            
+
             return {
                 "text": text,
                 "metadata": metadata,
                 "structure": structure,
                 "citations": citations
             }
-            
+
         except ET.ParseError as e:
             raise ValueError(f"Invalid XML format: {e}")
 
-    def _extract_metadata(self, root: ET.Element) -> Dict[str, str]:
+    def _extract_metadata(self, root: ET.Element) -> dict[str, str]:
         """Extract metadata from TEI header.
-        
+
         Args:
             root: Root element of TEI document
-            
+
         Returns:
             Dictionary of metadata
         """
         metadata = {}
-        
+
         # Handle both namespaced and non-namespaced TEI
         tei_header = None
         # Try with namespace first
-        tei_header = root.find('.//{http://www.tei-c.org/ns/1.0}teiHeader')
+        tei_header = root.find(".//{http://www.tei-c.org/ns/1.0}teiHeader")
         if tei_header is None:
             # Try without namespace
-            tei_header = root.find('.//teiHeader')
-                
+            tei_header = root.find(".//teiHeader")
+
         if tei_header is None:
             return metadata
-            
+
         # Extract title
-        title_elem = tei_header.find('.//{http://www.tei-c.org/ns/1.0}title')
+        title_elem = tei_header.find(".//{http://www.tei-c.org/ns/1.0}title")
         if title_elem is None:
-            title_elem = tei_header.find('.//title')
+            title_elem = tei_header.find(".//title")
         if title_elem is not None and title_elem.text:
-            metadata['title'] = title_elem.text.strip()
-                
+            metadata["title"] = title_elem.text.strip()
+
         # Extract author
-        author_elem = tei_header.find('.//{http://www.tei-c.org/ns/1.0}author')
+        author_elem = tei_header.find(".//{http://www.tei-c.org/ns/1.0}author")
         if author_elem is None:
-            author_elem = tei_header.find('.//author')
+            author_elem = tei_header.find(".//author")
         if author_elem is not None and author_elem.text:
-            metadata['author'] = author_elem.text.strip()
-                
+            metadata["author"] = author_elem.text.strip()
+
         # Extract editor
-        editor_elem = tei_header.find('.//{http://www.tei-c.org/ns/1.0}editor')
+        editor_elem = tei_header.find(".//{http://www.tei-c.org/ns/1.0}editor")
         if editor_elem is None:
-            editor_elem = tei_header.find('.//editor')
+            editor_elem = tei_header.find(".//editor")
         if editor_elem is not None and editor_elem.text:
-            metadata['editor'] = editor_elem.text.strip()
-                
+            metadata["editor"] = editor_elem.text.strip()
+
         # Extract translator
-        translator_elem = tei_header.find('.//{http://www.tei-c.org/ns/1.0}translator')
+        translator_elem = tei_header.find(".//{http://www.tei-c.org/ns/1.0}translator")
         if translator_elem is None:
-            translator_elem = tei_header.find('.//translator')
+            translator_elem = tei_header.find(".//translator")
         if translator_elem is not None and translator_elem.text:
-            metadata['translator'] = translator_elem.text.strip()
-                
+            metadata["translator"] = translator_elem.text.strip()
+
         # Extract date
-        date_elem = tei_header.find('.//{http://www.tei-c.org/ns/1.0}date')
+        date_elem = tei_header.find(".//{http://www.tei-c.org/ns/1.0}date")
         if date_elem is None:
-            date_elem = tei_header.find('.//date')
+            date_elem = tei_header.find(".//date")
         if date_elem is not None and date_elem.text:
-            metadata['date'] = date_elem.text.strip()
-                
+            metadata["date"] = date_elem.text.strip()
+
         # Extract language
-        lang_elem = tei_header.find('.//{http://www.tei-c.org/ns/1.0}language')
+        lang_elem = tei_header.find(".//{http://www.tei-c.org/ns/1.0}language")
         if lang_elem is None:
-            lang_elem = tei_header.find('.//language')
+            lang_elem = tei_header.find(".//language")
         if lang_elem is not None:
             if lang_elem.text:
-                metadata['language'] = lang_elem.text.strip()
-            elif 'ident' in lang_elem.attrib:
-                lang_code = lang_elem.attrib['ident']
+                metadata["language"] = lang_elem.text.strip()
+            elif "ident" in lang_elem.attrib:
+                lang_code = lang_elem.attrib["ident"]
                 lang_map = {
-                    'en': 'English',
-                    'grc': 'Ancient Greek', 
-                    'la': 'Latin',
-                    'de': 'German',
-                    'fr': 'French'
+                    "en": "English",
+                    "grc": "Ancient Greek",
+                    "la": "Latin",
+                    "de": "German",
+                    "fr": "French"
                 }
-                metadata['language'] = lang_map.get(lang_code, lang_code)
-        
+                metadata["language"] = lang_map.get(lang_code, lang_code)
+
         # Extract publisher
-        pub_elem = tei_header.find('.//{http://www.tei-c.org/ns/1.0}publisher')
+        pub_elem = tei_header.find(".//{http://www.tei-c.org/ns/1.0}publisher")
         if pub_elem is None:
-            pub_elem = tei_header.find('.//publisher')
+            pub_elem = tei_header.find(".//publisher")
         if pub_elem is not None and pub_elem.text:
-            metadata['publisher'] = pub_elem.text.strip()
-        
+            metadata["publisher"] = pub_elem.text.strip()
+
         return metadata
 
     def _extract_text(self, root: ET.Element) -> str:
         """Extract text content from TEI document.
-        
+
         Args:
             root: Root element of TEI document
-            
+
         Returns:
             Extracted text content
         """
         # Find the text element
-        text_elem = root.find('.//{http://www.tei-c.org/ns/1.0}text')
+        text_elem = root.find(".//{http://www.tei-c.org/ns/1.0}text")
         if text_elem is None:
-            text_elem = root.find('.//text')
-                
+            text_elem = root.find(".//text")
+
         if text_elem is None:
             return ""
-            
+
         # Extract all text content, preserving paragraph structure
         text_parts = []
-        
+
         # Process all content, maintaining document order
         # We need to get all paragraphs and speeches, preserving their order
-        
+
         # Get all body elements and process them in document order
-        body = text_elem.find('.//{http://www.tei-c.org/ns/1.0}body')
+        body = text_elem.find(".//{http://www.tei-c.org/ns/1.0}body")
         if body is None:
-            body = text_elem.find('.//body')
-            
+            body = text_elem.find(".//body")
+
         if body is not None:
             # Process all direct children and descendants that contain text
             self._extract_text_from_element(body, text_parts)
         else:
             # Fallback: process all paragraphs and speeches
             pass
-            
+
         # If no paragraphs found, get all text
         if not text_parts:
             text_content = self._get_element_text(text_elem)
             if text_content.strip():
                 text_parts.append(text_content.strip())
-        
+
         # Join paragraphs with double newlines
-        return '\n\n'.join(text_parts)
+        return "\n\n".join(text_parts)
 
     def _get_element_text(self, element: ET.Element) -> str:
         """Get all text content from an element, including children.
-        
+
         Args:
             element: XML element
-            
+
         Returns:
             Combined text content
         """
         text_parts = []
-        
+
         if element.text:
             text_parts.append(element.text)
-            
+
         for child in element:
             # Get text from child elements
             child_text = self._get_element_text(child)
             if child_text.strip():
                 text_parts.append(child_text)
-                
+
             # Get tail text after child element
             if child.tail:
                 text_parts.append(child.tail)
-                
-        return ' '.join(text_parts)
 
-    def _extract_text_from_element(self, element: ET.Element, text_parts: List[str]) -> None:
+        return " ".join(text_parts)
+
+    def _extract_text_from_element(self, element: ET.Element, text_parts: list[str]) -> None:
         """Extract text from element in document order.
-        
+
         Args:
             element: XML element to extract text from
             text_parts: List to append extracted text parts to
         """
         # Process direct paragraphs
-        direct_paragraphs = []
         for child in element:
-            if child.tag.endswith('}p') or child.tag == 'p':
+            if child.tag.endswith("}p") or child.tag == "p":
                 # Check if this paragraph is not inside a speech element
                 is_in_speech = False
                 parent = element
                 while parent is not None:
-                    if parent.tag.endswith('}sp') or parent.tag == 'sp':
+                    if parent.tag.endswith("}sp") or parent.tag == "sp":
                         is_in_speech = True
                         break
-                    parent = parent.getparent() if hasattr(parent, 'getparent') else None
-                    
+                    parent = parent.getparent() if hasattr(parent, "getparent") else None
+
                 if not is_in_speech:
                     para_text = self._get_element_text(child)
                     if para_text.strip():
                         text_parts.append(para_text.strip())
-                        
-            elif child.tag.endswith('}sp') or child.tag == 'sp':
+
+            elif child.tag.endswith("}sp") or child.tag == "sp":
                 # Handle speech elements
                 speech_parts = []
-                
+
                 # Extract speaker name if present
-                speaker = child.find('.//{http://www.tei-c.org/ns/1.0}speaker')
+                speaker = child.find(".//{http://www.tei-c.org/ns/1.0}speaker")
                 if speaker is None:
-                    speaker = child.find('.//speaker')
+                    speaker = child.find(".//speaker")
                 if speaker is not None and speaker.text:
                     speech_parts.append(f"{speaker.text.strip()}:")
-                
+
                 # Extract paragraphs within this speech
-                sp_paragraphs = child.findall('.//{http://www.tei-c.org/ns/1.0}p')
+                sp_paragraphs = child.findall(".//{http://www.tei-c.org/ns/1.0}p")
                 if not sp_paragraphs:
-                    sp_paragraphs = child.findall('.//p')
-                    
+                    sp_paragraphs = child.findall(".//p")
+
                 for p in sp_paragraphs:
                     para_text = self._get_element_text(p)
                     if para_text.strip():
                         speech_parts.append(para_text.strip())
-                
+
                 if speech_parts:
-                    text_parts.append(' '.join(speech_parts))
+                    text_parts.append(" ".join(speech_parts))
             else:
                 # Recursively process other elements that might contain text
                 self._extract_text_from_element(child, text_parts)
 
-    def _extract_structure(self, root: ET.Element) -> Dict[str, List[str]]:
+    def _extract_structure(self, root: ET.Element) -> dict[str, list[str]]:
         """Extract document structure information.
-        
+
         Args:
             root: Root element of TEI document
-            
+
         Returns:
             Dictionary with structure information
         """
@@ -683,122 +683,122 @@ class TEIXMLExtractor:
             "chapters": [],
             "sections": []
         }
-        
+
         # Find text element
-        text_elem = root.find('.//{http://www.tei-c.org/ns/1.0}text')
+        text_elem = root.find(".//{http://www.tei-c.org/ns/1.0}text")
         if text_elem is None:
-            text_elem = root.find('.//text')
-                
+            text_elem = root.find(".//text")
+
         if text_elem is None:
             return structure
-            
+
         # Extract books
         book_divs = text_elem.findall('.//{http://www.tei-c.org/ns/1.0}div[@type="book"]')
         if not book_divs:
             book_divs = text_elem.findall('.//div[@type="book"]')
-        
+
         for book_div in book_divs:
-            book_num = book_div.get('n', '')
-            head_elem = book_div.find('.//{http://www.tei-c.org/ns/1.0}head')
+            book_num = book_div.get("n", "")
+            head_elem = book_div.find(".//{http://www.tei-c.org/ns/1.0}head")
             if head_elem is None:
-                head_elem = book_div.find('.//head')
+                head_elem = book_div.find(".//head")
             if head_elem is not None and head_elem.text:
                 structure["books"].append(head_elem.text.strip())
             elif book_num:
                 structure["books"].append(f"Book {book_num}")
-                
-        # Extract chapters  
+
+        # Extract chapters
         chapter_divs = text_elem.findall('.//{http://www.tei-c.org/ns/1.0}div[@type="chapter"]')
         if not chapter_divs:
             chapter_divs = text_elem.findall('.//div[@type="chapter"]')
-            
+
         for chapter_div in chapter_divs:
-            chapter_num = chapter_div.get('n', '')
-            head_elem = chapter_div.find('.//{http://www.tei-c.org/ns/1.0}head')
+            chapter_num = chapter_div.get("n", "")
+            head_elem = chapter_div.find(".//{http://www.tei-c.org/ns/1.0}head")
             if head_elem is None:
-                head_elem = chapter_div.find('.//head')
+                head_elem = chapter_div.find(".//head")
             if head_elem is not None and head_elem.text:
                 structure["chapters"].append(head_elem.text.strip())
             elif chapter_num:
                 structure["chapters"].append(f"Chapter {chapter_num}")
-                
+
         # Extract sections
         section_divs = text_elem.findall('.//{http://www.tei-c.org/ns/1.0}div[@type="section"]')
         if not section_divs:
             section_divs = text_elem.findall('.//div[@type="section"]')
-            
+
         for section_div in section_divs:
-            section_num = section_div.get('n', '')
+            section_num = section_div.get("n", "")
             if section_num:
                 structure["sections"].append(section_num)
-                
+
         return structure
 
-    def _extract_citations(self, root: ET.Element) -> List[Dict[str, str]]:
+    def _extract_citations(self, root: ET.Element) -> list[dict[str, str]]:
         """Extract citations and references from TEI document.
-        
+
         Args:
             root: Root element of TEI document
-            
+
         Returns:
             List of citation dictionaries
         """
         citations = []
-        
+
         # Find text element
-        text_elem = root.find('.//{http://www.tei-c.org/ns/1.0}text')
+        text_elem = root.find(".//{http://www.tei-c.org/ns/1.0}text")
         if text_elem is None:
-            text_elem = root.find('.//text')
-                
+            text_elem = root.find(".//text")
+
         if text_elem is None:
             return citations
-            
+
         # Extract references
-        ref_elems = text_elem.findall('.//{http://www.tei-c.org/ns/1.0}ref')
+        ref_elems = text_elem.findall(".//{http://www.tei-c.org/ns/1.0}ref")
         if not ref_elems:
-            ref_elems = text_elem.findall('.//ref')
-            
+            ref_elems = text_elem.findall(".//ref")
+
         for ref in ref_elems:
             citation = {}
             if ref.text:
-                citation['text'] = ref.text.strip()
-            if 'target' in ref.attrib:
-                citation['target'] = ref.attrib['target']
+                citation["text"] = ref.text.strip()
+            if "target" in ref.attrib:
+                citation["target"] = ref.attrib["target"]
             if citation:
                 citations.append(citation)
-                
+
         # Extract bibliographic citations
-        bibl_elems = text_elem.findall('.//{http://www.tei-c.org/ns/1.0}bibl')
+        bibl_elems = text_elem.findall(".//{http://www.tei-c.org/ns/1.0}bibl")
         if not bibl_elems:
-            bibl_elems = text_elem.findall('.//bibl')
-            
+            bibl_elems = text_elem.findall(".//bibl")
+
         for bibl in bibl_elems:
             citation = {}
-            
+
             # Extract author
-            author_elem = bibl.find('.//{http://www.tei-c.org/ns/1.0}author')
+            author_elem = bibl.find(".//{http://www.tei-c.org/ns/1.0}author")
             if author_elem is None:
-                author_elem = bibl.find('.//author')
+                author_elem = bibl.find(".//author")
             if author_elem is not None and author_elem.text:
-                citation['author'] = author_elem.text.strip()
-                
+                citation["author"] = author_elem.text.strip()
+
             # Extract title
-            title_elem = bibl.find('.//{http://www.tei-c.org/ns/1.0}title')
+            title_elem = bibl.find(".//{http://www.tei-c.org/ns/1.0}title")
             if title_elem is None:
-                title_elem = bibl.find('.//title')
+                title_elem = bibl.find(".//title")
             if title_elem is not None and title_elem.text:
-                citation['title'] = title_elem.text.strip()
-                
+                citation["title"] = title_elem.text.strip()
+
             # Extract scope
-            scope_elem = bibl.find('.//{http://www.tei-c.org/ns/1.0}biblScope')
+            scope_elem = bibl.find(".//{http://www.tei-c.org/ns/1.0}biblScope")
             if scope_elem is None:
-                scope_elem = bibl.find('.//biblScope')
+                scope_elem = bibl.find(".//biblScope")
             if scope_elem is not None and scope_elem.text:
-                citation['scope'] = scope_elem.text.strip()
-                
+                citation["scope"] = scope_elem.text.strip()
+
             if citation:
                 citations.append(citation)
-                
+
         return citations
 
 
@@ -810,21 +810,21 @@ class EntityExtractor:
     Supports both lightweight testing with blank models and full NER with trained models.
     """
 
-    def __init__(self, 
-                 patterns: Optional[List[Dict[str, Any]]] = None,
+    def __init__(self,
+                 patterns: list[dict[str, Any]] | None = None,
                  model_name: str = "en_core_web_sm",
                  use_philosophical_patterns: bool = True):
         """
         Initialize EntityExtractor with spaCy and optional patterns.
-        
+
         Args:
             patterns: Custom EntityRuler patterns
             model_name: spaCy model to use (defaults to en_core_web_sm)
             use_philosophical_patterns: Whether to load built-in philosophical patterns
         """
-        self._nlp: Optional[Language] = None
+        self._nlp: Language | None = None
         self._has_patterns = bool(patterns) or use_philosophical_patterns
-        
+
         if spacy is not None:
             try:
                 # Try to load the full model first for better NER
@@ -832,18 +832,18 @@ class EntityExtractor:
             except OSError:
                 # Fallback to blank model for testing environments
                 self._nlp = spacy.blank("en")
-            
+
             # Add entity ruler with patterns
             all_patterns = []
-            
+
             # Add built-in philosophical patterns if requested
             if use_philosophical_patterns:
                 all_patterns.extend(self._get_philosophical_patterns())
-            
+
             # Add custom patterns
             if patterns:
                 all_patterns.extend(patterns)
-            
+
             if all_patterns:
                 # Add entity ruler, positioning depends on whether NER exists
                 if "ner" in self._nlp.component_names:
@@ -852,11 +852,11 @@ class EntityExtractor:
                     ruler = self._nlp.add_pipe("entity_ruler")  # type: ignore[arg-type]
                 assert isinstance(ruler, EntityRuler)
                 ruler.add_patterns(all_patterns)  # type: ignore[union-attr]
-    
-    def _get_philosophical_patterns(self) -> List[Dict[str, Any]]:
+
+    def _get_philosophical_patterns(self) -> list[dict[str, Any]]:
         """
         Get built-in patterns for classical philosophical entities.
-        
+
         Returns:
             List of EntityRuler patterns for philosophical domain
         """
@@ -885,7 +885,7 @@ class EntityExtractor:
             {"label": "PERSON", "pattern": "Phaedrus"},
             {"label": "PERSON", "pattern": "Glaucon"},
             {"label": "PERSON", "pattern": "Adeimantus"},
-            
+
             # Roman and Later Philosophers
             {"label": "PERSON", "pattern": "Cicero"},
             {"label": "PERSON", "pattern": "Seneca"},
@@ -894,7 +894,7 @@ class EntityExtractor:
             {"label": "PERSON", "pattern": "Augustine"},
             {"label": "PERSON", "pattern": "Aquinas"},
             {"label": "PERSON", "pattern": "Thomas Aquinas"},
-            
+
             # Major Works
             {"label": "WORK_OF_ART", "pattern": "Republic"},
             {"label": "WORK_OF_ART", "pattern": "Nicomachean Ethics"},
@@ -928,7 +928,7 @@ class EntityExtractor:
             {"label": "WORK_OF_ART", "pattern": "Statesman"},
             {"label": "WORK_OF_ART", "pattern": "Sophist"},
             {"label": "WORK_OF_ART", "pattern": "Critias"},
-            
+
             # Places
             {"label": "GPE", "pattern": "Athens"},
             {"label": "GPE", "pattern": "Sparta"},
@@ -941,7 +941,7 @@ class EntityExtractor:
             {"label": "LOC", "pattern": "Stoa"},
             {"label": "LOC", "pattern": "Garden"},
             {"label": "LOC", "pattern": "Agora"},
-            
+
             # Philosophical Concepts
             {"label": "CONCEPT", "pattern": "virtue"},
             {"label": "CONCEPT", "pattern": "justice"},
@@ -1011,7 +1011,7 @@ class EntityExtractor:
             {"label": "CONCEPT", "pattern": "formal cause"},
             {"label": "CONCEPT", "pattern": "unmoved mover"},
             {"label": "CONCEPT", "pattern": "Prime Mover"},
-            
+
             # Schools of Thought
             {"label": "CONCEPT", "pattern": "Platonism"},
             {"label": "CONCEPT", "pattern": "Aristotelianism"},
@@ -1027,7 +1027,7 @@ class EntityExtractor:
             {"label": "CONCEPT", "pattern": "Socratic"},
         ]
 
-    def extract_entities(self, text: str, document_id) -> List[Entity]:
+    def extract_entities(self, text: str, document_id) -> list[Entity]:
         if not text or not text.strip():
             return []
 
@@ -1038,7 +1038,7 @@ class EntityExtractor:
         doc = self._nlp(text)
 
         # Aggregate spans by text
-        name_to_mentions: Dict[str, List[MentionData]] = {}
+        name_to_mentions: dict[str, list[MentionData]] = {}
         for ent in doc.ents:
             ent_text = ent.text.strip()
             if not ent_text:
@@ -1060,7 +1060,7 @@ class EntityExtractor:
             )
             name_to_mentions.setdefault(ent_text, []).append(mention)
 
-        entities: List[Entity] = []
+        entities: list[Entity] = []
         for name, mentions in name_to_mentions.items():
             ent_type = self._map_spacy_label_to_entity_type(mentions[0], doc)
             entity = Entity(
@@ -1105,14 +1105,14 @@ class RelationshipExtractor:
     def __init__(self, use_llm: bool = False, llm_client = None):
         """
         Initialize RelationshipExtractor.
-        
+
         Args:
             use_llm: Whether to use LLM-based extraction (fallback to rules if unavailable)
             llm_client: Optional LLM client for advanced extraction
         """
         self.use_llm = use_llm
         self.llm_client = llm_client
-        
+
         # Expanded philosophical relationship verbs
         self._philosophical_verbs = [
             # Core philosophical relationships
@@ -1139,104 +1139,104 @@ class RelationshipExtractor:
             "foreshadows", "anticipates", "predicts", "forecasts",
             "originates", "creates", "establishes", "founds", "initiates"
         ]
-        
+
         # Philosophical relationship types for standardization
         self._relationship_mapping = {
             # Disagreement/Opposition
             "refutes": "REFUTES", "criticizes": "CRITIQUES", "critiques": "CRITIQUES",
             "challenges": "CHALLENGES", "disputes": "DISPUTES", "objects to": "OBJECTS_TO",
-            "disagrees with": "DISAGREES_WITH", "opposes": "OPPOSES", 
+            "disagrees with": "DISAGREES_WITH", "opposes": "OPPOSES",
             "contradicts": "CONTRADICTS", "rejects": "REJECTS", "denies": "DENIES",
-            
+
             # Influence/Development
             "influences": "INFLUENCES", "inspires": "INSPIRES", "shapes": "INFLUENCES",
             "affects": "INFLUENCES", "impacts": "INFLUENCES",
             "develops": "DEVELOPS", "builds on": "BUILDS_ON", "extends": "EXTENDS",
             "elaborates": "ELABORATES", "expands": "EXPANDS",
-            
+
             # Agreement/Support
             "agrees with": "AGREES_WITH", "supports": "SUPPORTS", "endorses": "ENDORSES",
             "confirms": "CONFIRMS", "validates": "VALIDATES",
-            
+
             # Reference/Citation
             "cites": "CITES", "references": "REFERENCES", "mentions": "MENTIONS",
             "quotes": "QUOTES", "discusses": "DISCUSSES",
-            
+
             # Response/Dialogue
-            "responds to": "RESPONDS_TO", "replies to": "RESPONDS_TO", 
+            "responds to": "RESPONDS_TO", "replies to": "RESPONDS_TO",
             "answers": "RESPONDS_TO", "addresses": "ADDRESSES",
-            
+
             # Analysis/Interpretation
             "interprets": "INTERPRETS", "explains": "EXPLAINS", "clarifies": "CLARIFIES",
             "defines": "DEFINES", "analyzes": "ANALYZES",
-            
+
             # Comparison
             "compares to": "COMPARES_TO", "contrasts with": "CONTRASTS_WITH",
             "distinguishes from": "DISTINGUISHES_FROM", "differentiates from": "DISTINGUISHES_FROM",
-            
+
             # Synthesis
             "synthesizes": "SYNTHESIZES", "combines": "COMBINES", "merges": "SYNTHESIZES",
             "integrates": "INTEGRATES", "unifies": "UNIFIES",
-            
+
             # Temporal
             "precedes": "PRECEDES", "follows": "FOLLOWS", "succeeds": "FOLLOWS",
             "leads to": "LEADS_TO", "results in": "RESULTS_IN",
-            
+
             # Teaching/Learning
             "teaches": "TEACHES", "instructs": "TEACHES", "guides": "GUIDES",
             "mentors": "MENTORS", "educates": "EDUCATES",
             "learns from": "LEARNS_FROM", "studies under": "STUDIES_UNDER",
             "emulates": "EMULATES",
-            
+
             # Debate/Inquiry
             "debates with": "DEBATES_WITH", "argues with": "DEBATES_WITH",
             "disputes with": "DISPUTES", "questions": "QUESTIONS",
             "examines": "EXAMINES", "investigates": "INVESTIGATES",
             "explores": "EXPLORES", "considers": "CONSIDERS", "contemplates": "CONTEMPLATES",
-            
+
             # Proposal/Argument
             "proposes": "PROPOSES", "suggests": "PROPOSES", "advocates": "ADVOCATES",
             "recommends": "ADVOCATES", "argues for": "ARGUES_FOR",
-            
+
             # Demonstration/Proof
             "demonstrates": "DEMONSTRATES", "proves": "PROVES", "shows": "DEMONSTRATES",
             "establishes": "ESTABLISHES", "maintains": "MAINTAINS",
-            
+
             # Assumption/Acceptance
-            "assumes": "ASSUMES", "presupposes": "PRESUPPOSES", 
+            "assumes": "ASSUMES", "presupposes": "PRESUPPOSES",
             "takes for granted": "ASSUMES", "accepts": "ACCEPTS",
-            
+
             # Conclusion/Reasoning
             "concludes": "CONCLUDES", "infers": "INFERS", "deduces": "DEDUCES",
             "derives": "DERIVES", "reasons": "REASONS",
-            
+
             # Illustration/Example
             "illustrates": "ILLUSTRATES", "exemplifies": "EXEMPLIFIES",
             "instantiates": "INSTANTIATES", "embodies": "EMBODIES",
-            
+
             # Temporal/Causal
             "foreshadows": "FORESHADOWS", "anticipates": "ANTICIPATES",
             "predicts": "PREDICTS", "forecasts": "PREDICTS",
-            
+
             # Creation/Origin
-            "originates": "ORIGINATES", "creates": "CREATES", "establishes": "ESTABLISHES",
+            "originates": "ORIGINATES", "creates": "CREATES",
             "founds": "FOUNDS", "initiates": "INITIATES"
         }
 
-    def extract_relationships(self, text: str, entities: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    def extract_relationships(self, text: str, entities: list[str] | None = None) -> list[dict[str, Any]]:
         """
         Extract relationships from text using rule-based or LLM-based methods.
-        
+
         Args:
             text: Text to extract relationships from
             entities: Optional list of known entities to focus extraction
-            
+
         Returns:
             List of relationship dictionaries with subject, relation, object, confidence
         """
         if not text or not text.strip():
             return []
-            
+
         # Try LLM-based extraction first if available
         if self.use_llm and self.llm_client:
             try:
@@ -1244,22 +1244,22 @@ class RelationshipExtractor:
             except Exception:
                 # Fallback to rule-based extraction
                 pass
-        
+
         return self._extract_with_rules(text, entities)
-    
-    def _extract_with_rules(self, text: str, entities: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+
+    def _extract_with_rules(self, text: str, entities: list[str] | None = None) -> list[dict[str, Any]]:
         """
         Extract relationships using rule-based pattern matching.
-        
+
         Args:
             text: Text to extract relationships from
             entities: Optional list of known entities to focus extraction
-            
+
         Returns:
             List of relationship dictionaries
         """
-        triples: List[Dict[str, Any]] = []
-        
+        triples: list[dict[str, Any]] = []
+
         # Build improved regex patterns for philosophical relationships
         patterns = []
         for verb in self._philosophical_verbs:
@@ -1271,43 +1271,43 @@ class RelationshipExtractor:
             else:
                 # Single word verbs - match proper nouns primarily
                 patterns.append((rf"\b([A-Z][a-zA-Z]+(?:'s)?)\s+{re.escape(verb)}\s+([A-Z][a-zA-Z]+(?:'s)?)", verb))
-        
+
         # Extract relationships using patterns
         for pattern, verb in patterns:
             for match in re.finditer(pattern, text, re.IGNORECASE):
                 subject = match.group(1).strip()
                 object_ = match.group(2).strip()
-                
+
                 # Clean up extracted entities (remove extra whitespace, limit length)
-                subject = re.sub(r'\s+', ' ', subject)[:50].strip()
-                object_ = re.sub(r'\s+', ' ', object_)[:50].strip()
-                
+                subject = re.sub(r"\s+", " ", subject)[:50].strip()
+                object_ = re.sub(r"\s+", " ", object_)[:50].strip()
+
                 # Skip pronouns and common non-philosophical terms
                 pronouns_and_connectors = {
-                    'it', 'this', 'that', 'these', 'those', 'he', 'she', 'they', 'we', 'i',
-                    'his', 'her', 'their', 'our', 'my', 'your', 'its',
-                    'and', 'but', 'or', 'the', 'a', 'an', 'what', 'which', 'who', 'how', 'when', 'where',
-                    'for', 'from', 'to', 'of', 'in', 'on', 'at', 'by', 'with', 'as', 'all', 'any', 'some',
-                    'later', 'earlier', 'before', 'after', 'first', 'last', 'next', 'previous'
+                    "it", "this", "that", "these", "those", "he", "she", "they", "we", "i",
+                    "his", "her", "their", "our", "my", "your", "its",
+                    "and", "but", "or", "the", "a", "an", "what", "which", "who", "how", "when", "where",
+                    "for", "from", "to", "of", "in", "on", "at", "by", "with", "as", "all", "any", "some",
+                    "later", "earlier", "before", "after", "first", "last", "next", "previous"
                 }
-                
-                if (len(subject) < 3 or len(object_) < 3 or 
-                    subject.lower() in pronouns_and_connectors or 
+
+                if (len(subject) < 3 or len(object_) < 3 or
+                    subject.lower() in pronouns_and_connectors or
                     object_.lower() in pronouns_and_connectors or
-                    not re.match(r'^[A-Za-z\s\-\.]+$', subject) or 
-                    not re.match(r'^[A-Za-z\s\-\.]+$', object_)):
+                    not re.match(r"^[A-Za-z\s\-\.]+$", subject) or
+                    not re.match(r"^[A-Za-z\s\-\.]+$", object_)):
                     continue
-                
+
                 # If entities list provided, filter to only include known entities
                 if entities:
                     if not any(entity.lower() in subject.lower() for entity in entities):
                         continue
                     if not any(entity.lower() in object_.lower() for entity in entities):
                         continue
-                
+
                 # Map to standardized relationship type
                 standardized_relation = self._relationship_mapping.get(verb.lower(), verb.upper())
-                
+
                 triples.append({
                     "subject": subject,
                     "relation": standardized_relation,
@@ -1316,61 +1316,61 @@ class RelationshipExtractor:
                     "source": "rule_based",
                     "evidence": match.group(0)  # Include the matched text as evidence
                 })
-        
+
         return triples
-    
-    def _extract_with_llm(self, text: str, entities: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+
+    def _extract_with_llm(self, text: str, entities: list[str] | None = None) -> list[dict[str, Any]]:
         """
         Extract relationships using LLM-based analysis with philosophical focus.
-        
+
         Args:
             text: Text to extract relationships from
             entities: Optional list of known entities to focus extraction
-            
+
         Returns:
             List of relationship dictionaries
         """
         if not self.llm_client:
             return []
-            
+
         try:
             # Build the philosophical extraction prompt
             prompt = self._build_relationship_extraction_prompt(text, entities)
-            
+
             # Call LLM for relationship extraction
             response = self.llm_client.generate_text(
                 prompt=prompt,
                 max_tokens=800,
                 temperature=0.1  # Low temperature for more consistent extraction
             )
-            
+
             # Parse LLM response into structured relationships
             relationships = []
-            lines = response.strip().split('\n')
-            
+            lines = response.strip().split("\n")
+
             for line in lines:
                 line = line.strip()
-                if not line or '|' not in line:
+                if not line or "|" not in line:
                     continue
-                    
+
                 try:
-                    parts = [part.strip() for part in line.split('|')]
+                    parts = [part.strip() for part in line.split("|")]
                     if len(parts) >= 4:
                         subject, relation, obj, confidence = parts[0], parts[1], parts[2], parts[3]
-                        
+
                         # Validate philosophical entities (not pronouns/generic terms)
                         if self._is_valid_philosophical_entity(subject) and self._is_valid_philosophical_entity(obj):
                             relationships.append({
                                 "subject": subject,
                                 "relation": relation,
                                 "object": obj,
-                                "confidence": float(confidence) if confidence.replace('.', '').isdigit() else 0.7,
+                                "confidence": float(confidence) if confidence.replace(".", "").isdigit() else 0.7,
                                 "source": "llm_based",
                                 "evidence": f"LLM extraction from: {text[:100]}..."
                             })
                     elif len(parts) >= 3:
                         subject, relation, obj = parts[0], parts[1], parts[2]
-                        
+
                         if self._is_valid_philosophical_entity(subject) and self._is_valid_philosophical_entity(obj):
                             relationships.append({
                                 "subject": subject,
@@ -1380,93 +1380,90 @@ class RelationshipExtractor:
                                 "source": "llm_based",
                                 "evidence": f"LLM extraction from: {text[:100]}..."
                             })
-                            
+
                 except (ValueError, IndexError):
                     continue
-            
+
             return relationships
-            
+
         except Exception as e:
             print(f"LLM extraction failed: {e}")
             return []
-    
+
     def _is_valid_philosophical_entity(self, entity: str) -> bool:
         """
         Check if an entity is a valid philosophical entity (not pronouns, connectors, etc.)
-        
+
         Args:
             entity: Entity string to validate
-            
+
         Returns:
             True if valid philosophical entity
         """
         if not entity or len(entity) < 2:
             return False
-            
+
         # Convert to lowercase for checking
         entity_lower = entity.lower().strip()
-        
+
         # Skip pronouns, connectors, and generic terms
         invalid_terms = {
-            'it', 'this', 'that', 'these', 'those', 'he', 'she', 'they', 'we', 'i',
-            'his', 'her', 'their', 'our', 'my', 'your', 'its', 'him', 'them',
-            'and', 'but', 'or', 'the', 'a', 'an', 'what', 'which', 'who', 'how', 
-            'when', 'where', 'why', 'here', 'there', 'now', 'then', 'today',
-            'for', 'from', 'to', 'of', 'in', 'on', 'at', 'by', 'with', 'as',
-            'all', 'any', 'some', 'each', 'every', 'many', 'much', 'few', 'little',
-            'more', 'most', 'less', 'least', 'first', 'last', 'next', 'previous',
-            'one', 'two', 'three', 'death', 'life', 'way', 'time', 'people', 'man',
-            'quickly', 'slowly', 'really', 'very', 'quite', 'rather', 'somewhat',
-            'approving', 'reasons', 'why', 'because', 'since', 'if', 'unless'
+            "it", "this", "that", "these", "those", "he", "she", "they", "we", "i",
+            "his", "her", "their", "our", "my", "your", "its", "him", "them",
+            "and", "but", "or", "the", "a", "an", "what", "which", "who", "how",
+            "when", "where", "why", "here", "there", "now", "then", "today",
+            "for", "from", "to", "of", "in", "on", "at", "by", "with", "as",
+            "all", "any", "some", "each", "every", "many", "much", "few", "little",
+            "more", "most", "less", "least", "first", "last", "next", "previous",
+            "one", "two", "three", "death", "life", "way", "time", "people", "man",
+            "quickly", "slowly", "really", "very", "quite", "rather", "somewhat",
+            "approving", "reasons", "because", "since", "if", "unless"
         }
-        
+
         if entity_lower in invalid_terms:
             return False
-            
+
         # Must contain at least one letter and be reasonably formatted
-        if not re.search(r'[a-zA-Z]', entity):
+        if not re.search(r"[a-zA-Z]", entity):
             return False
-            
+
         # Skip very short or very long entities
         if len(entity) < 3 or len(entity) > 50:
             return False
-            
+
         # Prefer entities that start with capital letter (proper nouns)
         # or are known philosophical concepts
         philosophical_indicators = [
-            'sócrates', 'platão', 'aristóteles', 'anytus', 'mênon', 'críton',
-            'justiça', 'virtude', 'conhecimento', 'alma', 'coragem', 'sabedoria',
-            'república', 'fédon', 'mênon', 'apologia', 'leis', 'timeu',
-            'filosofia', 'dialética', 'retórica', 'ética', 'política', 'lógica'
+            "sócrates", "platão", "aristóteles", "anytus", "mênon", "críton",
+            "justiça", "virtude", "conhecimento", "alma", "coragem", "sabedoria",
+            "república", "fédon", "mênon", "apologia", "leis", "timeu",
+            "filosofia", "dialética", "retórica", "ética", "política", "lógica"
         ]
-        
+
         # If entity contains philosophical terms, it's likely valid
         if any(indicator in entity_lower for indicator in philosophical_indicators):
             return True
-            
+
         # If it starts with capital letter and has reasonable length, probably valid
-        if entity[0].isupper() and 3 <= len(entity) <= 30:
-            return True
-            
-        return False
-    
-    def _build_relationship_extraction_prompt(self, text: str, entities: Optional[List[str]] = None) -> str:
+        return bool(entity[0].isupper() and 3 <= len(entity) <= 30)
+
+    def _build_relationship_extraction_prompt(self, text: str, entities: list[str] | None = None) -> str:
         """
         Build a prompt for LLM-based relationship extraction focused on philosophical relationships.
-        
+
         Based on recommendations from philosophical GraphRAG research.
-        
+
         Args:
             text: Text to extract relationships from
             entities: Optional list of known entities
-            
+
         Returns:
             Formatted prompt for philosophical relationship extraction
         """
         entity_context = ""
         if entities:
             entity_context = f"\nKnown philosophical entities in the text: {', '.join(entities)}"
-        
+
         prompt = f"""You are an expert in classical philosophy specialized in extracting meaningful philosophical relationships from texts.
 
 IMPORTANT: Extract only relationships between PHILOSOPHICAL ENTITIES, not grammatical relationships.
@@ -1481,7 +1478,7 @@ Extract relationships using ONLY these standardized philosophical relationship t
 - AUTOROU: philosopher authored a work
 - INFLUENCIADO_POR: philosopher was influenced by another
 - CRITICA: philosopher/work criticizes another philosopher/concept
-- DEFENDE: philosopher defends a concept or position  
+- DEFENDE: philosopher defends a concept or position
 - TEM_ARGUMENTO: work contains a specific argument
 - PREMISSA_DE: one argument is premise of another
 - OBJECAO_A: argument objects to another argument
@@ -1517,10 +1514,10 @@ class TripleValidator:
     - Deduplicates by (subject, relation, object) keeping highest confidence
     """
 
-    def validate(self, triples: List[Dict[str, Any]], min_confidence: float = 0.6) -> List[Dict[str, Any]]:
+    def validate(self, triples: list[dict[str, Any]], min_confidence: float = 0.6) -> list[dict[str, Any]]:
         if not triples:
             return []
-        best: Dict[tuple, Dict[str, Any]] = {}
+        best: dict[tuple, dict[str, Any]] = {}
         for t in triples:
             subject = str(t.get("subject", "")).strip()
             relation = str(t.get("relation", "")).strip()

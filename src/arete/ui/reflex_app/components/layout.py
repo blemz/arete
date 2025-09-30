@@ -32,7 +32,7 @@ def navbar() -> rx.Component:
                     ),
                     rx.link(
                         "Chat",
-                        href="/chat", 
+                        href="/chat",
                         class_name="btn btn-ghost btn-sm"
                     ),
                     rx.link(

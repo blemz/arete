@@ -5,23 +5,21 @@ This module provides integration with Ollama for local LLM inference,
 including model management, streaming support, and error handling.
 """
 
-import asyncio
-import logging
-from typing import List, Dict, Any, Optional, Union
+import contextlib
 import json
+import logging
+from typing import Any
 
 import httpx
 
-from arete.services.llm_provider import (
-    LLMProvider,
-    LLMMessage,
-    LLMResponse,
-    MessageRole,
-    LLMProviderError,
-    ProviderUnavailableError,
-    RateLimitError,
-)
 from arete.config import Settings
+from arete.services.llm_provider import (
+    LLMMessage,
+    LLMProvider,
+    LLMProviderError,
+    LLMResponse,
+    ProviderUnavailableError,
+)
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -50,7 +48,7 @@ class OllamaProvider(LLMProvider):
         self.temperature = settings.llm_temperature
 
         # Model management
-        self._available_models: List[str] = []
+        self._available_models: list[str] = []
         self._default_model = "llama2:latest"
 
     @property
@@ -64,7 +62,7 @@ class OllamaProvider(LLMProvider):
         return True
 
     @property
-    def supported_models(self) -> List[str]:
+    def supported_models(self) -> list[str]:
         """Get list of supported models."""
         if not self._initialized:
             return []
@@ -92,14 +90,12 @@ class OllamaProvider(LLMProvider):
 
             # Run the async check
             loop = None
-            try:
+            with contextlib.suppress(RuntimeError):
                 loop = asyncio.get_running_loop()
-            except RuntimeError:
-                pass
 
             if loop is not None:
                 # We're in an async context, create a task
-                task = loop.create_task(self._init_async())
+                loop.create_task(self._init_async())
                 # For now, we'll mark as initialized and let async init complete
                 self._initialized = True
             else:
@@ -135,7 +131,7 @@ class OllamaProvider(LLMProvider):
         except (httpx.ConnectError, httpx.TimeoutException, Exception):
             return False
 
-    async def _get_available_models(self) -> List[str]:
+    async def _get_available_models(self) -> list[str]:
         """Get list of available models from Ollama server."""
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
@@ -154,10 +150,10 @@ class OllamaProvider(LLMProvider):
 
     async def generate_response(
         self,
-        messages: List[LLMMessage],
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        messages: list[LLMMessage],
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         stream: bool = False,
         **kwargs,
     ) -> LLMResponse:
@@ -209,7 +205,7 @@ class OllamaProvider(LLMProvider):
 
     async def _generate_standard(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         model: str,
         max_tokens: int,
         temperature: float,
@@ -253,7 +249,7 @@ class OllamaProvider(LLMProvider):
 
     async def _generate_streaming(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         model: str,
         max_tokens: int,
         temperature: float,
@@ -335,13 +331,13 @@ class OllamaProvider(LLMProvider):
 
     def _build_request_params(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         model: str,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         stream: bool = False,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Build request parameters for Ollama API."""
         return {
             "model": model,
@@ -354,7 +350,7 @@ class OllamaProvider(LLMProvider):
             },
         }
 
-    def _format_messages(self, messages: List[LLMMessage]) -> List[Dict[str, str]]:
+    def _format_messages(self, messages: list[LLMMessage]) -> list[dict[str, str]]:
         """Format messages for Ollama API."""
         return [
             {"role": message.role.value, "content": message.content}
@@ -362,8 +358,8 @@ class OllamaProvider(LLMProvider):
         ]
 
     def _extract_content_from_response(
-        self, response_data: Dict[str, Any]
-    ) -> tuple[str, Optional[int], Optional[str]]:
+        self, response_data: dict[str, Any]
+    ) -> tuple[str, int | None, str | None]:
         """Extract content, tokens, and finish reason from Ollama response."""
         content = ""
         tokens = None
@@ -380,7 +376,7 @@ class OllamaProvider(LLMProvider):
 
         return content, tokens, finish_reason
 
-    def _get_default_model(self, available_models: List[str]) -> str:
+    def _get_default_model(self, available_models: list[str]) -> str:
         """Get default model to use."""
         if not available_models:
             return self._default_model
@@ -460,7 +456,7 @@ class OllamaProvider(LLMProvider):
             logger.error(f"Error deleting model {model_name}: {e}")
             return False
 
-    def get_health_status(self) -> Dict[str, Any]:
+    def get_health_status(self) -> dict[str, Any]:
         """Get provider health status and diagnostics."""
         if not self._initialized:
             return {
@@ -493,7 +489,7 @@ class OllamaProvider(LLMProvider):
 
 
 # Factory function for easy Ollama provider creation
-def create_ollama_provider(settings: Optional[Settings] = None) -> OllamaProvider:
+def create_ollama_provider(settings: Settings | None = None) -> OllamaProvider:
     """
     Create and initialize an Ollama provider.
 

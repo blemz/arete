@@ -12,19 +12,17 @@ This module provides smart routing of LLM requests based on:
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Dict, Any, Optional, Union
-import asyncio
+from typing import Any
 
+from arete.config import Settings
 from arete.services.llm_provider import (
-    MultiProviderLLMService,
-    LLMProvider,
     LLMMessage,
-    LLMResponse,
     LLMProviderError,
+    LLMResponse,
+    MultiProviderLLMService,
     ProviderUnavailableError,
     RateLimitError,
 )
-from arete.config import Settings
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -67,13 +65,13 @@ class ProviderCapabilities:
 class RoutingRequest:
     """Request parameters for intelligent routing."""
 
-    messages: List[LLMMessage]
+    messages: list[LLMMessage]
     priority: RequestPriority = RequestPriority.NORMAL
     request_type: RequestType = RequestType.GENERAL
-    max_cost: Optional[float] = None  # Maximum acceptable cost in USD
-    min_quality: Optional[float] = None  # Minimum quality score required
-    preferred_providers: Optional[List[str]] = None
-    exclude_providers: Optional[List[str]] = None
+    max_cost: float | None = None  # Maximum acceptable cost in USD
+    min_quality: float | None = None  # Minimum quality score required
+    preferred_providers: list[str] | None = None
+    exclude_providers: list[str] | None = None
     require_streaming: bool = False
 
 
@@ -103,7 +101,7 @@ class IntelligentLLMRouter:
         self.provider_capabilities = self._initialize_provider_capabilities()
 
         # Historical performance tracking
-        self.performance_history: Dict[str, Dict[str, float]] = {}
+        self.performance_history: dict[str, dict[str, float]] = {}
 
         # Routing statistics
         self.routing_stats = {
@@ -114,7 +112,7 @@ class IntelligentLLMRouter:
             "provider_failovers": 0,
         }
 
-    def _initialize_provider_capabilities(self) -> Dict[str, ProviderCapabilities]:
+    def _initialize_provider_capabilities(self) -> dict[str, ProviderCapabilities]:
         """Initialize provider capabilities based on known characteristics."""
         return {
             "ollama": ProviderCapabilities(
@@ -258,7 +256,7 @@ class IntelligentLLMRouter:
             logger.error(f"Routing failed: {e}")
             raise
 
-    def _get_available_providers(self) -> List[str]:
+    def _get_available_providers(self) -> list[str]:
         """Get list of currently available provider names."""
         available = []
 
@@ -269,8 +267,8 @@ class IntelligentLLMRouter:
         return available
 
     def _score_providers(
-        self, request: RoutingRequest, available_providers: List[str]
-    ) -> Dict[str, float]:
+        self, request: RoutingRequest, available_providers: list[str]
+    ) -> dict[str, float]:
         """
         Score providers based on request requirements.
 
@@ -415,7 +413,7 @@ class IntelligentLLMRouter:
             alpha * score + (1 - alpha) * history["average_score"]
         )
 
-    def _get_provider_kwargs(self, request: RoutingRequest) -> Dict[str, Any]:
+    def _get_provider_kwargs(self, request: RoutingRequest) -> dict[str, Any]:
         """Get provider-specific kwargs from routing request."""
         kwargs = {}
 
@@ -429,7 +427,7 @@ class IntelligentLLMRouter:
 
         return kwargs
 
-    def get_routing_statistics(self) -> Dict[str, Any]:
+    def get_routing_statistics(self) -> dict[str, Any]:
         """Get routing statistics and performance metrics."""
         total_requests = self.routing_stats["total_requests"]
         success_rate = (
@@ -459,7 +457,7 @@ class IntelligentLLMRouter:
         self,
         priority: RequestPriority = RequestPriority.NORMAL,
         request_type: RequestType = RequestType.GENERAL,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Get recommended provider for given priority and request type.
 
@@ -493,8 +491,8 @@ class IntelligentLLMRouter:
 
 # Convenience function for creating router
 def create_llm_router(
-    llm_service: Optional[MultiProviderLLMService] = None,
-    settings: Optional[Settings] = None,
+    llm_service: MultiProviderLLMService | None = None,
+    settings: Settings | None = None,
 ) -> IntelligentLLMRouter:
     """
     Create an intelligent LLM router.
@@ -521,7 +519,7 @@ def create_llm_router(
 
 # Utility functions for common routing patterns
 def create_philosophical_request(
-    messages: List[LLMMessage], priority: RequestPriority = RequestPriority.HIGH
+    messages: list[LLMMessage], priority: RequestPriority = RequestPriority.HIGH
 ) -> RoutingRequest:
     """Create a routing request optimized for philosophical content."""
     return RoutingRequest(
@@ -533,7 +531,7 @@ def create_philosophical_request(
     )
 
 
-def create_cost_optimized_request(messages: List[LLMMessage]) -> RoutingRequest:
+def create_cost_optimized_request(messages: list[LLMMessage]) -> RoutingRequest:
     """Create a cost-optimized routing request."""
     return RoutingRequest(
         messages=messages,
@@ -545,7 +543,7 @@ def create_cost_optimized_request(messages: List[LLMMessage]) -> RoutingRequest:
 
 
 def create_high_quality_request(
-    messages: List[LLMMessage], request_type: RequestType = RequestType.ANALYTICAL
+    messages: list[LLMMessage], request_type: RequestType = RequestType.ANALYTICAL
 ) -> RoutingRequest:
     """Create a high-quality routing request."""
     return RoutingRequest(

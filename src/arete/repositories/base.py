@@ -7,11 +7,10 @@ inversion and testability through interface segregation.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, TypeVar, Generic, Union
+from typing import Any, Generic, TypeVar
 from uuid import UUID
 
 from arete.models.base import BaseModel
-
 
 # Generic type for model classes
 ModelType = TypeVar("ModelType", bound=BaseModel)
@@ -20,25 +19,21 @@ ModelType = TypeVar("ModelType", bound=BaseModel)
 class RepositoryError(Exception):
     """Base exception for repository operations."""
 
-    pass
 
 
 class EntityNotFoundError(RepositoryError):
     """Raised when an entity is not found."""
 
-    pass
 
 
 class DuplicateEntityError(RepositoryError):
     """Raised when attempting to create a duplicate entity."""
 
-    pass
 
 
 class ValidationError(RepositoryError):
     """Raised when entity validation fails."""
 
-    pass
 
 
 class BaseRepository(ABC, Generic[ModelType]):
@@ -66,10 +61,9 @@ class BaseRepository(ABC, Generic[ModelType]):
             ValidationError: If entity validation fails
             RepositoryError: For other repository errors
         """
-        pass
 
     @abstractmethod
-    async def get_by_id(self, entity_id: Union[UUID, str]) -> Optional[ModelType]:
+    async def get_by_id(self, entity_id: UUID | str) -> ModelType | None:
         """
         Retrieve entity by its unique identifier.
 
@@ -82,7 +76,6 @@ class BaseRepository(ABC, Generic[ModelType]):
         Raises:
             RepositoryError: For repository errors
         """
-        pass
 
     @abstractmethod
     async def update(self, entity: ModelType) -> ModelType:
@@ -100,10 +93,9 @@ class BaseRepository(ABC, Generic[ModelType]):
             ValidationError: If entity validation fails
             RepositoryError: For other repository errors
         """
-        pass
 
     @abstractmethod
-    async def delete(self, entity_id: Union[UUID, str]) -> bool:
+    async def delete(self, entity_id: UUID | str) -> bool:
         """
         Delete an entity by ID.
 
@@ -116,15 +108,14 @@ class BaseRepository(ABC, Generic[ModelType]):
         Raises:
             RepositoryError: For repository errors
         """
-        pass
 
     @abstractmethod
     async def list_all(
         self,
         limit: int = 100,
         offset: int = 0,
-        filters: Optional[Dict[str, Any]] = None,
-    ) -> List[ModelType]:
+        filters: dict[str, Any] | None = None,
+    ) -> list[ModelType]:
         """
         List entities with optional pagination and filtering.
 
@@ -139,10 +130,9 @@ class BaseRepository(ABC, Generic[ModelType]):
         Raises:
             RepositoryError: For repository errors
         """
-        pass
 
     @abstractmethod
-    async def count(self, filters: Optional[Dict[str, Any]] = None) -> int:
+    async def count(self, filters: dict[str, Any] | None = None) -> int:
         """
         Count entities matching optional filters.
 
@@ -155,10 +145,9 @@ class BaseRepository(ABC, Generic[ModelType]):
         Raises:
             RepositoryError: For repository errors
         """
-        pass
 
     @abstractmethod
-    async def exists(self, entity_id: Union[UUID, str]) -> bool:
+    async def exists(self, entity_id: UUID | str) -> bool:
         """
         Check if entity exists by ID.
 
@@ -171,7 +160,6 @@ class BaseRepository(ABC, Generic[ModelType]):
         Raises:
             RepositoryError: For repository errors
         """
-        pass
 
 
 class SearchableRepository(BaseRepository[ModelType]):
@@ -185,7 +173,7 @@ class SearchableRepository(BaseRepository[ModelType]):
     @abstractmethod
     async def search_by_text(
         self, query: str, limit: int = 10, similarity_threshold: float = 0.7
-    ) -> List[ModelType]:
+    ) -> list[ModelType]:
         """
         Search entities by semantic text similarity.
 
@@ -200,12 +188,11 @@ class SearchableRepository(BaseRepository[ModelType]):
         Raises:
             RepositoryError: For repository errors
         """
-        pass
 
     @abstractmethod
     async def search_by_embedding(
-        self, embedding: List[float], limit: int = 10, similarity_threshold: float = 0.7
-    ) -> List[ModelType]:
+        self, embedding: list[float], limit: int = 10, similarity_threshold: float = 0.7
+    ) -> list[ModelType]:
         """
         Search entities by embedding vector similarity.
 
@@ -220,7 +207,6 @@ class SearchableRepository(BaseRepository[ModelType]):
         Raises:
             RepositoryError: For repository errors
         """
-        pass
 
 
 class GraphRepository(BaseRepository[ModelType]):
@@ -234,11 +220,11 @@ class GraphRepository(BaseRepository[ModelType]):
     @abstractmethod
     async def get_related(
         self,
-        entity_id: Union[UUID, str],
-        relationship_type: Optional[str] = None,
+        entity_id: UUID | str,
+        relationship_type: str | None = None,
         direction: str = "BOTH",  # "INCOMING", "OUTGOING", "BOTH"
         limit: int = 10,
-    ) -> List[ModelType]:
+    ) -> list[ModelType]:
         """
         Get entities related to the given entity.
 
@@ -254,12 +240,11 @@ class GraphRepository(BaseRepository[ModelType]):
         Raises:
             RepositoryError: For repository errors
         """
-        pass
 
     @abstractmethod
     async def get_neighbors(
-        self, entity_id: Union[UUID, str], depth: int = 1, limit: int = 10
-    ) -> List[ModelType]:
+        self, entity_id: UUID | str, depth: int = 1, limit: int = 10
+    ) -> list[ModelType]:
         """
         Get neighboring entities within specified depth.
 
@@ -274,4 +259,3 @@ class GraphRepository(BaseRepository[ModelType]):
         Raises:
             RepositoryError: For repository errors
         """
-        pass

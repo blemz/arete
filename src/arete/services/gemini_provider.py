@@ -6,24 +6,24 @@ Gemini Pro and other models with safety filtering, system instructions,
 and advanced generation features.
 """
 
-import asyncio
-import logging
-from typing import List, Dict, Any, Optional, Union
+import contextlib
 import json
+import logging
+from typing import Any
 
 import httpx
 
+from arete.config import Settings
 from arete.services.llm_provider import (
-    LLMProvider,
+    AuthenticationError,
     LLMMessage,
+    LLMProvider,
+    LLMProviderError,
     LLMResponse,
     MessageRole,
-    LLMProviderError,
     ProviderUnavailableError,
     RateLimitError,
-    AuthenticationError,
 )
-from arete.config import Settings
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -65,8 +65,8 @@ class GeminiProvider(LLMProvider):
         self.api_key = settings.gemini_api_key
 
         # Model management
-        self._available_models: List[str] = []
-        self._model_info: Dict[str, Dict[str, Any]] = {}
+        self._available_models: list[str] = []
+        self._model_info: dict[str, dict[str, Any]] = {}
         self._default_model = "gemini-1.5-pro"
 
     @property
@@ -75,7 +75,7 @@ class GeminiProvider(LLMProvider):
         return self._initialized
 
     @property
-    def supported_models(self) -> List[str]:
+    def supported_models(self) -> list[str]:
         """Get list of supported models."""
         if not self._initialized:
             return []
@@ -100,14 +100,12 @@ class GeminiProvider(LLMProvider):
 
             # Run the async check
             loop = None
-            try:
+            with contextlib.suppress(RuntimeError):
                 loop = asyncio.get_running_loop()
-            except RuntimeError:
-                pass
 
             if loop is not None:
                 # We're in an async context, create a task
-                task = loop.create_task(self._init_async())
+                loop.create_task(self._init_async())
                 self._initialized = True
             else:
                 # We're not in an async context, run synchronously
@@ -116,7 +114,7 @@ class GeminiProvider(LLMProvider):
 
         except Exception as e:
             logger.error(f"Failed to initialize Gemini provider: {e}")
-            if isinstance(e, (ProviderUnavailableError, AuthenticationError)):
+            if isinstance(e, ProviderUnavailableError | AuthenticationError):
                 raise
             raise LLMProviderError(f"Gemini initialization failed: {e}")
 
@@ -132,7 +130,7 @@ class GeminiProvider(LLMProvider):
         except Exception as e:
             logger.warning(f"Async initialization warning: {e}")
 
-    async def _get_available_models(self) -> List[str]:
+    async def _get_available_models(self) -> list[str]:
         """Get list of available models from Gemini API."""
         try:
             url = self._get_models_url()
@@ -184,7 +182,7 @@ class GeminiProvider(LLMProvider):
             )
         except Exception as e:
             if isinstance(
-                e, (AuthenticationError, ProviderUnavailableError, RateLimitError)
+                e, AuthenticationError | ProviderUnavailableError | RateLimitError
             ):
                 raise
             logger.error(f"Error getting available models: {e}")
@@ -192,10 +190,10 @@ class GeminiProvider(LLMProvider):
 
     async def generate_response(
         self,
-        messages: List[LLMMessage],
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        messages: list[LLMMessage],
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         stream: bool = False,
         **kwargs,
     ) -> LLMResponse:
@@ -249,7 +247,7 @@ class GeminiProvider(LLMProvider):
 
     async def _generate_standard(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         model: str,
         max_tokens: int,
         temperature: float,
@@ -295,7 +293,7 @@ class GeminiProvider(LLMProvider):
 
     async def _generate_streaming(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         model: str,
         max_tokens: int,
         temperature: float,
@@ -410,13 +408,13 @@ class GeminiProvider(LLMProvider):
 
     def _build_request_params(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         model: str,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         stream: bool = False,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Build request parameters for Gemini API."""
         formatted_messages = self._format_messages(messages)
 
@@ -437,7 +435,7 @@ class GeminiProvider(LLMProvider):
 
         return params
 
-    def _format_messages(self, messages: List[LLMMessage]) -> Dict[str, Any]:
+    def _format_messages(self, messages: list[LLMMessage]) -> dict[str, Any]:
         """Format messages for Gemini API."""
         contents = []
         system_instruction = None
@@ -459,8 +457,8 @@ class GeminiProvider(LLMProvider):
         return {"contents": contents, "system_instruction": system_instruction}
 
     def _extract_content_from_response(
-        self, response_data: Dict[str, Any]
-    ) -> tuple[str, Optional[int], Optional[str]]:
+        self, response_data: dict[str, Any]
+    ) -> tuple[str, int | None, str | None]:
         """Extract content, tokens, and finish reason from Gemini response."""
         content = ""
         tokens = None
@@ -493,15 +491,15 @@ class GeminiProvider(LLMProvider):
         return content, tokens, finish_reason
 
     def _extract_safety_ratings(
-        self, response_data: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, response_data: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Extract safety ratings from response."""
         candidates = response_data.get("candidates", [])
         if candidates and "safetyRatings" in candidates[0]:
             return candidates[0]["safetyRatings"]
         return []
 
-    def _get_default_model(self, available_models: List[str]) -> str:
+    def _get_default_model(self, available_models: list[str]) -> str:
         """Get default model to use."""
         if not available_models:
             return self._default_model
@@ -516,7 +514,7 @@ class GeminiProvider(LLMProvider):
         # Return first available model
         return available_models[0]
 
-    def _get_safety_settings(self) -> List[Dict[str, Any]]:
+    def _get_safety_settings(self) -> list[dict[str, Any]]:
         """Get safety settings for content filtering."""
         # Set to BLOCK_ONLY_HIGH for educational content
         return [
@@ -547,11 +545,11 @@ class GeminiProvider(LLMProvider):
         method = "streamGenerateContent" if stream else "generateContent"
         return f"{self.base_url}/models/{model}:{method}?key={self.api_key}"
 
-    def get_model_info(self, model_id: str) -> Optional[Dict[str, Any]]:
+    def get_model_info(self, model_id: str) -> dict[str, Any] | None:
         """Get detailed information about a specific model."""
         return self._model_info.get(model_id)
 
-    def get_health_status(self) -> Dict[str, Any]:
+    def get_health_status(self) -> dict[str, Any]:
         """Get provider health status and diagnostics."""
         if not self._initialized:
             return {
@@ -586,7 +584,7 @@ class GeminiProvider(LLMProvider):
 
 
 # Factory function for easy Gemini provider creation
-def create_gemini_provider(settings: Optional[Settings] = None) -> GeminiProvider:
+def create_gemini_provider(settings: Settings | None = None) -> GeminiProvider:
     """
     Create and initialize a Gemini provider.
 

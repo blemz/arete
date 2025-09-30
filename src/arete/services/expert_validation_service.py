@@ -7,9 +7,9 @@ knowledge graph construction.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import List, Dict, Any, Optional, Union
+from typing import Any
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, model_serializer
@@ -42,11 +42,11 @@ class ExpertAnnotation(BaseModel):
     expert_id: str = Field(..., description="ID of the reviewing expert")
     expert_name: str = Field(..., description="Name of the reviewing expert")
     status: ValidationStatus = Field(..., description="Validation status assigned")
-    confidence_score: Optional[float] = Field(
+    confidence_score: float | None = Field(
         None, ge=0.0, le=1.0, description="Expert confidence score"
     )
-    comments: Optional[str] = Field(None, description="Expert comments and feedback")
-    suggested_changes: Optional[Dict[str, Any]] = Field(
+    comments: str | None = Field(None, description="Expert comments and feedback")
+    suggested_changes: dict[str, Any] | None = Field(
         None, description="Suggested changes to the item"
     )
     timestamp: datetime = Field(
@@ -70,7 +70,7 @@ class ValidationItem(BaseModel):
     item_type: str = Field(
         ..., description="Type of item (entity, relationship, triple)"
     )
-    item_data: Dict[str, Any] = Field(
+    item_data: dict[str, Any] = Field(
         ..., description="The actual data to be validated"
     )
     extraction_confidence: float = Field(
@@ -82,21 +82,21 @@ class ValidationItem(BaseModel):
     status: ValidationStatus = Field(
         default=ValidationStatus.PENDING, description="Current validation status"
     )
-    source_document_id: Optional[UUID] = Field(None, description="Source document ID")
-    context: Optional[str] = Field(None, description="Textual context for the item")
+    source_document_id: UUID | None = Field(None, description="Source document ID")
+    context: str | None = Field(None, description="Textual context for the item")
     created_at: datetime = Field(
         default_factory=datetime.utcnow, description="Creation timestamp"
     )
-    updated_at: Optional[datetime] = Field(None, description="Last update timestamp")
+    updated_at: datetime | None = Field(None, description="Last update timestamp")
 
     # Expert validation
-    annotations: List[ExpertAnnotation] = Field(
+    annotations: list[ExpertAnnotation] = Field(
         default_factory=list, description="Expert annotations"
     )
-    final_status: Optional[ValidationStatus] = Field(
+    final_status: ValidationStatus | None = Field(
         None, description="Final validation status"
     )
-    consensus_score: Optional[float] = Field(None, description="Expert consensus score")
+    consensus_score: float | None = Field(None, description="Expert consensus score")
 
     @model_serializer
     def serialize_model(self):
@@ -115,7 +115,7 @@ class ValidationItem(BaseModel):
     def add_annotation(self, annotation: ExpertAnnotation) -> None:
         """Add an expert annotation."""
         self.annotations.append(annotation)
-        self.updated_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(UTC)
 
         # Update status if this is the first annotation or if it changes status
         if not self.final_status or annotation.status != self.status:
@@ -132,7 +132,7 @@ class ValidationItem(BaseModel):
         )
         return approved_count / len(self.annotations)
 
-    def get_latest_annotation(self) -> Optional[ExpertAnnotation]:
+    def get_latest_annotation(self) -> ExpertAnnotation | None:
         """Get the most recent expert annotation."""
         if not self.annotations:
             return None
@@ -149,8 +149,8 @@ class ExpertValidationService:
 
     def __init__(self):
         """Initialize ExpertValidationService."""
-        self._validation_queue: Dict[UUID, ValidationItem] = {}
-        self._expert_assignments: Dict[str, List[UUID]] = {}
+        self._validation_queue: dict[UUID, ValidationItem] = {}
+        self._expert_assignments: dict[str, list[UUID]] = {}
 
         # Validation thresholds and rules
         self.min_consensus_threshold = 0.7  # 70% agreement for approval
@@ -163,10 +163,10 @@ class ExpertValidationService:
     def submit_for_validation(
         self,
         item_type: str,
-        item_data: Dict[str, Any],
+        item_data: dict[str, Any],
         extraction_confidence: float,
-        source_document_id: Optional[UUID] = None,
-        context: Optional[str] = None,
+        source_document_id: UUID | None = None,
+        context: str | None = None,
         priority: ValidationPriority = ValidationPriority.MEDIUM,
     ) -> ValidationItem:
         """
@@ -222,9 +222,9 @@ class ExpertValidationService:
         expert_id: str,
         expert_name: str,
         status: ValidationStatus,
-        confidence_score: Optional[float] = None,
-        comments: Optional[str] = None,
-        suggested_changes: Optional[Dict[str, Any]] = None,
+        confidence_score: float | None = None,
+        comments: str | None = None,
+        suggested_changes: dict[str, Any] | None = None,
     ) -> bool:
         """
         Submit expert annotation for a validation item.
@@ -299,16 +299,16 @@ class ExpertValidationService:
                     f"Item {validation_item.id} needs revision with consensus {consensus_score:.2f}"
                 )
 
-    def get_validation_item(self, validation_id: UUID) -> Optional[ValidationItem]:
+    def get_validation_item(self, validation_id: UUID) -> ValidationItem | None:
         """Get validation item by ID."""
         return self._validation_queue.get(validation_id)
 
     def get_pending_validations(
         self,
-        expert_id: Optional[str] = None,
-        priority: Optional[ValidationPriority] = None,
-        item_type: Optional[str] = None,
-    ) -> List[ValidationItem]:
+        expert_id: str | None = None,
+        priority: ValidationPriority | None = None,
+        item_type: str | None = None,
+    ) -> list[ValidationItem]:
         """
         Get pending validation items.
 
@@ -357,7 +357,7 @@ class ExpertValidationService:
 
         return items
 
-    def assign_expert(self, expert_id: str, validation_ids: List[UUID]) -> bool:
+    def assign_expert(self, expert_id: str, validation_ids: list[UUID]) -> bool:
         """
         Assign validation items to an expert.
 
@@ -388,7 +388,7 @@ class ExpertValidationService:
 
         return True
 
-    def get_validation_statistics(self) -> Dict[str, Any]:
+    def get_validation_statistics(self) -> dict[str, Any]:
         """
         Get validation statistics and metrics.
 
@@ -461,7 +461,7 @@ class ExpertValidationService:
             ),
         }
 
-    def get_approved_items(self) -> List[ValidationItem]:
+    def get_approved_items(self) -> list[ValidationItem]:
         """Get all approved validation items."""
         return [
             item
@@ -470,7 +470,7 @@ class ExpertValidationService:
             or (item.status == ValidationStatus.APPROVED and item.final_status is None)
         ]
 
-    def export_validation_data(self) -> Dict[str, Any]:
+    def export_validation_data(self) -> dict[str, Any]:
         """
         Export validation data for analysis or backup.
 
@@ -483,7 +483,7 @@ class ExpertValidationService:
             ],
             "expert_assignments": self._expert_assignments,
             "statistics": self.get_validation_statistics(),
-            "export_timestamp": datetime.now(timezone.utc).isoformat(),
+            "export_timestamp": datetime.now(UTC).isoformat(),
             "thresholds": {
                 "min_consensus_threshold": self.min_consensus_threshold,
                 "min_expert_reviews": self.min_expert_reviews,

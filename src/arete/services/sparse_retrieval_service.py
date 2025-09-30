@@ -8,19 +8,19 @@ philosophical text search.
 """
 
 import logging
-import time
 import math
+import time
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Tuple, Set, Union, Counter
-from uuid import UUID
-from collections import defaultdict, Counter as CollectionsCounter
+from collections import Counter as CollectionsCounter
 from dataclasses import dataclass, field
-from pydantic import BaseModel, Field
+from typing import Any
+from uuid import UUID
 
-from ..models.chunk import Chunk
-from ..config import Settings, get_settings
-from ..database.client import Neo4jClient
-from .dense_retrieval_service import SearchResult, RetrievalMetrics
+from arete.config import Settings, get_settings
+from arete.database.client import Neo4jClient
+from arete.models.chunk import Chunk
+
+from .dense_retrieval_service import RetrievalMetrics, SearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -28,19 +28,16 @@ logger = logging.getLogger(__name__)
 class SparseRetrievalError(Exception):
     """Base exception for sparse retrieval errors."""
 
-    pass
 
 
 class IndexingError(SparseRetrievalError):
     """Raised when document indexing fails."""
 
-    pass
 
 
 class QueryProcessingError(SparseRetrievalError):
     """Raised when query processing fails."""
 
-    pass
 
 
 @dataclass
@@ -54,10 +51,10 @@ class TermFrequencyDocument:
 
     document_id: str
     chunk_id: str
-    term_frequencies: Dict[str, int]
+    term_frequencies: dict[str, int]
     total_terms: int
     unique_terms: int
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def get_term_frequency(self, term: str) -> int:
         """Get frequency of a specific term in this document."""
@@ -79,12 +76,12 @@ class SparseIndex:
     required for efficient BM25 and other sparse retrieval algorithms.
     """
 
-    term_document_frequencies: Dict[str, Dict[str, int]] = field(default_factory=dict)
-    document_frequencies: Dict[str, int] = field(default_factory=dict)
-    documents: Dict[str, TermFrequencyDocument] = field(default_factory=dict)
+    term_document_frequencies: dict[str, dict[str, int]] = field(default_factory=dict)
+    document_frequencies: dict[str, int] = field(default_factory=dict)
+    documents: dict[str, TermFrequencyDocument] = field(default_factory=dict)
     total_documents: int = 0
     average_document_length: float = 0.0
-    vocabulary: Set[str] = field(default_factory=set)
+    vocabulary: set[str] = field(default_factory=set)
 
     def add_document(self, doc: TermFrequencyDocument) -> None:
         """Add a document to the index."""
@@ -112,7 +109,7 @@ class SparseIndex:
         """Get number of documents containing the term."""
         return self.document_frequencies.get(term, 0)
 
-    def get_term_documents(self, term: str) -> Dict[str, int]:
+    def get_term_documents(self, term: str) -> dict[str, int]:
         """Get all documents containing the term with their frequencies."""
         return self.term_document_frequencies.get(term, {})
 
@@ -134,7 +131,7 @@ class BaseSparseRetriever(ABC):
     retrieval algorithms including BM25, TF-IDF, and SPLADE variants.
     """
 
-    def __init__(self, settings: Optional[Settings] = None):
+    def __init__(self, settings: Settings | None = None):
         """
         Initialize base sparse retriever.
 
@@ -142,7 +139,7 @@ class BaseSparseRetriever(ABC):
             settings: Configuration settings
         """
         self.settings = settings or get_settings()
-        self.index: Optional[SparseIndex] = None
+        self.index: SparseIndex | None = None
         self.metrics = RetrievalMetrics()
         self._is_indexed = False
 
@@ -150,7 +147,7 @@ class BaseSparseRetriever(ABC):
 
     @abstractmethod
     def score_document(
-        self, query_terms: List[str], document: TermFrequencyDocument
+        self, query_terms: list[str], document: TermFrequencyDocument
     ) -> float:
         """
         Calculate relevance score for a document given query terms.
@@ -162,14 +159,12 @@ class BaseSparseRetriever(ABC):
         Returns:
             Relevance score (0.0-1.0)
         """
-        pass
 
     @abstractmethod
     def get_algorithm_name(self) -> str:
         """Get the name of the retrieval algorithm."""
-        pass
 
-    def build_index(self, chunks: List[Chunk]) -> None:
+    def build_index(self, chunks: list[Chunk]) -> None:
         """
         Build sparse index from chunks.
 
@@ -229,9 +224,9 @@ class BaseSparseRetriever(ABC):
         query: str,
         limit: int = 10,
         min_relevance: float = 0.0,
-        chunk_types: Optional[List[str]] = None,
-        document_ids: Optional[List[UUID]] = None,
-    ) -> List[SearchResult]:
+        chunk_types: list[str] | None = None,
+        document_ids: list[UUID] | None = None,
+    ) -> list[SearchResult]:
         """
         Perform sparse retrieval search.
 
@@ -343,7 +338,7 @@ class BaseSparseRetriever(ABC):
             logger.error(f"{self.get_algorithm_name()} search failed: {e}")
             raise SparseRetrievalError(f"Search failed: {e}") from e
 
-    def _tokenize_text(self, text: str) -> List[str]:
+    def _tokenize_text(self, text: str) -> list[str]:
         """
         Tokenize text for sparse retrieval.
 
@@ -427,7 +422,7 @@ class BaseSparseRetriever(ABC):
 
         return tokens
 
-    def get_index_statistics(self) -> Dict[str, Any]:
+    def get_index_statistics(self) -> dict[str, Any]:
         """Get statistics about the current index."""
         if not self.index:
             return {}
@@ -456,7 +451,7 @@ class BM25Retriever(BaseSparseRetriever):
     """
 
     def __init__(
-        self, k1: float = 1.2, b: float = 0.75, settings: Optional[Settings] = None
+        self, k1: float = 1.2, b: float = 0.75, settings: Settings | None = None
     ):
         """
         Initialize BM25 retriever with tunable parameters.
@@ -477,7 +472,7 @@ class BM25Retriever(BaseSparseRetriever):
         return "BM25"
 
     def score_document(
-        self, query_terms: List[str], document: TermFrequencyDocument
+        self, query_terms: list[str], document: TermFrequencyDocument
     ) -> float:
         """
         Calculate BM25 score for document given query terms.
@@ -552,7 +547,7 @@ class SPLADERetriever(BaseSparseRetriever):
         self,
         expansion_factor: float = 1.5,
         importance_threshold: float = 0.1,
-        settings: Optional[Settings] = None,
+        settings: Settings | None = None,
     ):
         """
         Initialize SPLADE retriever.
@@ -569,7 +564,7 @@ class SPLADERetriever(BaseSparseRetriever):
         self.expansion_factor = expansion_factor
         self.importance_threshold = importance_threshold
 
-        logger.info(f"Initialized SPLADERetriever (simplified implementation)")
+        logger.info("Initialized SPLADERetriever (simplified implementation)")
         logger.warning(
             "This is a simplified SPLADE implementation. "
             "Production SPLADE requires trained transformer models."
@@ -580,7 +575,7 @@ class SPLADERetriever(BaseSparseRetriever):
         return "SPLADE"
 
     def score_document(
-        self, query_terms: List[str], document: TermFrequencyDocument
+        self, query_terms: list[str], document: TermFrequencyDocument
     ) -> float:
         """
         Calculate simplified SPLADE score for document.
@@ -676,7 +671,7 @@ class SPLADERetriever(BaseSparseRetriever):
         return min(1.0, importance)
 
     def _calculate_expansion_score(
-        self, query_terms: List[str], document: TermFrequencyDocument
+        self, query_terms: list[str], document: TermFrequencyDocument
     ) -> float:
         """
         Calculate simplified expansion score based on term co-occurrence.
@@ -697,7 +692,7 @@ class SPLADERetriever(BaseSparseRetriever):
         return expansion_score
 
     def _calculate_cooccurrence(
-        self, query_terms: List[str], candidate_term: str
+        self, query_terms: list[str], candidate_term: str
     ) -> float:
         """
         Calculate simplified co-occurrence score between query terms and candidate.
@@ -739,8 +734,8 @@ class SparseRetrievalService:
     def __init__(
         self,
         retriever_type: str = "bm25",
-        neo4j_client: Optional[Neo4jClient] = None,
-        settings: Optional[Settings] = None,
+        neo4j_client: Neo4jClient | None = None,
+        settings: Settings | None = None,
         **retriever_kwargs,
     ):
         """
@@ -771,7 +766,7 @@ class SparseRetrievalService:
         else:
             raise ValueError(f"Unknown retriever type: {retriever_type}")
 
-    async def initialize_index(self, limit: Optional[int] = None) -> None:
+    async def initialize_index(self, limit: int | None = None) -> None:
         """
         Initialize sparse retrieval index from chunks in Neo4j.
 
@@ -833,9 +828,9 @@ class SparseRetrievalService:
         query: str,
         limit: int = 10,
         min_relevance: float = 0.0,
-        chunk_types: Optional[List[str]] = None,
-        document_ids: Optional[List[UUID]] = None,
-    ) -> List[SearchResult]:
+        chunk_types: list[str] | None = None,
+        document_ids: list[UUID] | None = None,
+    ) -> list[SearchResult]:
         """
         Perform sparse retrieval search.
 
@@ -861,7 +856,7 @@ class SparseRetrievalService:
         """Get the current retrieval algorithm name."""
         return self.retriever.get_algorithm_name()
 
-    def get_index_statistics(self) -> Dict[str, Any]:
+    def get_index_statistics(self) -> dict[str, Any]:
         """Get statistics about the current index."""
         return self.retriever.get_index_statistics()
 
@@ -873,8 +868,8 @@ class SparseRetrievalService:
 # Factory function following established pattern
 def create_sparse_retrieval_service(
     retriever_type: str = "bm25",
-    neo4j_client: Optional[Neo4jClient] = None,
-    settings: Optional[Settings] = None,
+    neo4j_client: Neo4jClient | None = None,
+    settings: Settings | None = None,
     **retriever_kwargs,
 ) -> SparseRetrievalService:
     """

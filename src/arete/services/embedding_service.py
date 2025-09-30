@@ -5,12 +5,11 @@ Provides high-performance embedding generation using sentence-transformers
 with GPU support, batch processing, and integration with existing components.
 """
 
-import logging
-from typing import List, Optional, Union, Dict, Any, Callable
-from functools import lru_cache
-import numpy as np
-from uuid import UUID
 import hashlib
+import logging
+from collections.abc import Callable
+from functools import lru_cache
+from typing import Any
 
 try:
     import torch
@@ -26,9 +25,8 @@ try:
 except ImportError:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
 
-from ..config import Settings, get_settings
-from ..models.chunk import Chunk
-
+from arete.config import Settings, get_settings
+from arete.models.chunk import Chunk
 
 logger = logging.getLogger(__name__)
 
@@ -36,19 +34,16 @@ logger = logging.getLogger(__name__)
 class EmbeddingServiceError(Exception):
     """Base exception for embedding service errors."""
 
-    pass
 
 
 class ModelNotLoadedError(EmbeddingServiceError):
     """Raised when attempting to use embedding service without loaded model."""
 
-    pass
 
 
 class BatchProcessingError(EmbeddingServiceError):
     """Raised when batch processing fails."""
 
-    pass
 
 
 class EmbeddingService:
@@ -65,9 +60,9 @@ class EmbeddingService:
 
     def __init__(
         self,
-        model_name: Optional[str] = None,
-        device: Optional[str] = None,
-        settings: Optional[Settings] = None,
+        model_name: str | None = None,
+        device: str | None = None,
+        settings: Settings | None = None,
     ):
         """
         Initialize embedding service.
@@ -82,14 +77,14 @@ class EmbeddingService:
         # Model configuration
         self.model_name = model_name or self._get_default_model()
         self.device = device or self._get_device_from_settings()
-        self.model: Optional[SentenceTransformer] = None
+        self.model: SentenceTransformer | None = None
 
         # Performance tracking
         self._embedding_count = 0
         self._batch_count = 0
 
         # Simple embedding cache (text hash -> embedding)
-        self._embedding_cache: Dict[str, List[float]] = {}
+        self._embedding_cache: dict[str, list[float]] = {}
         self._cache_hits = 0
 
         logger.info(
@@ -166,7 +161,7 @@ class EmbeddingService:
         """Check if model is currently loaded."""
         return self.model is not None
 
-    def get_model_info(self) -> Dict[str, Any]:
+    def get_model_info(self) -> dict[str, Any]:
         """Get information about the current model."""
         cache_hit_rate = (
             self._cache_hits / max(self._embedding_count, 1)
@@ -187,7 +182,7 @@ class EmbeddingService:
             "cache_hit_rate": cache_hit_rate,
         }
 
-    def get_embedding_dimension(self) -> Optional[int]:
+    def get_embedding_dimension(self) -> int | None:
         """Get the dimension of embeddings produced by current model."""
         if not self.is_model_loaded():
             return None
@@ -197,7 +192,7 @@ class EmbeddingService:
 
     def generate_embedding(
         self, text: str, normalize: bool = True, show_progress: bool = False
-    ) -> List[float]:
+    ) -> list[float]:
         """
         Generate embedding for a single text.
 
@@ -260,12 +255,12 @@ class EmbeddingService:
 
     def generate_embeddings_batch(
         self,
-        texts: List[str],
-        batch_size: Optional[int] = None,
+        texts: list[str],
+        batch_size: int | None = None,
         normalize: bool = True,
         show_progress: bool = True,
-        progress_callback: Optional[Callable[[int, int], None]] = None,
-    ) -> List[List[float]]:
+        progress_callback: Callable[[int, int], None] | None = None,
+    ) -> list[list[float]]:
         """
         Generate embeddings for multiple texts efficiently.
 
@@ -343,7 +338,7 @@ class EmbeddingService:
 
     def generate_chunk_embedding(
         self, chunk: Chunk, normalize: bool = True, use_vectorizable_text: bool = True
-    ) -> List[float]:
+    ) -> list[float]:
         """
         Generate embedding for a Chunk model.
 
@@ -356,21 +351,18 @@ class EmbeddingService:
             Embedding vector as list of floats
         """
         # Use vectorizable_text if available and requested
-        if use_vectorizable_text:
-            text = chunk.get_vectorizable_text()
-        else:
-            text = chunk.text
+        text = chunk.get_vectorizable_text() if use_vectorizable_text else chunk.text
 
         return self.generate_embedding(text, normalize=normalize)
 
     def generate_chunk_embeddings_batch(
         self,
-        chunks: List[Chunk],
-        batch_size: Optional[int] = None,
+        chunks: list[Chunk],
+        batch_size: int | None = None,
         normalize: bool = True,
         use_vectorizable_text: bool = True,
         show_progress: bool = True,
-    ) -> List[List[float]]:
+    ) -> list[list[float]]:
         """
         Generate embeddings for multiple Chunk models.
 
@@ -490,7 +482,7 @@ class EmbeddingService:
         # Last resort: character boundary
         return text[:max_length]
 
-    def get_supported_languages(self) -> List[str]:
+    def get_supported_languages(self) -> list[str]:
         """
         Get list of languages supported by current model.
 
@@ -594,14 +586,14 @@ class EmbeddingService:
 
 
 # Singleton pattern for model caching
-_embedding_service_instance: Optional[EmbeddingService] = None
+_embedding_service_instance: EmbeddingService | None = None
 
 
 @lru_cache(maxsize=1)
 def get_embedding_service(
-    model_name: Optional[str] = None,
-    device: Optional[str] = None,
-    settings: Optional[Settings] = None,
+    model_name: str | None = None,
+    device: str | None = None,
+    settings: Settings | None = None,
 ) -> EmbeddingService:
     """
     Get cached embedding service instance.

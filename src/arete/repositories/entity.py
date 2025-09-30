@@ -10,21 +10,20 @@ enhanced search capabilities and philosophical relationship modeling.
 """
 
 import logging
-from typing import List, Optional, Dict, Any, Union
-from uuid import UUID
 import uuid
+from typing import Any
+from uuid import UUID
 
-from arete.repositories.base import (
-    GraphRepository,
-    SearchableRepository,
-    EntityNotFoundError,
-    DuplicateEntityError,
-    ValidationError,
-    RepositoryError,
-)
-from arete.models.entity import Entity, EntityType
 from arete.database.client import Neo4jClient
 from arete.database.weaviate_client import WeaviateClient
+from arete.models.entity import Entity, EntityType
+from arete.repositories.base import (
+    DuplicateEntityError,
+    EntityNotFoundError,
+    GraphRepository,
+    RepositoryError,
+    SearchableRepository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +51,8 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
         self._weaviate_client = weaviate_client
 
     async def _run_query_and_get_data(
-        self, query: str, params: Dict[str, Any] = None
-    ) -> List[Dict[str, Any]]:
+        self, query: str, params: dict[str, Any] = None
+    ) -> list[dict[str, Any]]:
         """Helper method to run Neo4j query and return data as list."""
         async with self._neo4j_client.driver.session() as session:
             result = await session.run(query, params or {})
@@ -76,10 +75,10 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
         """
         try:
             # Store in Neo4j for graph relationships and structured queries
-            neo4j_result = await self._neo4j_client.async_save_entity(entity)
+            await self._neo4j_client.async_save_entity(entity)
 
             # Store in Weaviate for vector search
-            weaviate_result = self._weaviate_client.save_entity(entity)
+            self._weaviate_client.save_entity(entity)
 
             logger.info(f"Created entity: {entity.id}")
             return entity
@@ -95,7 +94,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
                 logger.error(f"Failed to create entity {entity.id}: {error_msg}")
                 raise RepositoryError(f"Failed to create entity: {error_msg}")
 
-    async def get_by_id(self, entity_id: Union[UUID, str]) -> Optional[Entity]:
+    async def get_by_id(self, entity_id: UUID | str) -> Entity | None:
         """
         Retrieve entity by ID from Neo4j.
 
@@ -141,7 +140,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
             neo4j_data.pop("relationships", None)
             neo4j_data.pop("mentions", None)
 
-            neo4j_result = await self._neo4j_client.update_node(
+            await self._neo4j_client.update_node(
                 str(entity.id), "Entity", neo4j_data
             )
 
@@ -159,7 +158,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
                 logger.error(f"Failed to update entity {entity.id}: {error_msg}")
                 raise RepositoryError(f"Failed to update entity: {error_msg}")
 
-    async def delete(self, entity_id: Union[UUID, str]) -> bool:
+    async def delete(self, entity_id: UUID | str) -> bool:
         """
         Delete entity from both Neo4j and Weaviate.
 
@@ -194,8 +193,8 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
         self,
         limit: int = 100,
         offset: int = 0,
-        filters: Optional[Dict[str, Any]] = None,
-    ) -> List[Entity]:
+        filters: dict[str, Any] | None = None,
+    ) -> list[Entity]:
         """
         List entities from Neo4j with optional filtering.
 
@@ -241,7 +240,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
             logger.error(f"Failed to list entities: {str(e)}")
             raise RepositoryError(f"Failed to list entities: {str(e)}")
 
-    async def count(self, filters: Optional[Dict[str, Any]] = None) -> int:
+    async def count(self, filters: dict[str, Any] | None = None) -> int:
         """
         Count entities matching optional filters.
 
@@ -281,7 +280,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
             logger.error(f"Failed to count entities: {str(e)}")
             raise RepositoryError(f"Failed to count entities: {str(e)}")
 
-    async def exists(self, entity_id: Union[UUID, str]) -> bool:
+    async def exists(self, entity_id: UUID | str) -> bool:
         """
         Check if entity exists by ID.
 
@@ -313,7 +312,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
     async def search_by_text(
         self, query: str, limit: int = 10, similarity_threshold: float = 0.7
-    ) -> List[Entity]:
+    ) -> list[Entity]:
         """
         Search entities by semantic text similarity using Weaviate.
 
@@ -343,8 +342,8 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
             raise RepositoryError(f"Failed to search by text: {str(e)}")
 
     async def search_by_embedding(
-        self, embedding: List[float], limit: int = 10, similarity_threshold: float = 0.7
-    ) -> List[Entity]:
+        self, embedding: list[float], limit: int = 10, similarity_threshold: float = 0.7
+    ) -> list[Entity]:
         """
         Search entities by embedding vector similarity using Weaviate.
 
@@ -375,11 +374,11 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
     async def get_related(
         self,
-        entity_id: Union[UUID, str],
-        relationship_type: Optional[str] = None,
+        entity_id: UUID | str,
+        relationship_type: str | None = None,
         direction: str = "BOTH",  # "INCOMING", "OUTGOING", "BOTH"
         limit: int = 10,
-    ) -> List[Entity]:
+    ) -> list[Entity]:
         """
         Get entities related to the given entity.
 
@@ -432,8 +431,8 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
             raise RepositoryError(f"Failed to get related entities: {str(e)}")
 
     async def get_neighbors(
-        self, entity_id: Union[UUID, str], depth: int = 1, limit: int = 10
-    ) -> List[Entity]:
+        self, entity_id: UUID | str, depth: int = 1, limit: int = 10
+    ) -> list[Entity]:
         """
         Get neighboring entities within specified depth.
 
@@ -468,7 +467,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
     # Entity-specific methods
 
-    async def get_by_name(self, name: str) -> List[Entity]:
+    async def get_by_name(self, name: str) -> list[Entity]:
         """
         Get entities by name using Neo4j (includes canonical form and aliases).
 
@@ -484,7 +483,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
         try:
             query = """
                 MATCH (e:Entity)
-                WHERE e.name CONTAINS $name 
+                WHERE e.name CONTAINS $name
                    OR e.canonical_form CONTAINS $name
                    OR ANY(alias IN e.aliases WHERE alias CONTAINS $name)
                 RETURN e
@@ -498,7 +497,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
             logger.error(f"Failed to search entities by name: {str(e)}")
             raise RepositoryError(f"Failed to search by name: {str(e)}")
 
-    async def get_by_type(self, entity_type: EntityType) -> List[Entity]:
+    async def get_by_type(self, entity_type: EntityType) -> list[Entity]:
         """
         Get entities by type using Neo4j.
 
@@ -530,7 +529,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
     async def search_entities(
         self, query: str, limit: int = 10, hybrid_weight: float = 0.7
-    ) -> List[Entity]:
+    ) -> list[Entity]:
         """
         Hybrid search combining Neo4j keyword search and Weaviate semantic search.
 
@@ -549,7 +548,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
             # Keyword search in Neo4j
             neo4j_query = """
                 MATCH (e:Entity)
-                WHERE e.name CONTAINS $query 
+                WHERE e.name CONTAINS $query
                    OR e.description CONTAINS $query
                    OR e.canonical_form CONTAINS $query
                    OR ANY(alias IN e.aliases WHERE alias CONTAINS $query)
@@ -594,13 +593,13 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
     async def create_relationship(
         self,
-        source_entity_id: Union[UUID, str],
-        target_entity_id: Union[UUID, str],
+        source_entity_id: UUID | str,
+        target_entity_id: UUID | str,
         relationship_type: str,
         confidence: float = 0.5,
-        source: Optional[str] = None,
-        evidence: Optional[str] = None,
-        properties: Optional[Dict[str, Any]] = None,
+        source: str | None = None,
+        evidence: str | None = None,
+        properties: dict[str, Any] | None = None,
     ) -> bool:
         """
         Create a relationship between two entities in Neo4j.
@@ -722,10 +721,10 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
     async def get_relationships(
         self,
-        entity_id: Union[UUID, str],
-        relationship_type: Optional[str] = None,
+        entity_id: UUID | str,
+        relationship_type: str | None = None,
         direction: str = "BOTH",
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get relationships for an entity with detailed information.
 
@@ -784,7 +783,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
             raise RepositoryError(f"Failed to get relationships: {str(e)}")
 
     async def batch_create_triples(
-        self, triples: List[Dict[str, Any]], entity_name_to_id: Dict[str, UUID]
+        self, triples: list[dict[str, Any]], entity_name_to_id: dict[str, UUID]
     ) -> int:
         """
         Batch create relationships from extracted triples.
@@ -855,10 +854,10 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
     async def find_or_create_entities_by_name(
         self,
-        entity_names: List[str],
+        entity_names: list[str],
         default_type: EntityType = EntityType.CONCEPT,
-        document_id: Optional[UUID] = None,
-    ) -> Dict[str, UUID]:
+        document_id: UUID | None = None,
+    ) -> dict[str, UUID]:
         """
         Find existing entities by name or create new ones.
 

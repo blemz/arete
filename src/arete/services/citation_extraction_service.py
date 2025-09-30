@@ -9,19 +9,15 @@ This service provides comprehensive citation extraction and validation functiona
 - Integration with response generation pipeline for source attribution
 """
 
+import difflib
 import logging
 import re
-from typing import List, Dict, Any, Optional, Tuple, Set
 from dataclasses import dataclass, field
-from enum import Enum
-import difflib
-from uuid import uuid4, UUID
+from uuid import uuid4
 
-from ..models.citation import Citation, CitationType, CitationContext
-from ..services.context_composition_service import (
-    ContextResult,
-    CitationContext as ComposedCitationContext,
-)
+from arete.models.citation import Citation, CitationContext, CitationType
+from arete.services.context_composition_service import ContextResult
+
 from .base import ServiceError
 
 logger = logging.getLogger(__name__)
@@ -30,19 +26,16 @@ logger = logging.getLogger(__name__)
 class CitationExtractionError(ServiceError):
     """Base exception for citation extraction service errors."""
 
-    pass
 
 
 class ValidationError(CitationExtractionError):
     """Exception for citation validation failures."""
 
-    pass
 
 
 class PatternMatchingError(CitationExtractionError):
     """Exception for pattern matching failures."""
 
-    pass
 
 
 @dataclass
@@ -56,12 +49,12 @@ class CitationMatch:
 
     # Pattern information
     pattern_type: str = ""  # "classical_ref", "direct_quote", "author_work"
-    pattern_match: Optional[re.Match] = None
+    pattern_match: re.Match | None = None
 
     # Validation results
     is_validated: bool = False
     validation_score: float = 0.0
-    source_citation: Optional[Citation] = None
+    source_citation: Citation | None = None
 
 
 @dataclass
@@ -69,7 +62,7 @@ class ExtractionResult:
     """Result of citation extraction from text."""
 
     # Extracted citations
-    citations: List[Citation] = field(default_factory=list)
+    citations: list[Citation] = field(default_factory=list)
 
     # Processing metadata
     total_matches_found: int = 0
@@ -77,15 +70,15 @@ class ExtractionResult:
     processing_time: float = 0.0
 
     # Pattern matching results
-    pattern_matches: List[CitationMatch] = field(default_factory=list)
+    pattern_matches: list[CitationMatch] = field(default_factory=list)
 
     # Validation metrics
     accuracy_score: float = 0.0
     coverage_score: float = 0.0
 
     # Issues and warnings
-    issues: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    issues: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -145,7 +138,7 @@ class CitationExtractionService:
         r"(?P<author>Plato|Aristotle|Augustine|Aquinas|Descartes|Kant|Hegel|Nietzsche)(?:\s+(?:in|writes in|argues in|states in))?\s+(?P<work>\w+)",
     ]
 
-    def __init__(self, config: Optional[CitationExtractionConfig] = None):
+    def __init__(self, config: CitationExtractionConfig | None = None):
         """
         Initialize citation extraction service.
 
@@ -225,7 +218,7 @@ class CitationExtractionService:
             logger.error(f"Citation extraction failed: {e}")
             raise CitationExtractionError(f"Citation extraction failed: {e}") from e
 
-    def _find_citation_matches(self, text: str) -> List[CitationMatch]:
+    def _find_citation_matches(self, text: str) -> list[CitationMatch]:
         """Find all potential citation matches in text."""
         matches = []
 
@@ -292,8 +285,8 @@ class CitationExtractionService:
         return matches
 
     def _remove_overlapping_matches(
-        self, matches: List[CitationMatch]
-    ) -> List[CitationMatch]:
+        self, matches: list[CitationMatch]
+    ) -> list[CitationMatch]:
         """Remove overlapping matches, keeping the highest confidence ones."""
         if not matches:
             return matches
@@ -323,8 +316,8 @@ class CitationExtractionService:
         return non_overlapping
 
     def _validate_matches_against_context(
-        self, matches: List[CitationMatch], context_result: ContextResult
-    ) -> List[Citation]:
+        self, matches: list[CitationMatch], context_result: ContextResult
+    ) -> list[Citation]:
         """Validate citation matches against source context."""
         validated_citations = []
 
@@ -345,7 +338,7 @@ class CitationExtractionService:
 
     def _create_citation_from_match(
         self, match: CitationMatch, context_result: ContextResult
-    ) -> Optional[Citation]:
+    ) -> Citation | None:
         """Create a Citation object from a validated match."""
 
         if match.pattern_type == "classical_ref" and match.pattern_match:
@@ -359,7 +352,7 @@ class CitationExtractionService:
 
     def _create_classical_reference_citation(
         self, match: CitationMatch, context_result: ContextResult
-    ) -> Optional[Citation]:
+    ) -> Citation | None:
         """Create citation from classical reference pattern."""
         pattern_match = match.pattern_match
         groups = pattern_match.groupdict()
@@ -398,7 +391,7 @@ class CitationExtractionService:
 
     def _create_quote_citation(
         self, match: CitationMatch, context_result: ContextResult
-    ) -> Optional[Citation]:
+    ) -> Citation | None:
         """Create citation from direct quote."""
         quote_text = match.text
 
@@ -439,7 +432,7 @@ class CitationExtractionService:
 
     def _create_author_work_citation(
         self, match: CitationMatch, context_result: ContextResult
-    ) -> Optional[Citation]:
+    ) -> Citation | None:
         """Create citation from author-work pattern."""
         pattern_match = match.pattern_match
         groups = pattern_match.groupdict()
@@ -475,7 +468,7 @@ class CitationExtractionService:
 
     def _find_matching_source_citation(
         self, work: str, reference: str, author: str, context_result: ContextResult
-    ) -> Optional[Citation]:
+    ) -> Citation | None:
         """Find matching citation in context sources."""
         for ctx in context_result.citations:
             citation = ctx.citation
@@ -505,7 +498,7 @@ class CitationExtractionService:
         return difflib.SequenceMatcher(None, text1.lower(), text2.lower()).ratio()
 
     def _calculate_accuracy_score(
-        self, citations: List[Citation], context_result: ContextResult
+        self, citations: list[Citation], context_result: ContextResult
     ) -> float:
         """Calculate accuracy score based on citation validation."""
         if not citations:
@@ -517,7 +510,7 @@ class CitationExtractionService:
         return high_confidence_citations / len(citations)
 
     def _calculate_coverage_score(
-        self, citations: List[Citation], context_result: ContextResult
+        self, citations: list[Citation], context_result: ContextResult
     ) -> float:
         """Calculate coverage score (how much of source material is cited)."""
         if not context_result.citations:
@@ -590,7 +583,7 @@ class CitationExtractionService:
 
 # Factory function following established pattern
 def create_citation_extraction_service(
-    config: Optional[CitationExtractionConfig] = None,
+    config: CitationExtractionConfig | None = None,
 ) -> CitationExtractionService:
     """
     Create citation extraction service with configuration.

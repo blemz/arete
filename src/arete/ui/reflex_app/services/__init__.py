@@ -2,13 +2,13 @@
 Service modules for RAG pipeline integration.
 """
 
-from .rag_service import RAGService
+from .analytics_service import AnalyticsService
 from .chat_service import ChatService
 from .document_service import DocumentService
-from .analytics_service import AnalyticsService
+from .rag_service import RAGService
 
 __all__ = [
-    "RAGService", 
+    "RAGService",
     "ChatService",
     "DocumentService",
     "AnalyticsService"

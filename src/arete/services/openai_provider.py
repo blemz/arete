@@ -6,24 +6,24 @@ and other models through their REST API. Supports both streaming and standard re
 with comprehensive error handling.
 """
 
-import logging
 import asyncio
-from typing import List, Dict, Any, Optional, AsyncGenerator
-import httpx
 import json
+import logging
 import time
+from typing import Any
 
+import httpx
+
+from arete.config import Settings
 from arete.services.llm_provider import (
-    LLMProvider,
+    AuthenticationError,
     LLMMessage,
-    LLMResponse,
-    MessageRole,
+    LLMProvider,
     LLMProviderError,
+    LLMResponse,
     ProviderUnavailableError,
     RateLimitError,
-    AuthenticationError,
 )
-from arete.config import Settings
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -53,8 +53,8 @@ class OpenAIProvider(LLMProvider):
             raise AuthenticationError("OpenAI API key not provided", "openai")
 
         self.base_url = "https://api.openai.com/v1"
-        self.client: Optional[httpx.AsyncClient] = None
-        self._models_cache: Optional[List[str]] = None
+        self.client: httpx.AsyncClient | None = None
+        self._models_cache: list[str] | None = None
         self._models_cache_time: float = 0
         self._cache_ttl = 300  # 5 minutes
 
@@ -90,7 +90,7 @@ class OpenAIProvider(LLMProvider):
         return bool(self.api_key and self.api_key.strip())
 
     @property
-    def supported_models(self) -> List[str]:
+    def supported_models(self) -> list[str]:
         """Get list of supported OpenAI models."""
         if (
             self._models_cache
@@ -119,7 +119,7 @@ class OpenAIProvider(LLMProvider):
         self._initialized = True
         logger.info("OpenAI provider initialized successfully")
 
-    def get_headers(self) -> Dict[str, str]:
+    def get_headers(self) -> dict[str, str]:
         """Get headers for OpenAI API requests."""
         return {
             "Authorization": f"Bearer {self.api_key}",
@@ -130,7 +130,7 @@ class OpenAIProvider(LLMProvider):
         """Get the default model for this provider."""
         return "gpt-3.5-turbo"
 
-    def _get_default_model(self, available_models: List[str]) -> str:
+    def _get_default_model(self, available_models: list[str]) -> str:
         """Get the best default model from available models."""
         if not available_models:
             return "gpt-4-turbo"
@@ -155,12 +155,12 @@ class OpenAIProvider(LLMProvider):
 
     def build_request_params(
         self,
-        messages: List[LLMMessage],
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        messages: list[LLMMessage],
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Build request parameters for OpenAI API."""
         model = model or self.get_default_model()
         formatted_messages = self._format_messages(messages)
@@ -221,7 +221,7 @@ class OpenAIProvider(LLMProvider):
 
         return payload
 
-    def extract_content_from_response(self, response_data: Dict[str, Any]) -> str:
+    def extract_content_from_response(self, response_data: dict[str, Any]) -> str:
         """Extract content from OpenAI API response."""
         choices = response_data.get("choices", [])
         if not choices:
@@ -233,7 +233,7 @@ class OpenAIProvider(LLMProvider):
 
         return content
 
-    async def _fetch_available_models(self) -> List[str]:
+    async def _fetch_available_models(self) -> list[str]:
         """Fetch available models from OpenAI API."""
         if not self.client:
             await self._ensure_initialized()
@@ -273,14 +273,14 @@ class OpenAIProvider(LLMProvider):
 
     async def generate_response(
         self,
-        messages: List[LLMMessage],
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        messages: list[LLMMessage],
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         stream: bool = False,
-        top_p: Optional[float] = None,
-        frequency_penalty: Optional[float] = None,
-        presence_penalty: Optional[float] = None,
+        top_p: float | None = None,
+        frequency_penalty: float | None = None,
+        presence_penalty: float | None = None,
         **kwargs,
     ) -> LLMResponse:
         """
@@ -342,7 +342,7 @@ class OpenAIProvider(LLMProvider):
             logger.error(f"Full traceback: {traceback.format_exc()}")
             raise LLMProviderError(f"OpenAI generation failed: {str(e)}")
 
-    async def _generate_standard_response(self, payload: Dict[str, Any]) -> LLMResponse:
+    async def _generate_standard_response(self, payload: dict[str, Any]) -> LLMResponse:
         """Generate standard (non-streaming) response."""
         response = await self.client.post("/chat/completions", json=payload)
         response.raise_for_status()
@@ -374,7 +374,7 @@ class OpenAIProvider(LLMProvider):
         )
 
     async def _generate_streaming_response(
-        self, payload: Dict[str, Any]
+        self, payload: dict[str, Any]
     ) -> LLMResponse:
         """Generate streaming response."""
         content_chunks = []
@@ -440,7 +440,7 @@ class OpenAIProvider(LLMProvider):
             metadata=metadata,
         )
 
-    def _format_messages(self, messages: List[LLMMessage]) -> List[Dict[str, str]]:
+    def _format_messages(self, messages: list[LLMMessage]) -> list[dict[str, str]]:
         """Format messages for OpenAI API."""
         formatted = []
 
@@ -477,7 +477,7 @@ class OpenAIProvider(LLMProvider):
         else:
             raise LLMProviderError(f"OpenAI API error ({status_code}): {error_message}")
 
-    def get_health_status(self) -> Dict[str, Any]:
+    def get_health_status(self) -> dict[str, Any]:
         """Get OpenAI provider health status."""
         status = {
             "provider": "openai",
@@ -492,7 +492,7 @@ class OpenAIProvider(LLMProvider):
 
         return status
 
-    async def get_models(self) -> List[str]:
+    async def get_models(self) -> list[str]:
         """Get list of available OpenAI models."""
         if not self.is_available:
             return []
@@ -504,8 +504,8 @@ class OpenAIProvider(LLMProvider):
             return self._default_models
 
     async def estimate_cost(
-        self, messages: List[LLMMessage], model: Optional[str] = None
-    ) -> Optional[float]:
+        self, messages: list[LLMMessage], model: str | None = None
+    ) -> float | None:
         """
         Estimate cost for generating response.
 

@@ -6,10 +6,9 @@ compliance, keyboard navigation support, screen reader compatibility, and
 responsive design utilities for the Arete philosophical tutoring system.
 """
 
-from typing import Dict, List, Optional, Tuple
-from enum import Enum
-import re
 from dataclasses import dataclass
+from enum import Enum
+
 from arete.models.user_preferences import Theme
 
 
@@ -47,10 +46,10 @@ class AccessibilityConfig:
 class AccessibilityService:
     """Service for implementing WCAG 2.1 AA compliance and accessibility features."""
 
-    def __init__(self, config: Optional[AccessibilityConfig] = None):
+    def __init__(self, config: AccessibilityConfig | None = None):
         """Initialize the accessibility service."""
         self.config = config or AccessibilityConfig()
-        self._contrast_cache: Dict[Tuple[str, str], float] = {}
+        self._contrast_cache: dict[tuple[str, str], float] = {}
 
     def generate_wcag_compliant_css(
         self,
@@ -91,13 +90,13 @@ class AccessibilityService:
         return """
         <style>
         /* WCAG 2.1 AA Base Accessibility Styles */
-        
+
         /* Focus management */
         *:focus {
             outline: 3px solid #4A90E2 !important;
             outline-offset: 2px !important;
         }
-        
+
         /* Skip links for screen readers */
         .skip-link {
             position: absolute;
@@ -119,25 +118,25 @@ class AccessibilityService:
             outline: 3px solid #ffdd00 !important;
             outline-offset: 2px !important;
         }
-        
+
         /* Ensure minimum touch target size (44px) */
         button, .stButton > button, [role="button"] {
             min-height: 44px !important;
             min-width: 44px !important;
             padding: 8px 16px !important;
         }
-        
+
         /* Text selection and readability */
         .main {
             line-height: 1.5 !important;
             word-spacing: 0.16em !important;
         }
-        
+
         /* Paragraph spacing */
         p {
             margin-bottom: 1em !important;
         }
-        
+
         /* Link accessibility */
         a {
             text-decoration: underline !important;
@@ -147,7 +146,7 @@ class AccessibilityService:
             outline: 2px solid currentColor !important;
             outline-offset: 2px !important;
         }
-        
+
         /* Form accessibility */
         input, textarea, select {
             border: 2px solid #666 !important;
@@ -156,14 +155,14 @@ class AccessibilityService:
             border-color: #4A90E2 !important;
             box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.3) !important;
         }
-        
+
         /* Error and status messages */
         [role="alert"], .stAlert {
             border: 2px solid currentColor !important;
             padding: 1rem !important;
             margin: 1rem 0 !important;
         }
-        
+
         /* Table accessibility */
         table {
             border-collapse: collapse !important;
@@ -241,7 +240,7 @@ class AccessibilityService:
             font-size: {size} !important;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif !important;
         }}
-        
+
         /* Ensure relative sizing for better scalability */
         h1 {{ font-size: calc({size} * 2.5) !important; }}
         h2 {{ font-size: calc({size} * 2) !important; }}
@@ -249,7 +248,7 @@ class AccessibilityService:
         h4 {{ font-size: calc({size} * 1.5) !important; }}
         h5 {{ font-size: calc({size} * 1.25) !important; }}
         h6 {{ font-size: calc({size} * 1.1) !important; }}
-        
+
         /* Improve text spacing */
         p, li {{
             line-height: 1.6 !important;
@@ -270,19 +269,19 @@ class AccessibilityService:
             outline: 3px solid #4A90E2 !important;
             outline-offset: 2px !important;
         }
-        
+
         .stTextInput > div > div > input:focus {
             outline: 3px solid #4A90E2 !important;
             outline-offset: 2px !important;
             border-color: #4A90E2 !important;
         }
-        
+
         .stTextArea > div > div > textarea:focus {
             outline: 3px solid #4A90E2 !important;
             outline-offset: 2px !important;
             border-color: #4A90E2 !important;
         }
-        
+
         /* Tab navigation indicators */
         .stTabs [role="tab"]:focus {
             outline: 3px solid #4A90E2 !important;
@@ -303,7 +302,7 @@ class AccessibilityService:
             outline: 3px solid #4A90E2 !important;
             outline-offset: 2px !important;
         }
-        
+
         /* Skip navigation */
         .skip-nav {
             position: absolute;
@@ -318,7 +317,7 @@ class AccessibilityService:
         .skip-nav:focus {
             top: 6px;
         }
-        
+
         /* Ensure keyboard users can see hover states */
         button:focus, .stButton > button:focus {
             background-color: #0056b3 !important;
@@ -346,7 +345,7 @@ class AccessibilityService:
             white-space: nowrap !important;
             border: 0 !important;
         }
-        
+
         .sr-only-focusable:focus {
             position: static !important;
             width: auto !important;
@@ -381,7 +380,7 @@ class AccessibilityService:
                 transition-duration: 0.01ms !important;
                 scroll-behavior: auto !important;
             }
-            
+
             @media (prefers-reduced-motion: reduce) {
                 *, *::before, *::after {
                     animation-duration: 0.01ms !important;
@@ -401,23 +400,23 @@ class AccessibilityService:
             .main {
                 padding: 1rem 0.5rem !important;
             }
-            
+
             button, .stButton > button {
                 min-height: 48px !important;
                 min-width: 48px !important;
                 font-size: 1.1rem !important;
             }
-            
+
             .stTextInput input, .stTextArea textarea {
                 font-size: 16px !important; /* Prevent zoom on iOS */
             }
         }
-        
+
         @media (max-width: 480px) {
             .main {
                 font-size: 1.1rem !important;
             }
-            
+
             button, .stButton > button {
                 min-height: 52px !important;
                 padding: 12px 20px !important;
@@ -432,7 +431,7 @@ class AccessibilityService:
                 margin: 0.25rem 0 !important;
                 padding: 0.75rem !important;
             }
-            
+
             .main {
                 padding-top: 1rem !important;
             }
@@ -442,7 +441,7 @@ class AccessibilityService:
 
     def generate_aria_attributes(
         self, element_type: str, content: str = ""
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """Generate appropriate ARIA attributes for UI elements."""
         attributes = {}
 

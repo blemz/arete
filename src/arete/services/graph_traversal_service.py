@@ -14,21 +14,21 @@ error handling, and performance optimization.
 import logging
 import re
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union, Tuple
-from uuid import UUID, uuid4
-from contextlib import contextmanager
 
 # Import types to avoid circular imports
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
+from uuid import UUID, uuid4
 
 if TYPE_CHECKING:
-    from ..database.client import Neo4jClient
-    from ..services.dense_retrieval_service import SearchResult
+    from arete.database.client import Neo4jClient
+    from arete.services.dense_retrieval_service import SearchResult
 
-from ..config import Settings, get_settings
-from ..models.entity import Entity, EntityType
+from arete.config import Settings, get_settings
+from arete.models.entity import Entity, EntityType
+
 from .base import ServiceError
 
 logger = logging.getLogger(__name__)
@@ -53,19 +53,16 @@ class RelationshipType(str, Enum):
 class GraphTraversalError(ServiceError):
     """Base exception for graph traversal service errors."""
 
-    pass
 
 
 class CypherQueryError(GraphTraversalError):
     """Exception for Cypher query generation or execution errors."""
 
-    pass
 
 
 class EntityDetectionError(GraphTraversalError):
     """Exception for entity detection errors."""
 
-    pass
 
 
 @dataclass
@@ -77,8 +74,8 @@ class EntityMention:
     confidence: float
     start_position: int
     end_position: int
-    entity_id: Optional[UUID] = None
-    normalized_text: Optional[str] = None
+    entity_id: UUID | None = None
+    normalized_text: str | None = None
 
     def __post_init__(self):
         """Validate entity mention data."""
@@ -109,7 +106,7 @@ class CypherQuery:
     """Represents a Cypher query with parameters and metadata."""
 
     cypher: str
-    parameters: Dict[str, Any] = field(default_factory=dict)
+    parameters: dict[str, Any] = field(default_factory=dict)
     estimated_complexity: int = 1
     timeout_seconds: int = 30
     query_type: str = "general"
@@ -158,11 +155,11 @@ class GraphResult:
     """Represents a result from graph traversal."""
 
     entity: Entity
-    relationships: List[Dict[str, Any]] = field(default_factory=list)
+    relationships: list[dict[str, Any]] = field(default_factory=list)
     path_length: int = 1
     relevance_score: float = 0.0
     confidence: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Validate graph result data."""
@@ -175,7 +172,7 @@ class GraphResult:
 class EntityDetector:
     """Detects entities in query text using pattern matching and NER."""
 
-    def __init__(self, settings: Optional[Settings] = None):
+    def __init__(self, settings: Settings | None = None):
         """Initialize entity detector."""
         self.settings = settings or get_settings()
 
@@ -194,7 +191,7 @@ class EntityDetector:
 
         self.place_patterns = [r"\b(Athens|Rome|Alexandria|Paris|Vienna)\b"]
 
-    def detect_entities(self, text: str) -> List[EntityMention]:
+    def detect_entities(self, text: str) -> list[EntityMention]:
         """Detect entities in query text."""
         entities = []
 
@@ -228,10 +225,10 @@ class EntityDetector:
     def _detect_by_patterns(
         self,
         text: str,
-        patterns: List[str],
+        patterns: list[str],
         entity_type: EntityType,
         base_confidence: float,
-    ) -> List[EntityMention]:
+    ) -> list[EntityMention]:
         """Detect entities using regex patterns."""
         entities = []
 
@@ -250,7 +247,7 @@ class EntityDetector:
 
         return entities
 
-    def _remove_overlaps(self, entities: List[EntityMention]) -> List[EntityMention]:
+    def _remove_overlaps(self, entities: list[EntityMention]) -> list[EntityMention]:
         """Remove overlapping entities, keeping highest confidence."""
         if not entities:
             return entities
@@ -278,13 +275,13 @@ class EntityDetector:
 class CypherQueryGenerator:
     """Generates Cypher queries for different traversal patterns."""
 
-    def __init__(self, settings: Optional[Settings] = None):
+    def __init__(self, settings: Settings | None = None):
         """Initialize query generator."""
         self.settings = settings or get_settings()
         self.max_path_length = 3
         self.max_results = 50
 
-    def generate_entity_lookup(self, entities: List[EntityMention]) -> CypherQuery:
+    def generate_entity_lookup(self, entities: list[EntityMention]) -> CypherQuery:
         """Generate query for direct entity lookup."""
         if not entities:
             return CypherQuery(cypher="", parameters={})
@@ -313,7 +310,7 @@ class CypherQueryGenerator:
         )
 
     def generate_relationship_traversal(
-        self, entities: List[EntityMention]
+        self, entities: list[EntityMention]
     ) -> CypherQuery:
         """Generate query for relationship traversal between entities."""
         if len(entities) < 2:
@@ -326,7 +323,7 @@ class CypherQueryGenerator:
         return self._generate_multi_entity_paths(entities)
 
     def _generate_single_entity_relations(
-        self, entity: Optional[EntityMention]
+        self, entity: EntityMention | None
     ) -> CypherQuery:
         """Generate query to find entities related to a single entity."""
         if not entity:
@@ -334,7 +331,7 @@ class CypherQueryGenerator:
 
         cypher = f"""
         MATCH (e1:Entity {{name: $name}})-[r:RELATES_TO|MENTIONS]-(e2:Entity)
-        RETURN e1, r, e2, 
+        RETURN e1, r, e2,
                r.strength as relationship_strength,
                type(r) as relationship_type
         ORDER BY r.strength DESC
@@ -349,7 +346,7 @@ class CypherQueryGenerator:
         )
 
     def _generate_multi_entity_paths(
-        self, entities: List[EntityMention]
+        self, entities: list[EntityMention]
     ) -> CypherQuery:
         """Generate query to find paths between multiple entities."""
         if len(entities) < 2:
@@ -360,7 +357,7 @@ class CypherQueryGenerator:
 
         cypher = f"""
         MATCH path = (e1:Entity {{name: $name1}})-[r:RELATES_TO|MENTIONS*1..{self.max_path_length}]-(e2:Entity {{name: $name2}})
-        RETURN path, 
+        RETURN path,
                length(path) as path_length,
                [rel in relationships(path) | rel.strength] as relationship_strengths,
                [rel in relationships(path) | type(rel)] as relationship_types
@@ -379,7 +376,7 @@ class CypherQueryGenerator:
         )
 
     def generate_deep_traversal(
-        self, entities: List[EntityMention], max_depth: int = 2
+        self, entities: list[EntityMention], max_depth: int = 2
     ) -> CypherQuery:
         """Generate query for deep graph traversal (use with caution)."""
         if not entities:
@@ -411,7 +408,7 @@ class GraphTraversalService:
     def __init__(
         self,
         neo4j_client: Optional["Neo4jClient"] = None,
-        settings: Optional[Settings] = None,
+        settings: Settings | None = None,
     ):
         """Initialize graph traversal service."""
         self.settings = settings or get_settings()
@@ -424,7 +421,7 @@ class GraphTraversalService:
         # Performance settings
         self.max_query_complexity = 8
         self.cache_ttl_seconds = 300  # 5 minutes
-        self._query_cache: Dict[str, Tuple[List[GraphResult], float]] = {}
+        self._query_cache: dict[str, tuple[list[GraphResult], float]] = {}
 
         logger.info("Initialized GraphTraversalService")
 
@@ -437,7 +434,7 @@ class GraphTraversalService:
             and self.query_generator is not None
         )
 
-    def detect_entities(self, query_text: str) -> List[EntityMention]:
+    def detect_entities(self, query_text: str) -> list[EntityMention]:
         """Detect entities in user query text."""
         try:
             entities = self.entity_detector.detect_entities(query_text)
@@ -451,7 +448,7 @@ class GraphTraversalService:
             raise EntityDetectionError(f"Failed to detect entities: {e}") from e
 
     def generate_cypher_query(
-        self, entities: List[EntityMention], query_type: str = "auto"
+        self, entities: list[EntityMention], query_type: str = "auto"
     ) -> CypherQuery:
         """Generate Cypher query based on detected entities and query type."""
         try:
@@ -485,7 +482,7 @@ class GraphTraversalService:
             logger.error(f"Cypher query generation failed: {e}")
             raise CypherQueryError(f"Failed to generate query: {e}") from e
 
-    def _determine_query_type(self, entities: List[EntityMention]) -> str:
+    def _determine_query_type(self, entities: list[EntityMention]) -> str:
         """Automatically determine the best query type for entities."""
         if not entities:
             return "entity_lookup"
@@ -494,7 +491,7 @@ class GraphTraversalService:
         else:
             return "relationship_traversal"  # Find connections
 
-    def execute_traversal(self, query: CypherQuery) -> List[GraphResult]:
+    def execute_traversal(self, query: CypherQuery) -> list[GraphResult]:
         """Execute graph traversal query and return results."""
         if not self.neo4j_client or not self.neo4j_client.is_connected:
             raise GraphTraversalError("Neo4j client not connected")
@@ -529,12 +526,11 @@ class GraphTraversalService:
             raise GraphTraversalError(f"Query execution failed: {e}") from e
 
     def integrate_with_search_results(
-        self, search_results: List["SearchResult"], graph_results: List[GraphResult]
-    ) -> List["SearchResult"]:
+        self, search_results: list["SearchResult"], graph_results: list[GraphResult]
+    ) -> list["SearchResult"]:
         """Integrate graph results with existing search results."""
         try:
             # Import SearchResult here to avoid circular import
-            from ..services.dense_retrieval_service import SearchResult
 
             integrated_results = list(search_results)  # Copy existing results
 
@@ -574,7 +570,7 @@ class GraphTraversalService:
             return search_results  # Return original results on error
 
     def _calculate_graph_enhanced_score(
-        self, graph_result: GraphResult, search_results: List["SearchResult"]
+        self, graph_result: GraphResult, search_results: list["SearchResult"]
     ) -> float:
         """Calculate enhanced score based on graph information."""
         base_score = graph_result.relevance_score
@@ -614,7 +610,7 @@ class GraphTraversalService:
                     f"Query exceeded timeout: {elapsed:.2f}s > {timeout_seconds}s"
                 )
 
-    def _get_cached_result(self, cache_key: str) -> Optional[List[GraphResult]]:
+    def _get_cached_result(self, cache_key: str) -> list[GraphResult] | None:
         """Get cached query result if still valid."""
         if cache_key in self._query_cache:
             results, timestamp = self._query_cache[cache_key]
@@ -625,7 +621,7 @@ class GraphTraversalService:
                 del self._query_cache[cache_key]
         return None
 
-    def _cache_result(self, cache_key: str, results: List[GraphResult]) -> None:
+    def _cache_result(self, cache_key: str, results: list[GraphResult]) -> None:
         """Cache query results."""
         self._query_cache[cache_key] = (results, time.time())
 
@@ -639,8 +635,8 @@ class GraphTraversalService:
                 del self._query_cache[key]
 
     def _convert_records_to_results(
-        self, records: List[Any], query_type: str
-    ) -> List[GraphResult]:
+        self, records: list[Any], query_type: str
+    ) -> list[GraphResult]:
         """Convert Neo4j records to GraphResult objects."""
         results = []
 
@@ -729,7 +725,7 @@ class GraphTraversalService:
         self._query_cache.clear()
         logger.info("Query cache cleared")
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get service metrics."""
         return {
             "cache_size": len(self._query_cache),
@@ -741,7 +737,7 @@ class GraphTraversalService:
 
 # Factory function following established pattern
 def create_graph_traversal_service(
-    neo4j_client: Optional["Neo4jClient"] = None, settings: Optional[Settings] = None
+    neo4j_client: Optional["Neo4jClient"] = None, settings: Settings | None = None
 ) -> GraphTraversalService:
     """
     Create graph traversal service with dependency injection.
@@ -755,7 +751,7 @@ def create_graph_traversal_service(
     """
     if neo4j_client is None:
         # Import at runtime to avoid circular import
-        from ..database.client import Neo4jClient
+        from arete.database.client import Neo4jClient
 
         neo4j_client = Neo4jClient()
         neo4j_client.connect()

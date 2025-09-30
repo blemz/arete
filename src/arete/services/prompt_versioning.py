@@ -6,18 +6,17 @@ including creation, storage, retrieval, rollback capabilities, and comparison
 functionality for maintaining and evolving prompt quality over time.
 """
 
-import logging
-import json
-import os
 import gzip
+import json
+import logging
+import os
 import re
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
-from enum import Enum
+from typing import Any
 
-from arete.services.prompt_template import PromptType, PhilosophicalContext
+from arete.services.prompt_template import PromptType
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -30,19 +29,19 @@ class VersionMetadata:
     created_by: str
     description: str
     created_at: datetime = field(default_factory=datetime.now)
-    tags: List[str] = field(default_factory=list)
-    performance_metrics: Dict[str, float] = field(default_factory=dict)
-    parent_version: Optional[str] = None
+    tags: list[str] = field(default_factory=list)
+    performance_metrics: dict[str, float] = field(default_factory=dict)
+    parent_version: str | None = None
     is_rollback: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         data = asdict(self)
         data["created_at"] = self.created_at.isoformat()
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "VersionMetadata":
+    def from_dict(cls, data: dict[str, Any]) -> "VersionMetadata":
         """Create from dictionary."""
         data = data.copy()
         if "created_at" in data:
@@ -59,11 +58,11 @@ class PromptVersion:
     provider: str
     prompt_type: PromptType
     system_prompt: str
-    template_config: Dict[str, Any]
+    template_config: dict[str, Any]
     metadata: VersionMetadata
-    user_prompt_template: Optional[str] = None
+    user_prompt_template: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         data = asdict(self)
         data["prompt_type"] = self.prompt_type.value
@@ -71,14 +70,14 @@ class PromptVersion:
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "PromptVersion":
+    def from_dict(cls, data: dict[str, Any]) -> "PromptVersion":
         """Create from dictionary."""
         data = data.copy()
         data["prompt_type"] = PromptType(data["prompt_type"])
         data["metadata"] = VersionMetadata.from_dict(data["metadata"])
         return cls(**data)
 
-    def get_semantic_version(self) -> Tuple[int, int, int]:
+    def get_semantic_version(self) -> tuple[int, int, int]:
         """Parse semantic version for comparison."""
         try:
             # Handle rollback versions
@@ -116,10 +115,10 @@ class RollbackResult:
     """Result of a rollback operation."""
 
     success: bool
-    previous_version: Optional[str] = None
-    target_version: Optional[str] = None
-    rollback_version_id: Optional[str] = None
-    error_message: Optional[str] = None
+    previous_version: str | None = None
+    target_version: str | None = None
+    rollback_version_id: str | None = None
+    error_message: str | None = None
     timestamp: datetime = field(default_factory=datetime.now)
 
 
@@ -130,8 +129,8 @@ class VersionComparison:
     template_name: str
     version1_id: str
     version2_id: str
-    differences: Dict[str, Any]
-    performance_comparison: Dict[str, Dict[str, float]]
+    differences: dict[str, Any]
+    performance_comparison: dict[str, dict[str, float]]
     recommendation: str
     comparison_timestamp: datetime = field(default_factory=datetime.now)
 
@@ -164,7 +163,7 @@ class PromptVersioningService:
             config: Versioning configuration
         """
         self.config = config
-        self.versions: Dict[str, List[PromptVersion]] = {}
+        self.versions: dict[str, list[PromptVersion]] = {}
         self.storage_path = Path(config.storage_path)
         self.storage_path.mkdir(parents=True, exist_ok=True)
 
@@ -222,7 +221,7 @@ class PromptVersioningService:
 
     def get_version(
         self, template_name: str, version_id: str
-    ) -> Optional[PromptVersion]:
+    ) -> PromptVersion | None:
         """
         Retrieve a specific version.
 
@@ -242,7 +241,7 @@ class PromptVersioningService:
 
         return None
 
-    def get_latest_version(self, template_name: str) -> Optional[PromptVersion]:
+    def get_latest_version(self, template_name: str) -> PromptVersion | None:
         """
         Get the latest version of a template.
 
@@ -258,7 +257,7 @@ class PromptVersioningService:
         # Versions are already sorted by semantic version (latest first)
         return self.versions[template_name][0]
 
-    def list_versions(self, template_name: str) -> List[PromptVersion]:
+    def list_versions(self, template_name: str) -> list[PromptVersion]:
         """
         List all versions of a template.
 
@@ -349,7 +348,7 @@ class PromptVersioningService:
 
     def compare_versions(
         self, template_name: str, version1_id: str, version2_id: str
-    ) -> Optional[VersionComparison]:
+    ) -> VersionComparison | None:
         """
         Compare two versions of a template.
 
@@ -520,7 +519,7 @@ class PromptVersioningService:
                 logger.info("No existing version storage found, starting fresh")
                 return True
 
-            with open(storage_file, "r", encoding="utf-8") as f:
+            with open(storage_file, encoding="utf-8") as f:
                 data = json.load(f)
 
             # Load versions
@@ -582,7 +581,7 @@ class PromptVersioningService:
 
     def get_version_history(
         self, template_name: str, limit: int = 10
-    ) -> List[PromptVersion]:
+    ) -> list[PromptVersion]:
         """
         Get version history for a template.
 
@@ -616,7 +615,7 @@ class PromptVersioningService:
                 len(self.versions[template_name])
                 - self.config.max_versions_per_template
             )
-            removed_versions = self.versions[template_name][-excess_count:]
+            self.versions[template_name][-excess_count:]
             self.versions[template_name] = self.versions[template_name][:-excess_count]
 
             logger.info(f"Removed {excess_count} excess versions from {template_name}")
@@ -625,8 +624,8 @@ class PromptVersioningService:
         self,
         version1: PromptVersion,
         version2: PromptVersion,
-        differences: Dict[str, Any],
-        performance_comparison: Dict[str, Dict[str, float]],
+        differences: dict[str, Any],
+        performance_comparison: dict[str, dict[str, float]],
     ) -> str:
         """Generate recommendation based on version comparison."""
         recommendations = []
@@ -690,9 +689,9 @@ def create_prompt_version(
     system_prompt: str,
     created_by: str,
     description: str,
-    template_config: Dict[str, Any] = None,
-    performance_metrics: Dict[str, float] = None,
-    tags: List[str] = None,
+    template_config: dict[str, Any] = None,
+    performance_metrics: dict[str, float] = None,
+    tags: list[str] = None,
 ) -> PromptVersion:
     """
     Convenience function to create a prompt version.

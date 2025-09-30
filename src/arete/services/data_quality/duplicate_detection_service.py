@@ -13,24 +13,23 @@ Provides comprehensive duplicate detection capabilities including:
 Designed specifically for philosophical texts with domain-aware similarity measures.
 """
 
-import asyncio
-import logging
+import difflib
 import hashlib
-from collections import defaultdict
-from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional, Tuple, Union, Callable, Set
-from enum import Enum
-from dataclasses import dataclass
+import logging
 import statistics
+from collections import defaultdict
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
-import pandas as pd
 import numpy as np
+from pydantic import BaseModel, Field
 
 # Text processing and similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import difflib
 
 # Optional dependencies for advanced similarity
 try:
@@ -49,9 +48,6 @@ except ImportError:
 
 from arete.config import Settings, get_settings
 from arete.models.base import BaseModel as AreteBaseModel
-from arete.models.document import Document
-from arete.models.chunk import Chunk
-from arete.models.citation import Citation
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +98,7 @@ class SimilarityMetrics(BaseModel):
     )
 
     def calculate_overall_similarity(
-        self, weights: Optional[Dict[str, float]] = None
+        self, weights: dict[str, float] | None = None
     ) -> float:
         """Calculate weighted overall similarity score."""
         if weights is None:
@@ -128,22 +124,22 @@ class DuplicateResult(AreteBaseModel):
     """Result of duplicate detection for a group of items."""
 
     group_id: str = Field(..., description="Unique identifier for duplicate group")
-    items: List[Any] = Field(..., description="Items identified as duplicates")
+    items: list[Any] = Field(..., description="Items identified as duplicates")
     similarity_score: float = Field(
         ..., ge=0.0, le=1.0, description="Similarity score for the group"
     )
     detection_method: str = Field(..., description="Method used to detect duplicates")
 
     # Detailed similarity metrics
-    similarity_metrics: Optional[SimilarityMetrics] = Field(
+    similarity_metrics: SimilarityMetrics | None = Field(
         None, description="Detailed similarity metrics"
     )
 
     # Detection metadata
     detection_timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
-    processing_time_ms: Optional[float] = Field(
+    processing_time_ms: float | None = Field(
         None, description="Time taken for detection in milliseconds"
     )
 
@@ -159,8 +155,8 @@ class DuplicateResult(AreteBaseModel):
 class DeduplicationResult(BaseModel):
     """Result of deduplication process."""
 
-    kept_items: List[Any] = Field(..., description="Items kept after deduplication")
-    removed_items: List[Any] = Field(
+    kept_items: list[Any] = Field(..., description="Items kept after deduplication")
+    removed_items: list[Any] = Field(
         ..., description="Items removed during deduplication"
     )
 
@@ -194,14 +190,14 @@ class DetectionPerformanceMetrics:
     duplicates_found: int
     throughput_items_per_second: float
     memory_usage_mb: float
-    detection_accuracy: Optional[float] = None
+    detection_accuracy: float | None = None
 
 
 class DuplicateDetectionService:
     """Service for comprehensive duplicate detection and deduplication."""
 
     def __init__(
-        self, similarity_threshold: float = 0.8, settings: Optional[Settings] = None
+        self, similarity_threshold: float = 0.8, settings: Settings | None = None
     ):
         """Initialize duplicate detection service."""
         self.similarity_threshold = similarity_threshold
@@ -219,10 +215,10 @@ class DuplicateDetectionService:
         }
 
         # Custom similarity functions
-        self.custom_similarity_functions: Dict[str, Callable] = {}
+        self.custom_similarity_functions: dict[str, Callable] = {}
 
         # Performance tracking
-        self.performance_metrics: List[DetectionPerformanceMetrics] = []
+        self.performance_metrics: list[DetectionPerformanceMetrics] = []
 
         # Initialize ML models if available
         self._initialize_ml_models()
@@ -245,8 +241,8 @@ class DuplicateDetectionService:
             )
 
     def find_exact_duplicates(
-        self, items: List[Any], field: str, batch_size: Optional[int] = None
-    ) -> List[DuplicateResult]:
+        self, items: list[Any], field: str, batch_size: int | None = None
+    ) -> list[DuplicateResult]:
         """Find exact duplicates based on field content."""
         if not items:
             return []
@@ -286,10 +282,10 @@ class DuplicateDetectionService:
 
     async def find_semantic_duplicates(
         self,
-        items: List[Any],
-        similarity_threshold: Optional[float] = None,
+        items: list[Any],
+        similarity_threshold: float | None = None,
         field: str = "text",
-    ) -> List[DuplicateResult]:
+    ) -> list[DuplicateResult]:
         """Find semantic duplicates using sentence embeddings."""
         if not items or not self.sentence_model:
             return []
@@ -357,8 +353,8 @@ class DuplicateDetectionService:
             return []
 
     def find_fuzzy_duplicates(
-        self, items: List[Any], field: str, fuzzy_threshold: float = 0.8
-    ) -> List[DuplicateResult]:
+        self, items: list[Any], field: str, fuzzy_threshold: float = 0.8
+    ) -> list[DuplicateResult]:
         """Find fuzzy duplicates using string similarity."""
         if not items:
             return []
@@ -488,10 +484,10 @@ class DuplicateDetectionService:
 
     async def detect_all_duplicates(
         self,
-        items: List[Any],
-        strategies: List[DuplicationStrategy],
+        items: list[Any],
+        strategies: list[DuplicationStrategy],
         field: str = "text",
-    ) -> List[DuplicateResult]:
+    ) -> list[DuplicateResult]:
         """Detect duplicates using multiple strategies."""
         all_duplicates = []
 
@@ -519,8 +515,8 @@ class DuplicateDetectionService:
         return deduplicated_results
 
     def _deduplicate_results(
-        self, results: List[DuplicateResult]
-    ) -> List[DuplicateResult]:
+        self, results: list[DuplicateResult]
+    ) -> list[DuplicateResult]:
         """Remove duplicate results from multiple detection strategies."""
         if not results:
             return []
@@ -536,9 +532,7 @@ class DuplicateDetectionService:
             signature = hashlib.md5("|".join(item_ids).encode()).hexdigest()
 
             # Keep result with highest similarity score
-            if signature not in item_signature_to_result:
-                item_signature_to_result[signature] = result
-            elif (
+            if signature not in item_signature_to_result or (
                 result.similarity_score
                 > item_signature_to_result[signature].similarity_score
             ):
@@ -548,9 +542,9 @@ class DuplicateDetectionService:
 
     async def deduplicate_items(
         self,
-        items: List[Any],
+        items: list[Any],
         keep_strategy: str = "keep_first",
-        detection_strategies: Optional[List[DuplicationStrategy]] = None,
+        detection_strategies: list[DuplicationStrategy] | None = None,
         field: str = "text",
     ) -> DeduplicationResult:
         """Perform deduplication on items."""
@@ -608,7 +602,7 @@ class DuplicateDetectionService:
             duplicate_groups_processed=len(duplicates),
         )
 
-    def _apply_keep_strategy(self, items: List[Any], strategy: str) -> Any:
+    def _apply_keep_strategy(self, items: list[Any], strategy: str) -> Any:
         """Apply keep strategy to select item from duplicate group."""
         if not items:
             return None
@@ -626,7 +620,7 @@ class DuplicateDetectionService:
         else:
             return items[0]  # Default to first
 
-    def _select_higher_quality_item(self, items: List[Any]) -> Any:
+    def _select_higher_quality_item(self, items: list[Any]) -> Any:
         """Select item with highest quality based on heuristics."""
         if not items:
             return None
@@ -661,7 +655,7 @@ class DuplicateDetectionService:
 
         return max(items, key=quality_score)
 
-    def _select_most_complete_item(self, items: List[Any]) -> Any:
+    def _select_most_complete_item(self, items: list[Any]) -> Any:
         """Select most complete item based on field population."""
         if not items:
             return None
@@ -680,7 +674,7 @@ class DuplicateDetectionService:
 
         return max(items, key=completeness_score)
 
-    def _select_most_recent_item(self, items: List[Any]) -> Any:
+    def _select_most_recent_item(self, items: list[Any]) -> Any:
         """Select most recently created/updated item."""
         if not items:
             return None
@@ -692,13 +686,13 @@ class DuplicateDetectionService:
                     timestamp = getattr(item, field)
                     if timestamp:
                         return timestamp
-            return datetime.min.replace(tzinfo=timezone.utc)
+            return datetime.min.replace(tzinfo=UTC)
 
         return max(items, key=get_timestamp)
 
     async def detect_cross_collection_duplicates(
-        self, collections: Dict[str, List[Any]], text_fields: Dict[str, str]
-    ) -> Dict[str, Any]:
+        self, collections: dict[str, list[Any]], text_fields: dict[str, str]
+    ) -> dict[str, Any]:
         """Detect duplicates across different collections."""
         cross_duplicates = []
 
@@ -743,8 +737,8 @@ class DuplicateDetectionService:
         }
 
     def calculate_duplication_statistics(
-        self, total_items: int, duplicates: List[DuplicateResult]
-    ) -> Dict[str, Any]:
+        self, total_items: int, duplicates: list[DuplicateResult]
+    ) -> dict[str, Any]:
         """Calculate duplication statistics."""
         if total_items == 0:
             return {
@@ -775,7 +769,7 @@ class DuplicateDetectionService:
             "max_group_size": max_group_size,
             "average_similarity_score": avg_similarity,
             "detection_methods_used": list(
-                set(dup.detection_method for dup in duplicates)
+                {dup.detection_method for dup in duplicates}
             ),
         }
 
@@ -795,8 +789,8 @@ class DuplicateDetectionService:
         return function(text1, text2)
 
     async def detect_incremental_duplicates(
-        self, existing_items: List[Any], new_items: List[Any], field: str
-    ) -> List[DuplicateResult]:
+        self, existing_items: list[Any], new_items: list[Any], field: str
+    ) -> list[DuplicateResult]:
         """Detect duplicates in new items against existing items."""
         all_items = existing_items + new_items
 
@@ -819,7 +813,7 @@ class DuplicateDetectionService:
 
     def _monitor_performance(
         self, operation_name: str, start_time: datetime, items_count: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Monitor performance of detection operations."""
         end_time = datetime.now()
         processing_time = (end_time - start_time).total_seconds()
@@ -842,40 +836,40 @@ class DuplicateDetectionService:
 
     # Strategy-specific detection methods (for internal use)
     def _exact_match_detection(
-        self, items: List[Any], field: str
-    ) -> List[DuplicateResult]:
+        self, items: list[Any], field: str
+    ) -> list[DuplicateResult]:
         """Exact match detection strategy."""
         return self.find_exact_duplicates(items, field)
 
     def _hash_comparison_detection(
-        self, items: List[Any], field: str
-    ) -> List[DuplicateResult]:
+        self, items: list[Any], field: str
+    ) -> list[DuplicateResult]:
         """Hash-based comparison strategy."""
         # Similar to exact match but using hashes for efficiency
         return self.find_exact_duplicates(items, field)
 
     async def _semantic_similarity_detection(
-        self, items: List[Any], field: str
-    ) -> List[DuplicateResult]:
+        self, items: list[Any], field: str
+    ) -> list[DuplicateResult]:
         """Semantic similarity detection strategy."""
         return await self.find_semantic_duplicates(items, field=field)
 
     def _fuzzy_matching_detection(
-        self, items: List[Any], field: str
-    ) -> List[DuplicateResult]:
+        self, items: list[Any], field: str
+    ) -> list[DuplicateResult]:
         """Fuzzy matching detection strategy."""
         return self.find_fuzzy_duplicates(items, field)
 
     def _jaccard_similarity_detection(
-        self, items: List[Any], field: str
-    ) -> List[DuplicateResult]:
+        self, items: list[Any], field: str
+    ) -> list[DuplicateResult]:
         """Jaccard similarity detection strategy."""
         # Placeholder implementation
         return []
 
     def _cosine_similarity_detection(
-        self, items: List[Any], field: str
-    ) -> List[DuplicateResult]:
+        self, items: list[Any], field: str
+    ) -> list[DuplicateResult]:
         """Cosine similarity detection strategy."""
         # Placeholder implementation
         return []

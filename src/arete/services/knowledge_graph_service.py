@@ -6,18 +6,17 @@ with batch processing capabilities for large philosophical documents.
 """
 
 import logging
-from typing import List, Dict, Any, Optional, Tuple, Set
+from typing import Any
 from uuid import UUID
-import asyncio
 
-from arete.models.entity import Entity, EntityType
+from arete.models.entity import EntityType
+from arete.processing.chunker import ChunkingStrategy
 from arete.processing.extractors import (
     EntityExtractor,
     RelationshipExtractor,
     TripleValidator,
 )
 from arete.repositories.entity import EntityRepository
-from arete.processing.chunker import ChunkingStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +30,8 @@ class KnowledgeGraphExtractionResult:
         self.relationships_created: int = 0
         self.triples_extracted: int = 0
         self.triples_validated: int = 0
-        self.errors: List[str] = []
-        self.warnings: List[str] = []
+        self.errors: list[str] = []
+        self.warnings: list[str] = []
         self.processing_time: float = 0.0
 
     def add_error(self, error: str) -> None:
@@ -45,7 +44,7 @@ class KnowledgeGraphExtractionResult:
         self.warnings.append(warning)
         logger.warning(f"KG Extraction Warning: {warning}")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert result to dictionary for serialization."""
         return {
             "entities_created": self.entities_created,
@@ -71,9 +70,9 @@ class KnowledgeGraphService:
     def __init__(
         self,
         entity_repository: EntityRepository,
-        entity_extractor: Optional[EntityExtractor] = None,
-        relationship_extractor: Optional[RelationshipExtractor] = None,
-        triple_validator: Optional[TripleValidator] = None,
+        entity_extractor: EntityExtractor | None = None,
+        relationship_extractor: RelationshipExtractor | None = None,
+        triple_validator: TripleValidator | None = None,
     ):
         """
         Initialize KnowledgeGraphService.
@@ -96,7 +95,7 @@ class KnowledgeGraphService:
         text: str,
         document_id: UUID,
         min_confidence: float = 0.6,
-        chunk_size: Optional[int] = None,
+        chunk_size: int | None = None,
         enable_batching: bool = True,
     ) -> KnowledgeGraphExtractionResult:
         """
@@ -254,14 +253,13 @@ class KnowledgeGraphService:
         )
 
         # Split text into chunks
-        from arete.models.chunk import ChunkType
 
         chunks = chunker.chunk_text(text, document_id)
         logger.info(f"Split text into {len(chunks)} chunks for processing")
 
         # Track entities across chunks to avoid duplicates
-        global_entity_names: Set[str] = set()
-        global_triples: List[Dict[str, Any]] = []
+        global_entity_names: set[str] = set()
+        global_triples: list[dict[str, Any]] = []
 
         # Process each chunk
         for i, chunk in enumerate(chunks):
@@ -321,9 +319,9 @@ class KnowledgeGraphService:
     async def get_entity_relationships(
         self,
         entity_id: UUID,
-        relationship_type: Optional[str] = None,
+        relationship_type: str | None = None,
         max_depth: int = 2,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get comprehensive relationship information for an entity.
 
@@ -373,9 +371,9 @@ class KnowledgeGraphService:
 
     async def analyze_philosophical_network(
         self,
-        entity_types: Optional[List[EntityType]] = None,
+        entity_types: list[EntityType] | None = None,
         min_relationships: int = 1,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Analyze the philosophical knowledge network.
 
@@ -442,8 +440,8 @@ class KnowledgeGraphService:
             raise
 
     def _get_entity_type_distribution(
-        self, entities: List[Dict[str, Any]]
-    ) -> Dict[str, int]:
+        self, entities: list[dict[str, Any]]
+    ) -> dict[str, int]:
         """Get distribution of entity types."""
         distribution = {}
         for entity_data in entities:

@@ -6,20 +6,20 @@ via environment variables or direct input, without the complexity of intelligent
 """
 
 import logging
-from typing import List, Dict, Any, Optional
-from datetime import datetime
 import os
+from datetime import datetime
+from typing import Any
 
-from arete.services.llm_provider import (
-    LLMProviderFactory,
-    LLMProvider,
-    LLMMessage,
-    LLMResponse,
-    LLMProviderError,
-    ProviderUnavailableError,
-    AuthenticationError,
-)
 from arete.config import Settings, get_settings
+from arete.services.llm_provider import (
+    AuthenticationError,
+    LLMMessage,
+    LLMProvider,
+    LLMProviderError,
+    LLMProviderFactory,
+    LLMResponse,
+    ProviderUnavailableError,
+)
 from arete.services.provider_config_service import ProviderConfigurationService
 
 # Setup logger
@@ -36,7 +36,7 @@ class SimpleLLMService:
     - Fallback to configured default provider
     """
 
-    def __init__(self, settings: Optional[Settings] = None):
+    def __init__(self, settings: Settings | None = None):
         """
         Initialize simple LLM service.
 
@@ -46,8 +46,8 @@ class SimpleLLMService:
         self.settings = settings or get_settings()
         self.factory = LLMProviderFactory(self.settings)
         self.config_service = ProviderConfigurationService(self.settings)
-        self._providers: Dict[str, LLMProvider] = {}
-        self._initialized_providers: Dict[str, bool] = {}
+        self._providers: dict[str, LLMProvider] = {}
+        self._initialized_providers: dict[str, bool] = {}
 
         # Available provider types
         self.available_provider_types = [
@@ -143,7 +143,7 @@ class SimpleLLMService:
         os.environ.pop("SELECTED_LLM_MODEL", None)
         logger.info("Model selection cleared, using provider default")
 
-    def get_provider(self, provider_name: Optional[str] = None) -> LLMProvider:
+    def get_provider(self, provider_name: str | None = None) -> LLMProvider:
         """
         Get a provider instance.
 
@@ -194,11 +194,11 @@ class SimpleLLMService:
 
     async def generate_response(
         self,
-        messages: List[LLMMessage],
-        provider: Optional[str] = None,
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        messages: list[LLMMessage],
+        provider: str | None = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         **kwargs,
     ) -> LLMResponse:
         """
@@ -278,11 +278,11 @@ class SimpleLLMService:
                 f"Failed to generate response with {provider_name}: {e}"
             )
 
-    def list_available_providers(self) -> List[str]:
+    def list_available_providers(self) -> list[str]:
         """Get list of available provider types."""
         return self.available_provider_types.copy()
 
-    def get_provider_info(self) -> Dict[str, Any]:
+    def get_provider_info(self) -> dict[str, Any]:
         """
         Get information about current provider configuration.
 
@@ -322,8 +322,8 @@ class SimpleLLMService:
         }
 
     def get_provider_health(
-        self, provider_name: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, provider_name: str | None = None
+    ) -> dict[str, Any]:
         """
         Get health status of a specific provider.
 
@@ -349,7 +349,7 @@ class SimpleLLMService:
     # Configuration Management Integration
 
     def configure_provider(
-        self, provider: str, api_key: Optional[str] = None, **config_options
+        self, provider: str, api_key: str | None = None, **config_options
     ) -> None:
         """
         Configure a provider using the configuration service.
@@ -379,7 +379,7 @@ class SimpleLLMService:
 
         logger.info(f"Configured provider: {provider}")
 
-    def get_provider_configuration(self, provider: str) -> Dict[str, Any]:
+    def get_provider_configuration(self, provider: str) -> dict[str, Any]:
         """
         Get provider configuration information.
 
@@ -398,7 +398,7 @@ class SimpleLLMService:
             return config_dict
         return {}
 
-    async def validate_provider_configuration(self, provider: str) -> Dict[str, Any]:
+    async def validate_provider_configuration(self, provider: str) -> dict[str, Any]:
         """
         Validate provider configuration and check health.
 
@@ -421,7 +421,7 @@ class SimpleLLMService:
             "available": health_status.status.value == "healthy",
         }
 
-    def create_configuration_backup(self, name: Optional[str] = None) -> str:
+    def create_configuration_backup(self, name: str | None = None) -> str:
         """
         Create backup of current configuration.
 
@@ -434,7 +434,7 @@ class SimpleLLMService:
         backup_path = self.config_service.create_backup(name)
         return str(backup_path)
 
-    def list_configuration_backups(self) -> List[Dict[str, Any]]:
+    def list_configuration_backups(self) -> list[dict[str, Any]]:
         """
         List available configuration backups.
 
@@ -489,12 +489,12 @@ class SimpleLLMService:
 
 
 # Convenience functions
-def get_llm_service(settings: Optional[Settings] = None) -> SimpleLLMService:
+def get_llm_service(settings: Settings | None = None) -> SimpleLLMService:
     """Get a SimpleLLMService instance."""
     return SimpleLLMService(settings)
 
 
-async def quick_generate(prompt: str, provider: Optional[str] = None, **kwargs) -> str:
+async def quick_generate(prompt: str, provider: str | None = None, **kwargs) -> str:
     """
     Quick utility function for simple text generation.
 

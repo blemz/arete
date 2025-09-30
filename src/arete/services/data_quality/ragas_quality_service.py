@@ -14,27 +14,26 @@ The service is designed specifically for philosophical tutoring applications
 with classical texts from Plato, Aristotle, Augustine, Aquinas, etc.
 """
 
-import asyncio
 import logging
-from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional, Tuple, Union, Callable
-from uuid import UUID, uuid4
-from enum import Enum
-from dataclasses import dataclass, field
 import statistics
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
+from uuid import uuid4
 
 import pandas as pd
-import numpy as np
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 try:
     from ragas import evaluate
     from ragas.metrics import (
-        faithfulness,
         answer_relevancy,
         context_precision,
         context_recall,
         context_relevancy,
+        faithfulness,
     )
 
     RAGAS_AVAILABLE = True
@@ -63,7 +62,6 @@ except ImportError:
 from arete.config import Settings, get_settings
 from arete.models.base import BaseModel as AreteBaseModel
 from arete.models.citation import Citation
-from arete.models.chunk import Chunk
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +118,7 @@ class EvaluationResult(AreteBaseModel):
     )
 
     # Extended metrics
-    citation_accuracy_score: Optional[float] = Field(
+    citation_accuracy_score: float | None = Field(
         None, ge=0.0, le=1.0, description="Accuracy of citations"
     )
     overall_quality_score: float = Field(
@@ -128,16 +126,16 @@ class EvaluationResult(AreteBaseModel):
     )
 
     # Philosophical domain metrics
-    argument_coherence_score: Optional[float] = Field(None, ge=0.0, le=1.0)
-    conceptual_clarity_score: Optional[float] = Field(None, ge=0.0, le=1.0)
-    textual_fidelity_score: Optional[float] = Field(None, ge=0.0, le=1.0)
-    dialogical_quality_score: Optional[float] = Field(None, ge=0.0, le=1.0)
+    argument_coherence_score: float | None = Field(None, ge=0.0, le=1.0)
+    conceptual_clarity_score: float | None = Field(None, ge=0.0, le=1.0)
+    textual_fidelity_score: float | None = Field(None, ge=0.0, le=1.0)
+    dialogical_quality_score: float | None = Field(None, ge=0.0, le=1.0)
 
     # Evaluation metadata
     evaluation_timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
-    evaluation_duration_ms: Optional[float] = Field(
+    evaluation_duration_ms: float | None = Field(
         None, description="Time taken for evaluation in milliseconds"
     )
 
@@ -163,7 +161,7 @@ class EvaluationResult(AreteBaseModel):
 class QualityMetrics(BaseModel):
     """Configuration for quality metrics calculation."""
 
-    enabled_metrics: List[QualityMetricType] = Field(
+    enabled_metrics: list[QualityMetricType] = Field(
         default=[
             QualityMetricType.FAITHFULNESS,
             QualityMetricType.ANSWER_RELEVANCY,
@@ -174,7 +172,7 @@ class QualityMetrics(BaseModel):
     )
 
     # Metric weights for overall score calculation
-    metric_weights: Dict[QualityMetricType, float] = Field(
+    metric_weights: dict[QualityMetricType, float] = Field(
         default={
             QualityMetricType.FAITHFULNESS: 0.3,
             QualityMetricType.ANSWER_RELEVANCY: 0.25,
@@ -184,17 +182,17 @@ class QualityMetrics(BaseModel):
     )
 
     # Custom metric functions
-    custom_metrics: Dict[str, Callable] = Field(default_factory=dict, exclude=True)
+    custom_metrics: dict[str, Callable] = Field(default_factory=dict, exclude=True)
 
 
 @dataclass
 class QualityTrendAnalysis:
     """Analysis of quality trends over time."""
 
-    metric_trends: Dict[str, float]  # Slope of trend line for each metric
+    metric_trends: dict[str, float]  # Slope of trend line for each metric
     overall_improvement: bool
     quality_stability: float  # Variance in quality scores
-    recommendations: List[str]
+    recommendations: list[str]
     analysis_period_days: int
 
 
@@ -206,10 +204,10 @@ class PhilosophicalEvaluationDataset:
 
     def create_dataset(
         self,
-        questions: List[str],
-        contexts: List[List[str]],
-        answers: List[str],
-        ground_truths: Optional[List[str]] = None,
+        questions: list[str],
+        contexts: list[list[str]],
+        answers: list[str],
+        ground_truths: list[str] | None = None,
     ) -> pd.DataFrame:
         """Create evaluation dataset from components."""
         if len(questions) != len(contexts) or len(questions) != len(answers):
@@ -222,7 +220,7 @@ class PhilosophicalEvaluationDataset:
 
         return pd.DataFrame(dataset_dict)
 
-    def validate_dataset(self, dataset: pd.DataFrame) -> Tuple[bool, List[str]]:
+    def validate_dataset(self, dataset: pd.DataFrame) -> tuple[bool, list[str]]:
         """Validate dataset structure and content."""
         errors = []
 
@@ -267,9 +265,9 @@ class RAGASQualityService:
 
     def __init__(
         self,
-        settings: Optional[Settings] = None,
-        thresholds: Optional[QualityThresholds] = None,
-        metrics_config: Optional[QualityMetrics] = None,
+        settings: Settings | None = None,
+        thresholds: QualityThresholds | None = None,
+        metrics_config: QualityMetrics | None = None,
     ):
         """Initialize RAGAS quality service."""
         self.settings = settings or get_settings()
@@ -289,7 +287,7 @@ class RAGASQualityService:
     def _initialize_philosophical_metrics(self):
         """Initialize philosophical domain-specific metrics."""
 
-        def argument_coherence_metric(response: str, contexts: List[str]) -> float:
+        def argument_coherence_metric(response: str, contexts: list[str]) -> float:
             """Evaluate logical coherence of philosophical arguments."""
             coherence_indicators = [
                 "therefore",
@@ -307,7 +305,7 @@ class RAGASQualityService:
             )
             return min(coherence_score / 3.0, 1.0)  # Normalize to 0-1
 
-        def conceptual_clarity_metric(response: str, contexts: List[str]) -> float:
+        def conceptual_clarity_metric(response: str, contexts: list[str]) -> float:
             """Evaluate clarity of philosophical concepts."""
             clarity_indicators = [
                 "define",
@@ -324,7 +322,7 @@ class RAGASQualityService:
             )
             return min(clarity_score / 2.0, 1.0)
 
-        def textual_fidelity_metric(response: str, contexts: List[str]) -> float:
+        def textual_fidelity_metric(response: str, contexts: list[str]) -> float:
             """Evaluate fidelity to original philosophical texts."""
             if not contexts:
                 return 0.0
@@ -341,7 +339,7 @@ class RAGASQualityService:
             overlap = len(response_words.intersection(context_words))
             return min(overlap / len(response_words), 1.0)
 
-        def dialogical_quality_metric(response: str, contexts: List[str]) -> float:
+        def dialogical_quality_metric(response: str, contexts: list[str]) -> float:
             """Evaluate engagement with alternative perspectives."""
             dialogue_indicators = [
                 "however",
@@ -373,7 +371,7 @@ class RAGASQualityService:
         """Get configured quality thresholds."""
         return self.thresholds
 
-    def get_available_metrics(self) -> List[str]:
+    def get_available_metrics(self) -> list[str]:
         """Get list of available quality metrics."""
         standard_metrics = [metric.value for metric in self.metrics.enabled_metrics]
         custom_metrics = list(self.metrics.custom_metrics.keys())
@@ -387,10 +385,10 @@ class RAGASQualityService:
     async def evaluate_single_query(
         self,
         question: str,
-        contexts: List[str],
+        contexts: list[str],
         answer: str,
-        ground_truth: Optional[str] = None,
-        query_id: Optional[str] = None,
+        ground_truth: str | None = None,
+        query_id: str | None = None,
     ) -> EvaluationResult:
         """Evaluate quality of a single query-answer pair."""
         start_time = datetime.now()
@@ -467,8 +465,8 @@ class RAGASQualityService:
             raise
 
     async def evaluate_batch(
-        self, evaluation_data: List[Dict[str, Any]]
-    ) -> List[EvaluationResult]:
+        self, evaluation_data: list[dict[str, Any]]
+    ) -> list[EvaluationResult]:
         """Evaluate quality of multiple query-answer pairs."""
         results = []
 
@@ -490,7 +488,7 @@ class RAGASQualityService:
         return results
 
     def evaluate_citation_accuracy(
-        self, citations: List[Citation], source_texts: List[str]
+        self, citations: list[Citation], source_texts: list[str]
     ) -> float:
         """Evaluate accuracy of citations against source texts."""
         if not citations or not source_texts:
@@ -514,8 +512,8 @@ class RAGASQualityService:
         return accurate_citations / total_citations if total_citations > 0 else 0.0
 
     def evaluate_philosophical_quality(
-        self, philosophical_content: Dict[str, Any]
-    ) -> Dict[str, float]:
+        self, philosophical_content: dict[str, Any]
+    ) -> dict[str, float]:
         """Evaluate philosophical domain-specific quality metrics."""
         response = philosophical_content.get("response", "")
         contexts = philosophical_content.get("contexts", [])
@@ -534,7 +532,7 @@ class RAGASQualityService:
 
     def validate_against_thresholds(
         self, result: EvaluationResult
-    ) -> Tuple[List[str], List[str]]:
+    ) -> tuple[list[str], list[str]]:
         """Validate evaluation result against quality thresholds."""
         passed_metrics = []
         failed_metrics = []
@@ -595,7 +593,7 @@ class RAGASQualityService:
         return passed_metrics, failed_metrics
 
     def analyze_quality_trends(
-        self, historical_results: List[EvaluationResult]
+        self, historical_results: list[EvaluationResult]
     ) -> QualityTrendAnalysis:
         """Analyze quality trends over time."""
         if len(historical_results) < 2:
@@ -657,7 +655,7 @@ class RAGASQualityService:
             analysis_period_days=analysis_period_days,
         )
 
-    def _calculate_trend(self, scores: List[float]) -> float:
+    def _calculate_trend(self, scores: list[float]) -> float:
         """Calculate trend slope for a series of scores."""
         if len(scores) < 2:
             return 0.0
@@ -679,8 +677,8 @@ class RAGASQualityService:
         return numerator / denominator
 
     def _generate_quality_recommendations(
-        self, metric_trends: Dict[str, float], overall_improvement: bool
-    ) -> List[str]:
+        self, metric_trends: dict[str, float], overall_improvement: bool
+    ) -> list[str]:
         """Generate recommendations based on quality trends."""
         recommendations = []
 
@@ -707,7 +705,7 @@ class RAGASQualityService:
         return recommendations
 
     async def setup_continuous_monitoring(
-        self, monitoring_config: Dict[str, Any]
+        self, monitoring_config: dict[str, Any]
     ) -> "QualityMonitor":
         """Set up continuous quality monitoring."""
         from .quality_monitor import QualityMonitor
@@ -719,7 +717,7 @@ class RAGASQualityService:
     async def evaluate_rag_pipeline_output(
         self,
         query: str,
-        retrieved_contexts: List[Dict[str, Any]],
+        retrieved_contexts: list[dict[str, Any]],
         generated_response: str,
     ) -> EvaluationResult:
         """Evaluate RAG pipeline output end-to-end."""
@@ -732,8 +730,8 @@ class RAGASQualityService:
         )
 
     def generate_quality_report(
-        self, results: List[EvaluationResult]
-    ) -> Dict[str, Any]:
+        self, results: list[EvaluationResult]
+    ) -> dict[str, Any]:
         """Generate comprehensive quality assessment report."""
         if not results:
             return {
@@ -785,10 +783,10 @@ class RAGASQualityService:
             "metric_distributions": metric_distributions,
             "quality_insights": quality_insights,
             "recommendations": recommendations,
-            "report_generated_at": datetime.now(timezone.utc).isoformat(),
+            "report_generated_at": datetime.now(UTC).isoformat(),
         }
 
-    def _calculate_distribution(self, scores: List[float]) -> Dict[str, float]:
+    def _calculate_distribution(self, scores: list[float]) -> dict[str, float]:
         """Calculate distribution statistics for scores."""
         if not scores:
             return {}
@@ -806,8 +804,8 @@ class RAGASQualityService:
         }
 
     def _generate_quality_insights(
-        self, summary_stats: Dict[str, Any], results: List[EvaluationResult]
-    ) -> List[str]:
+        self, summary_stats: dict[str, Any], results: list[EvaluationResult]
+    ) -> list[str]:
         """Generate insights from quality analysis."""
         insights = []
 
@@ -838,8 +836,8 @@ class RAGASQualityService:
         return insights
 
     def _generate_report_recommendations(
-        self, summary_stats: Dict[str, Any], results: List[EvaluationResult]
-    ) -> List[str]:
+        self, summary_stats: dict[str, Any], results: list[EvaluationResult]
+    ) -> list[str]:
         """Generate recommendations from quality report."""
         recommendations = []
 

@@ -7,20 +7,22 @@ established in the codebase with proper abstractions and dependency injection.
 """
 
 import logging
-import asyncio
-from typing import List, Dict, Any, Optional, Tuple, Union
-from uuid import UUID
 from dataclasses import dataclass
 from enum import Enum
 
 # Import types only to avoid circular imports
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
+from uuid import UUID
 
 if TYPE_CHECKING:
-    from ..services.dense_retrieval_service import DenseRetrievalService, SearchResult
-    from ..services.sparse_retrieval_service import SparseRetrievalService
-    from ..services.graph_traversal_service import GraphTraversalService
-from ..config import Settings, get_settings
+    from arete.services.dense_retrieval_service import (
+        DenseRetrievalService,
+        SearchResult,
+    )
+    from arete.services.graph_traversal_service import GraphTraversalService
+    from arete.services.sparse_retrieval_service import SparseRetrievalService
+from arete.config import Settings, get_settings
+
 from .base import RepositoryError
 
 logger = logging.getLogger(__name__)
@@ -60,7 +62,6 @@ class HybridRetrievalConfig:
 class RetrievalRepositoryError(RepositoryError):
     """Base exception for retrieval repository errors."""
 
-    pass
 
 
 class RetrievalRepository:
@@ -82,7 +83,7 @@ class RetrievalRepository:
         dense_service: Optional["DenseRetrievalService"] = None,
         sparse_service: Optional["SparseRetrievalService"] = None,
         graph_service: Optional["GraphTraversalService"] = None,
-        settings: Optional[Settings] = None,
+        settings: Settings | None = None,
     ):
         """
         Initialize retrieval repository.
@@ -98,7 +99,7 @@ class RetrievalRepository:
         # Initialize services with dependency injection
         if dense_service is None:
             # Import at runtime to avoid circular import
-            from ..services.dense_retrieval_service import (
+            from arete.services.dense_retrieval_service import (
                 create_dense_retrieval_service,
             )
 
@@ -108,7 +109,7 @@ class RetrievalRepository:
 
         if sparse_service is None:
             # Import at runtime to avoid circular import
-            from ..services.sparse_retrieval_service import (
+            from arete.services.sparse_retrieval_service import (
                 create_sparse_retrieval_service,
             )
 
@@ -120,8 +121,8 @@ class RetrievalRepository:
 
         if graph_service is None:
             # Import at runtime to avoid circular import
-            from ..services.graph_traversal_service import GraphTraversalService
-            from ..database.client import Neo4jClient
+            from arete.database.client import Neo4jClient
+            from arete.services.graph_traversal_service import GraphTraversalService
 
             # Initialize Neo4j client and graph service
             neo4j_client = Neo4jClient()
@@ -159,11 +160,11 @@ class RetrievalRepository:
         method: RetrievalMethod = RetrievalMethod.HYBRID,
         limit: int = 10,
         min_relevance: float = 0.0,
-        document_ids: Optional[List[UUID]] = None,
-        chunk_types: Optional[List[str]] = None,
-        hybrid_config: Optional[HybridRetrievalConfig] = None,
+        document_ids: list[UUID] | None = None,
+        chunk_types: list[str] | None = None,
+        hybrid_config: HybridRetrievalConfig | None = None,
         **kwargs,
-    ) -> List["SearchResult"]:
+    ) -> list["SearchResult"]:
         """
         Perform retrieval search using specified method.
 
@@ -248,10 +249,10 @@ class RetrievalRepository:
         query: str,
         limit: int,
         min_relevance: float,
-        document_ids: Optional[List[UUID]],
-        chunk_types: Optional[List[str]],
+        document_ids: list[UUID] | None,
+        chunk_types: list[str] | None,
         **kwargs,
-    ) -> List["SearchResult"]:
+    ) -> list["SearchResult"]:
         """Perform dense semantic retrieval."""
         logger.debug(f"Performing dense search for query: '{query[:50]}...'")
 
@@ -275,10 +276,10 @@ class RetrievalRepository:
         query: str,
         limit: int,
         min_relevance: float,
-        document_ids: Optional[List[UUID]],
-        chunk_types: Optional[List[str]],
+        document_ids: list[UUID] | None,
+        chunk_types: list[str] | None,
         **kwargs,
-    ) -> List["SearchResult"]:
+    ) -> list["SearchResult"]:
         """Perform sparse lexical retrieval."""
         logger.debug(f"Performing sparse search for query: '{query[:50]}...'")
 
@@ -305,7 +306,7 @@ class RetrievalRepository:
         dense_weight: float = 0.7,
         graph_weight: float = 0.0,
         **kwargs,
-    ) -> List["SearchResult"]:
+    ) -> list["SearchResult"]:
         """
         Public async method for hybrid search as expected by RAG pipeline.
 
@@ -341,11 +342,11 @@ class RetrievalRepository:
         query: str,
         limit: int,
         min_relevance: float,
-        document_ids: Optional[List[UUID]],
-        chunk_types: Optional[List[str]],
+        document_ids: list[UUID] | None,
+        chunk_types: list[str] | None,
         hybrid_config: HybridRetrievalConfig,
         **kwargs,
-    ) -> List["SearchResult"]:
+    ) -> list["SearchResult"]:
         """
         Perform hybrid retrieval combining dense and sparse methods.
 
@@ -420,10 +421,10 @@ class RetrievalRepository:
 
     def _weighted_average_fusion(
         self,
-        dense_results: List["SearchResult"],
-        sparse_results: List["SearchResult"],
+        dense_results: list["SearchResult"],
+        sparse_results: list["SearchResult"],
         config: HybridRetrievalConfig,
-    ) -> List["SearchResult"]:
+    ) -> list["SearchResult"]:
         """
         Combine results using weighted average of scores.
 
@@ -431,7 +432,7 @@ class RetrievalRepository:
         is the weighted average of its dense and sparse scores.
         """
         # Import SearchResult at runtime to avoid circular import
-        from ..services.dense_retrieval_service import SearchResult
+        from arete.services.dense_retrieval_service import SearchResult
 
         # Create mapping of chunk_id to results
         dense_map = {str(r.chunk.id): r for r in dense_results}
@@ -488,17 +489,17 @@ class RetrievalRepository:
 
     def _reciprocal_rank_fusion(
         self,
-        dense_results: List["SearchResult"],
-        sparse_results: List["SearchResult"],
+        dense_results: list["SearchResult"],
+        sparse_results: list["SearchResult"],
         config: HybridRetrievalConfig,
-    ) -> List["SearchResult"]:
+    ) -> list["SearchResult"]:
         """
         Combine results using Reciprocal Rank Fusion (RRF).
 
         RRF Score = Σ(1 / (k + rank)) where k is a constant (typically 60)
         """
         # Import SearchResult at runtime to avoid circular import
-        from ..services.dense_retrieval_service import SearchResult
+        from arete.services.dense_retrieval_service import SearchResult
 
         # Create mapping of chunk_id to rank
         dense_ranks = {str(r.chunk.id): i + 1 for i, r in enumerate(dense_results)}
@@ -558,10 +559,10 @@ class RetrievalRepository:
 
     def _interleaved_fusion(
         self,
-        dense_results: List["SearchResult"],
-        sparse_results: List["SearchResult"],
+        dense_results: list["SearchResult"],
+        sparse_results: list["SearchResult"],
         config: HybridRetrievalConfig,
-    ) -> List["SearchResult"]:
+    ) -> list["SearchResult"]:
         """
         Combine results by interleaving dense and sparse results.
 
@@ -611,10 +612,10 @@ class RetrievalRepository:
 
     def _score_threshold_fusion(
         self,
-        dense_results: List["SearchResult"],
-        sparse_results: List["SearchResult"],
+        dense_results: list["SearchResult"],
+        sparse_results: list["SearchResult"],
         config: HybridRetrievalConfig,
-    ) -> List["SearchResult"]:
+    ) -> list["SearchResult"]:
         """
         Combine results using score-based thresholds.
 
@@ -665,7 +666,7 @@ class RetrievalRepository:
         self.hybrid_config = config
         logger.info(f"Updated hybrid retrieval configuration: {config.strategy.value}")
 
-    def get_service_metrics(self) -> Dict[str, Any]:
+    def get_service_metrics(self) -> dict[str, Any]:
         """Get metrics from all retrieval services."""
         return {
             "dense_metrics": self.dense_service.get_metrics().get_summary(),
@@ -687,10 +688,10 @@ class RetrievalRepository:
         query: str,
         limit: int = 10,
         min_relevance: float = 0.0,
-        document_ids: Optional[List[UUID]] = None,
-        chunk_types: Optional[List[str]] = None,
+        document_ids: list[UUID] | None = None,
+        chunk_types: list[str] | None = None,
         **kwargs,
-    ) -> List["SearchResult"]:
+    ) -> list["SearchResult"]:
         """Perform graph-based retrieval search."""
         try:
             # Detect entities in the query
@@ -713,9 +714,9 @@ class RetrievalRepository:
                 # Create a SearchResult from GraphResult
                 # This is a simplified conversion - in practice you'd want to
                 # integrate this with your chunk/document storage
-                from ..services.dense_retrieval_service import SearchResult
-                from ..models.chunk import Chunk
-                from uuid import uuid4
+
+                from arete.models.chunk import Chunk
+                from arete.services.dense_retrieval_service import SearchResult
 
                 # Create a synthetic chunk representing the graph result
                 chunk = Chunk(
@@ -760,11 +761,11 @@ class RetrievalRepository:
         query: str,
         limit: int = 10,
         min_relevance: float = 0.0,
-        document_ids: Optional[List[UUID]] = None,
-        chunk_types: Optional[List[str]] = None,
-        hybrid_config: Optional[HybridRetrievalConfig] = None,
+        document_ids: list[UUID] | None = None,
+        chunk_types: list[str] | None = None,
+        hybrid_config: HybridRetrievalConfig | None = None,
         **kwargs,
-    ) -> List["SearchResult"]:
+    ) -> list["SearchResult"]:
         """Perform graph-enhanced hybrid search combining dense, sparse, and graph retrieval."""
         try:
             # First get traditional hybrid results (dense + sparse)
@@ -831,8 +832,8 @@ class RetrievalRepository:
         self, search_result: "SearchResult"
     ) -> "GraphResult":
         """Convert SearchResult to GraphResult for integration purposes."""
-        from ..services.graph_traversal_service import GraphResult
-        from ..models.entity import Entity, EntityType
+        from arete.models.entity import Entity, EntityType
+        from arete.services.graph_traversal_service import GraphResult
 
         # Extract entity information from search result metadata
         entity_name = search_result.metadata.get("entity_name", "Unknown Entity")
@@ -859,7 +860,7 @@ def create_retrieval_repository(
     dense_service: Optional["DenseRetrievalService"] = None,
     sparse_service: Optional["SparseRetrievalService"] = None,
     graph_service: Optional["GraphTraversalService"] = None,
-    settings: Optional[Settings] = None,
+    settings: Settings | None = None,
 ) -> RetrievalRepository:
     """
     Create retrieval repository with dependency injection.

@@ -6,10 +6,9 @@ language detection, text translation, locale-specific formatting, and cultural
 adaptations for the Arete philosophical tutoring system.
 """
 
-from typing import Dict, List, Optional, Tuple, Any
-from enum import Enum
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 
 
@@ -63,7 +62,7 @@ class LanguageInfo:
     decimal_separator: str = "."
     thousand_separator: str = ","
     currency_symbol: str = "$"
-    philosophical_tradition: Optional[str] = None
+    philosophical_tradition: str | None = None
 
 
 @dataclass
@@ -72,9 +71,9 @@ class TranslationEntry:
 
     key: str
     text: str
-    context: Optional[str] = None
-    plural_form: Optional[str] = None
-    description: Optional[str] = None
+    context: str | None = None
+    plural_form: str | None = None
+    description: str | None = None
 
 
 class InternationalizationService:
@@ -84,8 +83,8 @@ class InternationalizationService:
         """Initialize the internationalization service."""
         self.default_language = default_language
         self.current_language = default_language
-        self.translations: Dict[str, Dict[str, TranslationEntry]] = {}
-        self.language_info: Dict[str, LanguageInfo] = {}
+        self.translations: dict[str, dict[str, TranslationEntry]] = {}
+        self.language_info: dict[str, LanguageInfo] = {}
 
         self._initialize_language_info()
         self._load_translations()
@@ -353,7 +352,7 @@ class InternationalizationService:
             )
 
         # Initialize other languages with English as fallback
-        for lang_code in self.language_info.keys():
+        for lang_code in self.language_info:
             if lang_code not in self.translations:
                 self.translations[lang_code] = {}
 
@@ -368,7 +367,7 @@ class InternationalizationService:
         """Get the current language."""
         return self.current_language
 
-    def get_supported_languages(self) -> List[Tuple[str, str, str]]:
+    def get_supported_languages(self) -> list[tuple[str, str, str]]:
         """Get list of supported languages (code, name, native_name)."""
         return [
             (code, info.name, info.native_name)
@@ -378,8 +377,8 @@ class InternationalizationService:
     def translate(
         self,
         key: str,
-        language: Optional[str] = None,
-        context: Optional[str] = None,
+        language: str | None = None,
+        context: str | None = None,
         **kwargs,
     ) -> str:
         """Translate a text key to the specified language."""
@@ -412,7 +411,7 @@ class InternationalizationService:
         return translation
 
     def translate_plural(
-        self, key: str, count: int, language: Optional[str] = None
+        self, key: str, count: int, language: str | None = None
     ) -> str:
         """Translate a plural form based on count."""
         target_language = language or self.current_language.value
@@ -434,12 +433,12 @@ class InternationalizationService:
         # Fallback
         return self.translate(key, language)
 
-    def get_language_info(self, language: Optional[str] = None) -> LanguageInfo:
+    def get_language_info(self, language: str | None = None) -> LanguageInfo:
         """Get language information."""
         target_language = language or self.current_language.value
         return self.language_info.get(target_language, self.language_info["en"])
 
-    def is_rtl_language(self, language: Optional[str] = None) -> bool:
+    def is_rtl_language(self, language: str | None = None) -> bool:
         """Check if language uses right-to-left text direction."""
         info = self.get_language_info(language)
         return info.text_direction == TextDirection.RIGHT_TO_LEFT
@@ -447,8 +446,8 @@ class InternationalizationService:
     def format_date(
         self,
         date_obj,
-        language: Optional[str] = None,
-        format_type: Optional[DateFormat] = None,
+        language: str | None = None,
+        format_type: DateFormat | None = None,
     ) -> str:
         """Format date according to language conventions."""
         info = self.get_language_info(language)
@@ -465,7 +464,7 @@ class InternationalizationService:
         else:  # RELATIVE
             return "recently"  # Would implement relative date logic
 
-    def format_number(self, number: float, language: Optional[str] = None) -> str:
+    def format_number(self, number: float, language: str | None = None) -> str:
         """Format number according to language conventions."""
         info = self.get_language_info(language)
 
@@ -483,13 +482,13 @@ class InternationalizationService:
         return formatted
 
     def get_philosophical_context(
-        self, language: Optional[str] = None
-    ) -> Optional[str]:
+        self, language: str | None = None
+    ) -> str | None:
         """Get philosophical tradition context for the language."""
         info = self.get_language_info(language)
         return info.philosophical_tradition
 
-    def generate_language_css(self, language: Optional[str] = None) -> str:
+    def generate_language_css(self, language: str | None = None) -> str:
         """Generate CSS for language-specific styling."""
         info = self.get_language_info(language)
 
@@ -499,7 +498,7 @@ class InternationalizationService:
         .main {{
             direction: {info.text_direction.value};
         }}
-        
+
         /* Text direction specific adjustments */
         """
 
@@ -509,11 +508,11 @@ class InternationalizationService:
                 right: 0;
                 left: auto;
             }
-            
+
             .stChatMessage {
                 text-align: right;
             }
-            
+
             .citation {
                 border-right: 4px solid #6c757d;
                 border-left: none;
@@ -558,7 +557,7 @@ class InternationalizationService:
         return css
 
     def load_language_pack(
-        self, language_code: str, file_path: Optional[Path] = None
+        self, language_code: str, file_path: Path | None = None
     ) -> bool:
         """Load translations from a language pack file."""
         if file_path is None:
@@ -566,7 +565,7 @@ class InternationalizationService:
 
         try:
             if file_path.exists():
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, encoding="utf-8") as f:
                     data = json.load(f)
 
                 if language_code not in self.translations:
@@ -593,7 +592,7 @@ class InternationalizationService:
         return False
 
     def save_language_pack(
-        self, language_code: str, file_path: Optional[Path] = None
+        self, language_code: str, file_path: Path | None = None
     ) -> bool:
         """Save translations to a language pack file."""
         if file_path is None:
@@ -631,9 +630,9 @@ class InternationalizationService:
         language_code: str,
         key: str,
         text: str,
-        context: Optional[str] = None,
-        plural_form: Optional[str] = None,
-        description: Optional[str] = None,
+        context: str | None = None,
+        plural_form: str | None = None,
+        description: str | None = None,
     ) -> bool:
         """Add a new translation entry."""
         if language_code not in self.translations:
@@ -649,7 +648,7 @@ class InternationalizationService:
 
         return True
 
-    def get_missing_translations(self, language_code: str) -> List[str]:
+    def get_missing_translations(self, language_code: str) -> list[str]:
         """Get list of missing translations for a language."""
         if language_code not in self.translations:
             return list(self.translations[self.default_language.value].keys())

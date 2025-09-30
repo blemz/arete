@@ -3,6 +3,7 @@ Chat interface component for the Arete Reflex application.
 """
 
 import reflex as rx
+
 from ..reflex_app import AreteState
 
 
@@ -11,7 +12,7 @@ def message_bubble(message: dict) -> rx.Component:
     is_user = message.get("is_user", True)
     content = message.get("content", "")
     timestamp = message.get("timestamp", "")
-    
+
     if is_user:
         return rx.div(
             rx.div(
@@ -93,7 +94,7 @@ def chat_header() -> rx.Component:
 
 def chat_messages() -> rx.Component:
     """Chat messages display area with thinking indicator."""
-    
+
     # Create thinking indicator component
     thinking_indicator = rx.div(
         rx.div(
@@ -111,7 +112,7 @@ def chat_messages() -> rx.Component:
         ),
         class_name="chat chat-start mb-4"
     )
-    
+
     return rx.div(
         rx.cond(
             AreteState.chat_history.length() > 0,
@@ -175,7 +176,7 @@ def chat_interface() -> rx.Component:
     """Complete chat interface component."""
     return rx.div(
         chat_header(),
-        chat_messages(), 
+        chat_messages(),
         chat_input(),
         class_name="flex flex-col h-full bg-base-200"
     )

@@ -5,46 +5,44 @@ Provides hover and click interactions for citations with expandable details,
 supporting scholarly display of philosophical references.
 """
 
-from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
-from datetime import datetime
-import json
+from dataclasses import dataclass
+from typing import Any
+
 import streamlit as st
-from streamlit.components.v1 import html
 
 
 @dataclass
 class CitationDetails:
     """Extended citation information for preview display."""
-    
+
     # Core citation data
     citation_id: str
     text: str
     source: str
-    author: Optional[str] = None
-    work: Optional[str] = None
-    reference: Optional[str] = None  # e.g., "Republic 514a"
-    
+    author: str | None = None
+    work: str | None = None
+    reference: str | None = None  # e.g., "Republic 514a"
+
     # Additional context
-    context: Optional[str] = None
+    context: str | None = None
     confidence: float = 1.0
     relevance_score: float = 0.0
-    
+
     # Metadata
-    chunk_id: Optional[str] = None
-    position: Optional[int] = None
-    document_id: Optional[str] = None
-    
+    chunk_id: str | None = None
+    position: int | None = None
+    document_id: str | None = None
+
     # Display state
     is_expanded: bool = False
     preview_length: int = 200
-    
+
     def get_preview(self) -> str:
         """Get truncated preview of citation text."""
         if len(self.text) <= self.preview_length:
             return self.text
         return f"{self.text[:self.preview_length]}..."
-    
+
     def get_formatted_reference(self) -> str:
         """Get formatted classical reference."""
         if self.author and self.work and self.reference:
@@ -54,8 +52,8 @@ class CitationDetails:
         elif self.reference:
             return self.reference
         return self.source
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for export."""
         return {
             "citation_id": self.citation_id,
@@ -76,35 +74,35 @@ class CitationDetails:
 class InteractiveCitationPreview:
     """
     Interactive citation preview component with hover and click interactions.
-    
+
     Features:
     - Hover to show citation preview
     - Click to expand full citation
     - Contextual information display
     - Confidence and relevance indicators
     """
-    
+
     def __init__(self):
         """Initialize the citation preview component."""
         if "expanded_citations" not in st.session_state:
             st.session_state.expanded_citations = set()
         if "hovered_citation" not in st.session_state:
             st.session_state.hovered_citation = None
-    
+
     def render_citation_card(self, citation: CitationDetails, index: int) -> None:
         """
         Render an interactive citation card.
-        
+
         Args:
             citation: Citation details to display
             index: Index for unique component identification
         """
         is_expanded = citation.citation_id in st.session_state.expanded_citations
-        
+
         with st.container():
             # Citation header with click interaction
             col1, col2, col3 = st.columns([8, 1, 1])
-            
+
             with col1:
                 if st.button(
                     f"📚 {citation.get_formatted_reference()}",
@@ -117,7 +115,7 @@ class InteractiveCitationPreview:
                     else:
                         st.session_state.expanded_citations.add(citation.citation_id)
                     st.rerun()
-            
+
             with col2:
                 # Confidence indicator
                 confidence_color = self._get_confidence_color(citation.confidence)
@@ -126,7 +124,7 @@ class InteractiveCitationPreview:
                     f"{citation.confidence:.0%}</span>",
                     unsafe_allow_html=True
                 )
-            
+
             with col3:
                 # Relevance indicator
                 relevance_color = self._get_relevance_color(citation.relevance_score)
@@ -135,13 +133,13 @@ class InteractiveCitationPreview:
                     f"{citation.relevance_score:.0%}</span>",
                     unsafe_allow_html=True
                 )
-            
+
             # Citation content
             if is_expanded:
                 self._render_expanded_citation(citation, index)
             else:
                 self._render_preview_citation(citation, index)
-    
+
     def _render_preview_citation(self, citation: CitationDetails, index: int) -> None:
         """Render citation preview (collapsed state)."""
         with st.container():
@@ -158,17 +156,17 @@ class InteractiveCitationPreview:
             </div>
             """
             st.markdown(hover_html, unsafe_allow_html=True)
-    
+
     def _render_expanded_citation(self, citation: CitationDetails, index: int) -> None:
         """Render expanded citation with full details."""
         with st.expander("Citation Details", expanded=True):
             # Full text
             st.markdown("**Full Text:**")
             st.markdown(f"_{citation.text}_")
-            
+
             # Metadata columns
             col1, col2 = st.columns(2)
-            
+
             with col1:
                 st.markdown("**Source Information:**")
                 if citation.author:
@@ -178,19 +176,19 @@ class InteractiveCitationPreview:
                 if citation.reference:
                     st.text(f"Reference: {citation.reference}")
                 st.text(f"Source: {citation.source}")
-            
+
             with col2:
                 st.markdown("**Quality Metrics:**")
                 st.text(f"Confidence: {citation.confidence:.1%}")
                 st.text(f"Relevance: {citation.relevance_score:.1%}")
                 if citation.position:
                     st.text(f"Position: {citation.position}")
-            
+
             # Context if available
             if citation.context:
                 st.markdown("**Context:**")
                 st.info(citation.context)
-            
+
             # Action buttons
             col1, col2, col3 = st.columns(3)
             with col1:
@@ -202,18 +200,18 @@ class InteractiveCitationPreview:
             with col3:
                 if st.button("📍 Go to Source", key=f"goto_{index}"):
                     self._navigate_to_source(citation)
-    
-    def render_citation_list(self, citations: List[CitationDetails]) -> None:
+
+    def render_citation_list(self, citations: list[CitationDetails]) -> None:
         """
         Render a list of interactive citations.
-        
+
         Args:
             citations: List of citations to display
         """
         if not citations:
             st.info("No citations available")
             return
-        
+
         # Add custom CSS for hover effects
         st.markdown("""
         <style>
@@ -228,10 +226,10 @@ class InteractiveCitationPreview:
         }
         </style>
         """, unsafe_allow_html=True)
-        
+
         # Group citations by work/author for better organization
         grouped = self._group_citations(citations)
-        
+
         for group_name, group_citations in grouped.items():
             with st.container():
                 st.markdown(f"### {group_name}")
@@ -239,9 +237,9 @@ class InteractiveCitationPreview:
                     with st.container():
                         st.markdown('<div class="citation-card">', unsafe_allow_html=True)
                         self.render_citation_card(citation, f"{group_name}_{i}")
-                        st.markdown('</div>', unsafe_allow_html=True)
-    
-    def _group_citations(self, citations: List[CitationDetails]) -> Dict[str, List[CitationDetails]]:
+                        st.markdown("</div>", unsafe_allow_html=True)
+
+    def _group_citations(self, citations: list[CitationDetails]) -> dict[str, list[CitationDetails]]:
         """Group citations by work/author for organized display."""
         grouped = {}
         for citation in citations:
@@ -251,13 +249,13 @@ class InteractiveCitationPreview:
                 key = citation.author
             else:
                 key = "Other Sources"
-            
+
             if key not in grouped:
                 grouped[key] = []
             grouped[key].append(citation)
-        
+
         return grouped
-    
+
     def _get_confidence_color(self, confidence: float) -> str:
         """Get color based on confidence score."""
         if confidence >= 0.8:
@@ -266,7 +264,7 @@ class InteractiveCitationPreview:
             return "#ffc107"  # Yellow
         else:
             return "#dc3545"  # Red
-    
+
     def _get_relevance_color(self, relevance: float) -> str:
         """Get color based on relevance score."""
         if relevance >= 0.7:
@@ -275,22 +273,22 @@ class InteractiveCitationPreview:
             return "#17a2b8"  # Cyan
         else:
             return "#6c757d"  # Gray
-    
+
     def _copy_to_clipboard(self, citation: CitationDetails) -> None:
         """Copy citation to clipboard."""
         formatted = citation.get_formatted_reference()
         if citation.text:
-            formatted += f"\n\"{citation.text}\""
-        
+            formatted += f'\n"{citation.text}"'
+
         # Note: Streamlit doesn't have direct clipboard access
         # This would need JavaScript component or user manual copy
         st.success("Citation ready to copy (select and Ctrl+C)")
         st.code(formatted)
-    
+
     def _share_citation(self, citation: CitationDetails) -> None:
         """Share citation (placeholder for sharing functionality)."""
         st.info("Share functionality coming soon!")
-    
+
     def _navigate_to_source(self, citation: CitationDetails) -> None:
         """Navigate to source document."""
         if citation.document_id:
@@ -301,7 +299,7 @@ class InteractiveCitationPreview:
             st.warning("Source document not available")
 
 
-def create_sample_citations() -> List[CitationDetails]:
+def create_sample_citations() -> list[CitationDetails]:
     """Create sample citations for testing."""
     return [
         CitationDetails(

@@ -5,21 +5,20 @@ Modern implementation following Weaviate v4+ patterns with focused Graph-RAG ope
 
 import asyncio
 from datetime import datetime
-from typing import Any, Dict, List, Optional
-from uuid import UUID
+from typing import Any
 from urllib.parse import urlparse
 
 import weaviate
-import weaviate.classes.config as wvc
 from weaviate.exceptions import (
     AuthenticationFailedException,
-    WeaviateConnectionError,
     WeaviateBaseError,
+    WeaviateConnectionError,
 )
 
-from ..config import get_settings
-from ..models.document import Document
-from ..models.entity import Entity
+from arete.config import get_settings
+from arete.models.document import Document
+from arete.models.entity import Entity
+
 from .exceptions import DatabaseConnectionError, DatabaseQueryError
 
 
@@ -27,7 +26,7 @@ class WeaviateClient:
     """Modern Weaviate vector database client for Graph-RAG operations."""
 
     def __init__(
-        self, url: Optional[str] = None, headers: Optional[Dict[str, str]] = None
+        self, url: str | None = None, headers: dict[str, str] | None = None
     ) -> None:
         """Initialize Weaviate client with configuration integration.
 
@@ -38,7 +37,7 @@ class WeaviateClient:
         settings = get_settings()
         self.url = url or settings.weaviate_url
         self.headers = headers or {}
-        self.client: Optional[weaviate.WeaviateClient] = None
+        self.client: weaviate.WeaviateClient | None = None
 
     # Connection Management
     def connect(self) -> None:
@@ -146,7 +145,7 @@ class WeaviateClient:
         except WeaviateBaseError as e:
             raise DatabaseQueryError(f"Failed to save document: {str(e)}") from e
 
-    def get_document_by_id(self, doc_id: str) -> Optional[Document]:
+    def get_document_by_id(self, doc_id: str) -> Document | None:
         """Retrieve Document by ID from Weaviate.
 
         Args:
@@ -188,7 +187,7 @@ class WeaviateClient:
 
     def search_documents_by_text(
         self, query_text: str, limit: int = 10
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Perform semantic search for documents using vector similarity.
 
         Args:
@@ -242,7 +241,7 @@ class WeaviateClient:
             raise DatabaseQueryError(f"Failed to search documents: {str(e)}") from e
 
     # Batch Operations for Efficient Processing
-    def batch_save_documents(self, documents: List[Document]) -> List[str]:
+    def batch_save_documents(self, documents: list[Document]) -> list[str]:
         """Save multiple documents using Weaviate batch operations.
 
         Args:
@@ -258,7 +257,7 @@ class WeaviateClient:
             raise DatabaseConnectionError("Client not connected. Call connect() first.")
 
         try:
-            collection = self.client.collections.get("Document")
+            self.client.collections.get("Document")
             saved_ids = []
 
             # Use Weaviate's batch context manager
@@ -320,8 +319,8 @@ class WeaviateClient:
     def create_object(
         self,
         class_name: str,
-        properties: Dict[str, Any],
-        vector: Optional[List[float]] = None,
+        properties: dict[str, Any],
+        vector: list[float] | None = None,
     ) -> str:
         """Create a generic object in Weaviate.
 
@@ -356,8 +355,8 @@ class WeaviateClient:
             ) from e
 
     def create_objects_batch(
-        self, class_name: str, objects: List[Dict[str, Any]]
-    ) -> List[str]:
+        self, class_name: str, objects: list[dict[str, Any]]
+    ) -> list[str]:
         """Create multiple objects in Weaviate using batch operations.
 
         Args:
@@ -407,11 +406,11 @@ class WeaviateClient:
     def search_by_vector(
         self,
         collection_name: str,
-        query_vector: List[float],
+        query_vector: list[float],
         limit: int = 10,
         min_certainty: float = 0.7,
-        where_filter: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Any]]:
+        where_filter: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Search for objects using a vector query.
 

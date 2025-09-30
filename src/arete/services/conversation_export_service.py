@@ -6,23 +6,21 @@ including PDF, Markdown, JSON, HTML, and plain text with customizable
 formatting options and philosophical content optimization.
 """
 
-import os
 import json
+import os
 import tempfile
-from datetime import datetime
-from typing import List, Dict, Any, Optional, Union
 import time
 import uuid
-from pathlib import Path
+from datetime import datetime
 
 # Import models
-from ..models.chat_session import ChatSession, ChatMessage, MessageType
-from ..models.export_models import (
+from arete.models.chat_session import ChatSession, MessageType
+from arete.models.export_models import (
     ExportFormat,
+    ExportJob,
     ExportOptions,
     ExportResult,
     ExportTemplate,
-    ExportJob,
 )
 
 # Optional imports for different export formats
@@ -55,8 +53,8 @@ class ConversationExportService:
     def __init__(self):
         """Initialize the export service."""
         self.temp_dir = tempfile.gettempdir()
-        self.export_jobs: Dict[str, ExportJob] = {}
-        self.templates: Dict[str, ExportTemplate] = {}
+        self.export_jobs: dict[str, ExportJob] = {}
+        self.templates: dict[str, ExportTemplate] = {}
 
         # Initialize default templates
         self._initialize_default_templates()
@@ -66,7 +64,7 @@ class ConversationExportService:
         session: ChatSession,
         format: ExportFormat,
         options: ExportOptions,
-        template: Optional[ExportTemplate] = None,
+        template: ExportTemplate | None = None,
     ) -> ExportResult:
         """Export a conversation session to the specified format."""
         start_time = time.time()
@@ -149,8 +147,8 @@ class ConversationExportService:
             )
 
     def bulk_export_sessions(
-        self, sessions: List[ChatSession], format: ExportFormat, options: ExportOptions
-    ) -> List[ExportResult]:
+        self, sessions: list[ChatSession], format: ExportFormat, options: ExportOptions
+    ) -> list[ExportResult]:
         """Export multiple sessions to the specified format."""
         results = []
 
@@ -183,7 +181,7 @@ class ConversationExportService:
         self.export_jobs[job_id] = job
         return job
 
-    def get_export_job(self, job_id: str) -> Optional[ExportJob]:
+    def get_export_job(self, job_id: str) -> ExportJob | None:
         """Get export job by ID."""
         return self.export_jobs.get(job_id)
 
@@ -194,7 +192,7 @@ class ConversationExportService:
         description: str,
         format: ExportFormat,
         options: ExportOptions,
-        created_by: Optional[str] = None,
+        created_by: str | None = None,
     ) -> ExportTemplate:
         """Create a new export template."""
         template = ExportTemplate(
@@ -209,13 +207,13 @@ class ConversationExportService:
         self.templates[template_id] = template
         return template
 
-    def get_template(self, template_id: str) -> Optional[ExportTemplate]:
+    def get_template(self, template_id: str) -> ExportTemplate | None:
         """Get export template by ID."""
         return self.templates.get(template_id)
 
     def list_templates(
-        self, format: Optional[ExportFormat] = None
-    ) -> List[ExportTemplate]:
+        self, format: ExportFormat | None = None
+    ) -> list[ExportTemplate]:
         """List available export templates."""
         templates = list(self.templates.values())
 
@@ -300,7 +298,7 @@ class ConversationExportService:
         session: ChatSession,
         file_path: str,
         options: ExportOptions,
-        template: Optional[ExportTemplate] = None,
+        template: ExportTemplate | None = None,
     ) -> None:
         """Export conversation to Markdown format."""
         lines = []
@@ -402,7 +400,7 @@ class ConversationExportService:
         session: ChatSession,
         file_path: str,
         options: ExportOptions,
-        template: Optional[ExportTemplate] = None,
+        template: ExportTemplate | None = None,
     ) -> None:
         """Export conversation to HTML format."""
         html_parts = []
@@ -635,7 +633,7 @@ class ConversationExportService:
         doc = Document()
 
         # Title
-        title = doc.add_heading(session.title, 0)
+        doc.add_heading(session.title, 0)
 
         # Messages
         for message in session.messages:
@@ -651,14 +649,14 @@ class ConversationExportService:
             if options.include_timestamps:
                 timestamp_str = f" - {message.timestamp.strftime('%H:%M:%S')}"
 
-            header = doc.add_heading(f"{role}{timestamp_str}", level=2)
+            doc.add_heading(f"{role}{timestamp_str}", level=2)
 
             # Message content
             doc.add_paragraph(message.content)
 
             # Citations
             if options.include_citations and message.citations:
-                citations_para = doc.add_paragraph("Sources:")
+                doc.add_paragraph("Sources:")
                 for citation in message.citations:
                     doc.add_paragraph(f"• {citation}", style="List Bullet")
 
@@ -711,7 +709,7 @@ class ConversationExportService:
                 writer.writerow(row)
 
     def _get_html_css(
-        self, options: ExportOptions, template: Optional[ExportTemplate] = None
+        self, options: ExportOptions, template: ExportTemplate | None = None
     ) -> str:
         """Get CSS styles for HTML export."""
         css = """
@@ -733,7 +731,7 @@ class ConversationExportService:
 
         return css
 
-    def _compress_file(self, file_path: str) -> Optional[str]:
+    def _compress_file(self, file_path: str) -> str | None:
         """Compress exported file using gzip."""
         try:
             import gzip

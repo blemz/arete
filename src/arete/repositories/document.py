@@ -9,19 +9,18 @@ Implements SearchableRepository interface for enhanced search capabilities.
 """
 
 import logging
-from typing import List, Optional, Dict, Any, Union
+from typing import Any
 from uuid import UUID
 
-from arete.repositories.base import (
-    SearchableRepository,
-    EntityNotFoundError,
-    DuplicateEntityError,
-    ValidationError,
-    RepositoryError,
-)
-from arete.models.document import Document
 from arete.database.client import Neo4jClient
 from arete.database.weaviate_client import WeaviateClient
+from arete.models.document import Document
+from arete.repositories.base import (
+    DuplicateEntityError,
+    EntityNotFoundError,
+    RepositoryError,
+    SearchableRepository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -65,10 +64,10 @@ class DocumentRepository(SearchableRepository[Document]):
         """
         try:
             # Store in Neo4j for graph relationships and structured queries
-            neo4j_result = await self._neo4j_client.async_save_document(entity)
+            await self._neo4j_client.async_save_document(entity)
 
             # Store in Weaviate for vector search
-            weaviate_result = self._weaviate_client.save_document(entity)
+            self._weaviate_client.save_document(entity)
 
             logger.info(f"Created document: {entity.id}")
             return entity
@@ -84,7 +83,7 @@ class DocumentRepository(SearchableRepository[Document]):
                 logger.error(f"Failed to create document {entity.id}: {error_msg}")
                 raise RepositoryError(f"Failed to create document: {error_msg}")
 
-    async def get_by_id(self, entity_id: Union[UUID, str]) -> Optional[Document]:
+    async def get_by_id(self, entity_id: UUID | str) -> Document | None:
         """
         Retrieve document by ID from Neo4j.
 
@@ -125,7 +124,7 @@ class DocumentRepository(SearchableRepository[Document]):
         """
         try:
             # Update in Neo4j
-            neo4j_result = await self._neo4j_client.update_node(
+            await self._neo4j_client.update_node(
                 str(entity.id), "Document", entity.model_dump(exclude={"embeddings"})
             )
 
@@ -143,7 +142,7 @@ class DocumentRepository(SearchableRepository[Document]):
                 logger.error(f"Failed to update document {entity.id}: {error_msg}")
                 raise RepositoryError(f"Failed to update document: {error_msg}")
 
-    async def delete(self, entity_id: Union[UUID, str]) -> bool:
+    async def delete(self, entity_id: UUID | str) -> bool:
         """
         Delete document from both Neo4j and Weaviate.
 
@@ -178,8 +177,8 @@ class DocumentRepository(SearchableRepository[Document]):
         self,
         limit: int = 100,
         offset: int = 0,
-        filters: Optional[Dict[str, Any]] = None,
-    ) -> List[Document]:
+        filters: dict[str, Any] | None = None,
+    ) -> list[Document]:
         """
         List documents from Neo4j with optional filtering.
 
@@ -225,7 +224,7 @@ class DocumentRepository(SearchableRepository[Document]):
             logger.error(f"Failed to list documents: {str(e)}")
             raise RepositoryError(f"Failed to list documents: {str(e)}")
 
-    async def count(self, filters: Optional[Dict[str, Any]] = None) -> int:
+    async def count(self, filters: dict[str, Any] | None = None) -> int:
         """
         Count documents matching optional filters.
 
@@ -265,7 +264,7 @@ class DocumentRepository(SearchableRepository[Document]):
             logger.error(f"Failed to count documents: {str(e)}")
             raise RepositoryError(f"Failed to count documents: {str(e)}")
 
-    async def exists(self, entity_id: Union[UUID, str]) -> bool:
+    async def exists(self, entity_id: UUID | str) -> bool:
         """
         Check if document exists by ID.
 
@@ -296,7 +295,7 @@ class DocumentRepository(SearchableRepository[Document]):
 
     async def search_by_text(
         self, query: str, limit: int = 10, similarity_threshold: float = 0.7
-    ) -> List[Document]:
+    ) -> list[Document]:
         """
         Search documents by semantic text similarity using Weaviate.
 
@@ -326,8 +325,8 @@ class DocumentRepository(SearchableRepository[Document]):
             raise RepositoryError(f"Failed to search by text: {str(e)}")
 
     async def search_by_embedding(
-        self, embedding: List[float], limit: int = 10, similarity_threshold: float = 0.7
-    ) -> List[Document]:
+        self, embedding: list[float], limit: int = 10, similarity_threshold: float = 0.7
+    ) -> list[Document]:
         """
         Search documents by embedding vector similarity using Weaviate.
 
@@ -358,7 +357,7 @@ class DocumentRepository(SearchableRepository[Document]):
 
     # Document-specific methods
 
-    async def get_by_title(self, title: str) -> List[Document]:
+    async def get_by_title(self, title: str) -> list[Document]:
         """
         Get documents by title using Neo4j.
 
@@ -386,7 +385,7 @@ class DocumentRepository(SearchableRepository[Document]):
             logger.error(f"Failed to search documents by title: {str(e)}")
             raise RepositoryError(f"Failed to search by title: {str(e)}")
 
-    async def get_by_author(self, author: str) -> List[Document]:
+    async def get_by_author(self, author: str) -> list[Document]:
         """
         Get documents by author using Neo4j.
 
@@ -416,7 +415,7 @@ class DocumentRepository(SearchableRepository[Document]):
 
     async def search_content(
         self, query: str, limit: int = 10, hybrid_weight: float = 0.7
-    ) -> List[Document]:
+    ) -> list[Document]:
         """
         Hybrid search combining Neo4j keyword search and Weaviate semantic search.
 

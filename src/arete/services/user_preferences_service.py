@@ -5,19 +5,10 @@ Provides functionality for creating, updating, retrieving, and managing
 user preferences in the Arete philosophical tutoring system.
 """
 
-from typing import Dict, Any, Optional, List
 from datetime import datetime
-import json
+from typing import Any
 
-from ..models.user_preferences import (
-    UserPreferences,
-    Theme,
-    CitationStyle,
-    DisplaySettings,
-    NotificationSettings,
-    PrivacySettings,
-    StudySettings,
-)
+from arete.models.user_preferences import DisplaySettings, Theme, UserPreferences
 
 
 class UserPreferencesService:
@@ -26,8 +17,8 @@ class UserPreferencesService:
     def __init__(self):
         """Initialize the preferences service."""
         # In-memory storage for preferences (to be replaced with persistent storage)
-        self._preferences: Dict[str, UserPreferences] = {}
-        self._preferences_history: Dict[str, List[Dict[str, Any]]] = (
+        self._preferences: dict[str, UserPreferences] = {}
+        self._preferences_history: dict[str, list[dict[str, Any]]] = (
             {}
         )  # For preference change history
 
@@ -40,7 +31,7 @@ class UserPreferencesService:
 
         return preferences
 
-    def get_user_preferences(self, user_id: str) -> Optional[UserPreferences]:
+    def get_user_preferences(self, user_id: str) -> UserPreferences | None:
         """Get user preferences, creating defaults if they don't exist."""
         if user_id in self._preferences:
             # Record access
@@ -73,7 +64,7 @@ class UserPreferencesService:
         return True
 
     def update_user_preferences_partial(
-        self, user_id: str, updates: Dict[str, Any]
+        self, user_id: str, updates: dict[str, Any]
     ) -> bool:
         """Update specific user preference fields."""
         current_preferences = self.get_user_preferences(user_id)
@@ -95,7 +86,7 @@ class UserPreferencesService:
 
         return True
 
-    def export_user_preferences(self, user_id: str) -> Optional[Dict[str, Any]]:
+    def export_user_preferences(self, user_id: str) -> dict[str, Any] | None:
         """Export user preferences as dictionary."""
         preferences = self.get_user_preferences(user_id)
         if not preferences:
@@ -103,7 +94,7 @@ class UserPreferencesService:
 
         return preferences.to_dict()
 
-    def import_user_preferences(self, preferences_data: Dict[str, Any]) -> bool:
+    def import_user_preferences(self, preferences_data: dict[str, Any]) -> bool:
         """Import user preferences from dictionary."""
         try:
             user_id = preferences_data.get("user_id")
@@ -115,7 +106,7 @@ class UserPreferencesService:
         except Exception:
             return False
 
-    def get_preferences_summary(self, user_id: str) -> Optional[Dict[str, Any]]:
+    def get_preferences_summary(self, user_id: str) -> dict[str, Any] | None:
         """Get a summary of user preferences."""
         preferences = self.get_user_preferences(user_id)
         if not preferences:
@@ -143,7 +134,7 @@ class UserPreferencesService:
             "last_updated": preferences.updated_at.isoformat(),
         }
 
-    def get_chat_interface_preferences(self, user_id: str) -> Dict[str, Any]:
+    def get_chat_interface_preferences(self, user_id: str) -> dict[str, Any]:
         """Get preferences formatted for chat interface."""
         preferences = self.get_user_preferences(user_id)
         if not preferences:
@@ -152,7 +143,7 @@ class UserPreferencesService:
 
         return preferences.get_chat_interface_config()
 
-    def get_notification_preferences(self, user_id: str) -> Dict[str, Any]:
+    def get_notification_preferences(self, user_id: str) -> dict[str, Any]:
         """Get notification preferences for the user."""
         preferences = self.get_user_preferences(user_id)
         if not preferences:
@@ -177,7 +168,7 @@ class UserPreferencesService:
         return preferences.privacy_settings.session_history_retention
 
     def migrate_user_preferences(
-        self, old_preferences_data: Dict[str, Any]
+        self, old_preferences_data: dict[str, Any]
     ) -> UserPreferences:
         """Migrate old preference format to new format."""
         user_id = old_preferences_data.get("user_id")
@@ -226,7 +217,7 @@ class UserPreferencesService:
 
         return preferences
 
-    def validate_preferences_data(self, preferences_data: Dict[str, Any]) -> bool:
+    def validate_preferences_data(self, preferences_data: dict[str, Any]) -> bool:
         """Validate preferences data structure."""
         try:
             # Try to create UserPreferences from data
@@ -235,7 +226,7 @@ class UserPreferencesService:
         except Exception:
             return False
 
-    def get_preference_change_history(self, user_id: str) -> List[Dict[str, Any]]:
+    def get_preference_change_history(self, user_id: str) -> list[dict[str, Any]]:
         """Get history of preference changes for a user."""
         return self._preferences_history.get(user_id, [])
 
@@ -252,8 +243,8 @@ class UserPreferencesService:
             return False
 
     def bulk_update_preferences(
-        self, user_preferences_list: List[Dict[str, Any]]
-    ) -> Dict[str, bool]:
+        self, user_preferences_list: list[dict[str, Any]]
+    ) -> dict[str, bool]:
         """Bulk update multiple user preferences."""
         results = {}
 
@@ -269,7 +260,7 @@ class UserPreferencesService:
     # Private helper methods
 
     def _apply_partial_updates(
-        self, preferences: UserPreferences, updates: Dict[str, Any]
+        self, preferences: UserPreferences, updates: dict[str, Any]
     ) -> UserPreferences:
         """Apply partial updates to user preferences."""
         prefs_dict = preferences.to_dict()
@@ -290,8 +281,8 @@ class UserPreferencesService:
         return UserPreferences.from_dict(prefs_dict)
 
     def _detect_preference_changes(
-        self, old_prefs: Optional[UserPreferences], new_prefs: UserPreferences
-    ) -> List[str]:
+        self, old_prefs: UserPreferences | None, new_prefs: UserPreferences
+    ) -> list[str]:
         """Detect what preferences have changed."""
         if not old_prefs:
             return ["all (new preferences)"]
@@ -341,12 +332,12 @@ class UserPreferencesService:
                 -50:
             ]
 
-    def _get_default_chat_preferences(self) -> Dict[str, Any]:
+    def _get_default_chat_preferences(self) -> dict[str, Any]:
         """Get default chat interface preferences."""
         default_prefs = UserPreferences(user_id="default")
         return default_prefs.get_chat_interface_config()
 
-    def _get_default_notification_preferences(self) -> Dict[str, Any]:
+    def _get_default_notification_preferences(self) -> dict[str, Any]:
         """Get default notification preferences."""
         default_prefs = UserPreferences(user_id="default")
         return default_prefs.get_notification_config()

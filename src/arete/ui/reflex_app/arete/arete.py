@@ -5,39 +5,40 @@ A Graph-RAG AI tutoring system for classical philosophical texts.
 Built with Reflex framework for modern web interface.
 """
 
-import reflex as rx
-from typing import List, Dict
-import sys
 import os
+import sys
+
+import reflex as rx
 
 # Add components directory to Python path for direct imports
-components_path = os.path.join(os.path.dirname(__file__), '..', 'components')
+components_path = os.path.join(os.path.dirname(__file__), "..", "components")
 sys.path.insert(0, components_path)
 
-from response_display import formatted_response, simple_message, thinking_animation
+from response_display import formatted_response, simple_message
+
 
 class AreteState(rx.State):
     """Global application state with enhanced chat integration."""
-    
+
     # Import enhanced chat functionality from ChatState
     # Chat state
     user_query: str = ""
-    chat_history: List[Dict[str, str]] = []
+    chat_history: list[dict[str, str]] = []
     is_loading: bool = False
-    
+
     # Document state
     current_document: str = ""
     document_content: str = ""
     is_reading: bool = False
-    
+
     # Enhanced chat features
     rag_status: str = "ready"  # ready, processing, error, unavailable
     response_time: float = 0.0
-    
+
     def set_user_query(self, query: str):
         """Set the user query."""
         self.user_query = query
-    
+
     async def send_message(self):
         """Send a chat message with enhanced RAG integration."""
         if self.user_query.strip():
@@ -48,55 +49,55 @@ class AreteState(rx.State):
                 "timestamp": f"{__import__('datetime').datetime.now().strftime('%H:%M')}"
             }
             self.chat_history.append(user_chat_msg)
-            
+
             # Store query for async processing
             query = self.user_query
             self.user_query = ""
-            
+
             # Set loading state
             self.is_loading = True
             self.rag_status = "processing"
-            
+
             # Try to get RAG response, fallback to simple response
             try:
+                import os
                 import subprocess
                 import sys
-                import os
                 from datetime import datetime
-                
+
                 start_time = datetime.now()
-                
+
                 # Get the root directory (arete project root)
                 # Current file is in: src/arete/ui/reflex_app/arete/arete.py
                 # Need to go up 5 levels to reach project root
-                root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..'))
-                
+                root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", ".."))
+
                 # Verify chat_rag_clean.py exists
-                chat_rag_path = os.path.join(root_dir, 'chat_rag_clean.py')
+                chat_rag_path = os.path.join(root_dir, "chat_rag_clean.py")
                 if not os.path.exists(chat_rag_path):
                     raise FileNotFoundError(f"chat_rag_clean.py not found at {chat_rag_path}")
-                
+
                 # Run the production RAG CLI
                 result = subprocess.run([
-                    sys.executable, 
-                    'chat_rag_clean.py', 
+                    sys.executable,
+                    "chat_rag_clean.py",
                     query
-                ], 
-                cwd=root_dir,
-                capture_output=True, 
-                text=True, 
+                ],
+                check=False, cwd=root_dir,
+                capture_output=True,
+                text=True,
                 timeout=180  # Extended timeout for GPT-5-mini reasoning models
                 )
-                
+
                 # Calculate response time
                 self.response_time = (datetime.now() - start_time).total_seconds()
-                
+
                 if result.returncode == 0 and result.stdout.strip():
                     raw_response = result.stdout.strip()
-                    
+
                     # Parse and format the response using enhanced formatting
                     formatted_response = self._format_enhanced_response(raw_response, query)
-                    
+
                     # Add assistant response to chat history for display
                     assistant_chat_msg = {
                         "content": formatted_response,
@@ -115,8 +116,8 @@ class AreteState(rx.State):
                     }
                     self.chat_history.append(assistant_chat_msg)
                     self.rag_status = "unavailable"
-                    
-            except Exception as e:
+
+            except Exception:
                 # Enhanced fallback response with structured format
                 fallback_response = self._get_fallback_response(query)
                 assistant_chat_msg = {
@@ -126,47 +127,47 @@ class AreteState(rx.State):
                 }
                 self.chat_history.append(assistant_chat_msg)
                 self.rag_status = "error"
-            
+
             # Always reset loading state
             self.is_loading = False
-    
+
     def _format_enhanced_response(self, raw_response: str, query: str) -> str:
         """Format RAG response with enhanced structure and sections."""
         try:
             # Extract clean philosophical response
             cleaned_response = self._clean_rag_response(raw_response)
-            
+
             # Create structured markdown response with sections
             sections = []
             sections.append(f"## 🏛️ Arete Response\n\n{cleaned_response}")
-            
+
             # Add contextual sections based on query content
             if "accused" in query.lower() or "charges" in query.lower():
                 sections.append("## Summary of the accusations (plain language)\n\nSocrates faced formal charges of corrupting Athens' youth and impiety toward the city's gods. The underlying concern was his philosophical questioning that challenged traditional beliefs and authority.")
                 sections.append("## Key terms explained simply\n\n**Impiety**: Disrespecting or not properly honoring the gods\n**Corruption of youth**: Teaching young people ideas that undermine social order\n**Philosophical questioning**: The Socratic method of examining beliefs through dialogue")
             elif "virtue" in query.lower():
                 sections.append("## Key terms explained simply\n\n**Virtue (arete)**: Excellence of character and moral goodness\n**Temperance (sophrosyne)**: Self-control and moderation\n**Wisdom (sophia)**: Knowledge of what is truly good and valuable")
-            
+
             # Look for citations in the raw response
             if "Citations" in raw_response:
                 citations_start = raw_response.find("Citations")
                 if citations_start != -1:
                     citations_text = raw_response[citations_start:].strip()
                     sections.append(f"## {citations_text}")
-            
+
             return "\n\n".join(sections)
-            
+
         except Exception:
             # If formatting fails, return the cleaned response
             return self._clean_rag_response(raw_response)
-    
+
     def _clean_rag_response(self, raw_response: str) -> str:
         """Extract clean philosophical response from RAG output."""
         try:
             # Look for the response section between the delimiters
             response_start = "Response:\n" + "-" * 80 + "\n"
             response_end = "\n" + "-" * 80 + "\n\nCitations"
-            
+
             start_idx = raw_response.find(response_start)
             if start_idx != -1:
                 start_idx += len(response_start)
@@ -175,7 +176,7 @@ class AreteState(rx.State):
                     # Extract the philosophical content
                     philosophical_content = raw_response[start_idx:end_idx].strip()
                     return philosophical_content
-            
+
             # Fallback: look for content after "Response:" if delimiters not found
             response_marker = "Response:\n"
             start_idx = raw_response.find(response_marker)
@@ -183,23 +184,23 @@ class AreteState(rx.State):
                 start_idx += len(response_marker)
                 # Take content until citations or end
                 content = raw_response[start_idx:]
-                
+
                 # Stop at citations section
                 citations_idx = content.find("\nCitations from Plato's texts:")
                 if citations_idx != -1:
                     content = content[:citations_idx]
-                
+
                 # Clean up any remaining formatting
                 content = content.replace("-" * 80, "").strip()
                 return content
-            
+
             # Final fallback: return original response
             return raw_response
-            
+
         except Exception:
             # If anything goes wrong, return the original response
             return raw_response
-    
+
     def _get_fallback_response(self, query: str) -> str:
         """Get enhanced fallback response with structured format."""
         if "virtue" in query.lower():
@@ -234,27 +235,27 @@ Thank you for that thoughtful question about '{query}'. This touches on fundamen
 ## Key themes to explore
 
 This question relates to core philosophical investigations about knowledge, virtue, and the examined life that Socrates advocated."""
-    
+
     def read_document(self, document_id: str):
         """Load and display a document."""
         self.current_document = document_id
         self.is_reading = True
-        
+
         # Mock document content for now
         if document_id == "apology":
             self.document_content = """# Plato's Apology
-            
+
 The Apology is Plato's account of the speech given by Socrates in his defense during his trial for allegedly corrupting the youth and introducing new gods.
 
 **Key Themes:**
 - The unexamined life is not worth living
-- Socratic wisdom and knowing that one knows nothing  
+- Socratic wisdom and knowing that one knows nothing
 - The role of the philosopher in society
 - Divine mission and the pursuit of wisdom
 
 **Main Arguments:**
 Socrates argues that his philosophical questioning serves Athens by exposing ignorance and encouraging virtue..."""
-            
+
         elif document_id == "charmides":
             self.document_content = """# Plato's Charmides
 
@@ -270,7 +271,7 @@ The Charmides is a dialogue exploring the nature of temperance (sophrosyne) thro
 Through examining various definitions, Socrates shows the difficulty of defining temperance while highlighting its importance..."""
         else:
             self.document_content = "Document not found."
-    
+
     def close_document(self):
         """Close the current document."""
         self.is_reading = False
@@ -284,27 +285,27 @@ def index() -> rx.Component:
         rx.vstack(
             rx.heading("🏛️ Welcome to Arete", size="9", color="blue.600"),
             rx.text(
-                "AI Philosophy Tutor powered by Graph-RAG", 
-                size="5", 
+                "AI Philosophy Tutor powered by Graph-RAG",
+                size="5",
                 color="gray.600"
             ),
             rx.hstack(
                 rx.button(
-                    "Start Learning", 
+                    "Start Learning",
                     on_click=rx.redirect("/chat"),
                     color_scheme="blue",
                     size="3"
                 ),
                 rx.button(
                     "Browse Texts",
-                    on_click=rx.redirect("/documents"), 
+                    on_click=rx.redirect("/documents"),
                     color_scheme="green",
                     size="3"
                 ),
                 rx.button(
                     "View Analytics",
                     on_click=rx.redirect("/analytics"),
-                    color_scheme="purple", 
+                    color_scheme="purple",
                     size="3"
                 ),
                 spacing="4"
@@ -318,7 +319,7 @@ def index() -> rx.Component:
     )
 
 
-def render_message(message: Dict[str, str]) -> rx.Component:
+def render_message(message: dict[str, str]) -> rx.Component:
     """Render a message based on its role."""
     return rx.cond(
         message["role"] == "user",
@@ -328,7 +329,7 @@ def render_message(message: Dict[str, str]) -> rx.Component:
 
 def chat() -> rx.Component:
     """Enhanced chat interface with thinking indicator and structured responses."""
-    
+
     # Create thinking indicator component
     thinking_indicator = rx.box(
         rx.box(
@@ -353,11 +354,11 @@ def chat() -> rx.Component:
         justify_content="flex-start",
         margin_bottom="1rem"
     )
-    
+
     return rx.container(
         rx.vstack(
             rx.heading("💬 Chat with Arete", size="7", color="blue.600"),
-            
+
             # Enhanced Messages area
             rx.box(
                 rx.cond(
@@ -457,7 +458,7 @@ def chat() -> rx.Component:
                     )
                 ),
                 bg="white",
-                p="4", 
+                p="4",
                 border_radius="lg",
                 border="1px solid",
                 border_color="gray.200",
@@ -465,7 +466,7 @@ def chat() -> rx.Component:
                 overflow_y="auto",
                 width="100%"
             ),
-            
+
             # Enhanced Input area
             rx.hstack(
                 rx.input(
@@ -491,7 +492,7 @@ def chat() -> rx.Component:
                 ),
                 width="100%"
             ),
-            
+
             # Optional: Add status indicator
             rx.cond(
                 AreteState.rag_status != "ready",
@@ -515,7 +516,7 @@ def chat() -> rx.Component:
                 ),
                 rx.fragment()
             ),
-            
+
             spacing="4",
             width="100%"
         ),
@@ -559,7 +560,7 @@ def documents() -> rx.Component:
             rx.vstack(
                 rx.heading("📚 Document Library", size="7", color="green.600"),
                 rx.text("Browse classical philosophical texts"),
-                
+
                 rx.grid(
                     rx.box(
                         rx.vstack(
@@ -583,7 +584,7 @@ def documents() -> rx.Component:
                             spacing="2"
                         ),
                         bg="white",
-                        p="4", 
+                        p="4",
                         border_radius="lg",
                         border="1px solid",
                         border_color="gray.200",
@@ -593,7 +594,7 @@ def documents() -> rx.Component:
                     spacing="4",
                     width="100%"
                 ),
-                
+
                 spacing="4",
                 align="center"
             )
@@ -608,7 +609,7 @@ def analytics() -> rx.Component:
         rx.vstack(
             rx.heading("📊 Knowledge Graph Analytics", size="7", color="purple.600"),
             rx.text("Explore philosophical concepts and relationships"),
-            
+
             rx.grid(
                 rx.box(
                     rx.vstack(
@@ -631,7 +632,7 @@ def analytics() -> rx.Component:
                     ),
                     bg="green.50",
                     p="4",
-                    border_radius="lg", 
+                    border_radius="lg",
                     text_align="center"
                 ),
                 rx.box(
@@ -650,7 +651,7 @@ def analytics() -> rx.Component:
                 spacing="4",
                 width="100%"
             ),
-            
+
             spacing="4",
             align="center"
         ),
@@ -671,7 +672,7 @@ def navbar() -> rx.Component:
             rx.hstack(
                 rx.link("Home", href="/", color="gray.600", _hover={"color": "blue.600"}),
                 rx.link("Chat", href="/chat", color="gray.600", _hover={"color": "blue.600"}),
-                rx.link("Documents", href="/documents", color="gray.600", _hover={"color": "green.600"}), 
+                rx.link("Documents", href="/documents", color="gray.600", _hover={"color": "green.600"}),
                 rx.link("Analytics", href="/analytics", color="gray.600", _hover={"color": "purple.600"}),
                 spacing="6"
             ),
@@ -701,7 +702,7 @@ def footer() -> rx.Component:
         ),
         bg="gray.50",
         border_top="1px solid",
-        border_color="gray.200", 
+        border_color="gray.200",
         px="6",
         py="4",
         width="100%"

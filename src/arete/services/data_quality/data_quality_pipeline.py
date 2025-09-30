@@ -14,37 +14,32 @@ Components:
 
 import asyncio
 import logging
-from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional, Union, Set, Tuple
-from pathlib import Path
-from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from enum import Enum
+from pathlib import Path
+from typing import Any
 
-from pydantic import BaseModel, Field, validator, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
-from .ragas_quality_service import (
-    RAGASQualityService,
-    EvaluationResult,
-    QualityThresholds,
-    QualityMetrics,
-)
+from arete.models.chunk import Chunk
+from arete.models.citation import Citation
+from arete.models.document import Document
+
 from .duplicate_detection_service import (
+    DeduplicationResult,
     DuplicateDetectionService,
     DuplicateResult,
-    DeduplicationResult,
-    SimilarityMetrics,
     DuplicationStrategy,
 )
 from .quality_monitor import (
-    QualityMonitor,
-    QualityAlert,
-    MonitoringStats,
     AlertSeverity,
+    QualityAlert,
+    QualityMonitor,
 )
-
-from arete.models.document import Document
-from arete.models.chunk import Chunk
-from arete.models.citation import Citation
+from .ragas_quality_service import (
+    EvaluationResult,
+    RAGASQualityService,
+)
 
 
 class QualityAssessmentLevel(str, Enum):
@@ -72,13 +67,13 @@ class QualityAssessmentReport(BaseModel):
 
     # Report metadata
     assessment_id: str = Field(..., description="Unique assessment identifier")
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     assessment_level: QualityAssessmentLevel = Field(
         ..., description="Level of assessment performed"
     )
 
     # RAGAS evaluation results
-    ragas_results: Optional[EvaluationResult] = Field(
+    ragas_results: EvaluationResult | None = Field(
         None, description="RAGAS evaluation results"
     )
     ragas_status: ValidationStatus = Field(
@@ -86,10 +81,10 @@ class QualityAssessmentReport(BaseModel):
     )
 
     # Duplicate detection results
-    duplicate_results: List[DuplicateResult] = Field(
+    duplicate_results: list[DuplicateResult] = Field(
         default_factory=list, description="Detected duplicates"
     )
-    deduplication_summary: Optional[DeduplicationResult] = Field(
+    deduplication_summary: DeduplicationResult | None = Field(
         None, description="Deduplication summary"
     )
     duplicate_status: ValidationStatus = Field(
@@ -97,10 +92,10 @@ class QualityAssessmentReport(BaseModel):
     )
 
     # Citation validation results
-    citation_accuracy: Optional[float] = Field(
+    citation_accuracy: float | None = Field(
         None, description="Citation accuracy score", ge=0.0, le=1.0
     )
-    citation_issues: List[Dict[str, Any]] = Field(
+    citation_issues: list[dict[str, Any]] = Field(
         default_factory=list, description="Citation validation issues"
     )
     citation_status: ValidationStatus = Field(
@@ -108,27 +103,27 @@ class QualityAssessmentReport(BaseModel):
     )
 
     # Overall quality metrics
-    overall_quality_score: Optional[float] = Field(
+    overall_quality_score: float | None = Field(
         None, description="Overall quality score", ge=0.0, le=1.0
     )
-    quality_grade: Optional[str] = Field(
+    quality_grade: str | None = Field(
         None, description="Quality grade (A, B, C, D, F)"
     )
-    validation_summary: Dict[str, Any] = Field(
+    validation_summary: dict[str, Any] = Field(
         default_factory=dict, description="Validation summary statistics"
     )
 
     # Performance metrics
-    processing_time: Optional[float] = Field(
+    processing_time: float | None = Field(
         None, description="Total processing time in seconds"
     )
     items_processed: int = Field(0, description="Number of items processed")
 
     # Alerts and recommendations
-    quality_alerts: List[QualityAlert] = Field(
+    quality_alerts: list[QualityAlert] = Field(
         default_factory=list, description="Quality alerts generated"
     )
-    recommendations: List[str] = Field(
+    recommendations: list[str] = Field(
         default_factory=list, description="Quality improvement recommendations"
     )
 
@@ -167,7 +162,7 @@ class QualityAssessmentReport(BaseModel):
             return 0.0
 
         # Calculate weighted average
-        weighted_sum = sum(score * weight for score, weight in zip(scores, weights))
+        weighted_sum = sum(score * weight for score, weight in zip(scores, weights, strict=False))
         total_weight = sum(weights)
 
         overall_score = weighted_sum / total_weight if total_weight > 0 else 0.0
@@ -200,7 +195,7 @@ class QualityAssessmentReport(BaseModel):
         if recommendation not in self.recommendations:
             self.recommendations.append(recommendation)
 
-    def get_summary_dict(self) -> Dict[str, Any]:
+    def get_summary_dict(self) -> dict[str, Any]:
         """Get a summary dictionary for reporting."""
         return {
             "assessment_id": self.assessment_id,
@@ -279,7 +274,7 @@ class QualityValidationRules(BaseModel):
 
     def validate_ragas_results(
         self, results: EvaluationResult
-    ) -> Tuple[ValidationStatus, List[str]]:
+    ) -> tuple[ValidationStatus, list[str]]:
         """Validate RAGAS results against thresholds."""
         issues = []
         status = ValidationStatus.PASSED
@@ -319,8 +314,8 @@ class QualityValidationRules(BaseModel):
         return status, issues
 
     def validate_duplicate_results(
-        self, duplicates: List[DuplicateResult], total_items: int
-    ) -> Tuple[ValidationStatus, List[str]]:
+        self, duplicates: list[DuplicateResult], total_items: int
+    ) -> tuple[ValidationStatus, list[str]]:
         """Validate duplicate detection results against thresholds."""
         issues = []
         status = ValidationStatus.PASSED
@@ -344,7 +339,7 @@ class QualityValidationRules(BaseModel):
 
     def validate_citation_accuracy(
         self, accuracy: float, error_count: int
-    ) -> Tuple[ValidationStatus, List[str]]:
+    ) -> tuple[ValidationStatus, list[str]]:
         """Validate citation accuracy against thresholds."""
         issues = []
         status = ValidationStatus.PASSED
@@ -392,7 +387,7 @@ class QualityPipelineConfig(BaseModel):
     )
 
     # RAGAS configuration
-    ragas_metrics: List[str] = Field(
+    ragas_metrics: list[str] = Field(
         default_factory=lambda: [
             "faithfulness",
             "answer_relevancy",
@@ -403,7 +398,7 @@ class QualityPipelineConfig(BaseModel):
     )
 
     # Duplicate detection configuration
-    duplication_strategies: List[DuplicationStrategy] = Field(
+    duplication_strategies: list[DuplicationStrategy] = Field(
         default_factory=lambda: [
             DuplicationStrategy.EXACT_MATCH,
             DuplicationStrategy.SEMANTIC_SIMILARITY,
@@ -425,7 +420,7 @@ class QualityPipelineConfig(BaseModel):
 
     # Output configuration
     save_results: bool = Field(True, description="Save assessment results to file")
-    results_directory: Optional[Path] = Field(
+    results_directory: Path | None = Field(
         None, description="Directory to save results"
     )
     generate_report: bool = Field(True, description="Generate detailed quality report")
@@ -439,7 +434,7 @@ class DataQualityPipeline:
     duplicate detection, citation validation, and quality monitoring.
     """
 
-    def __init__(self, config: Optional[QualityPipelineConfig] = None):
+    def __init__(self, config: QualityPipelineConfig | None = None):
         """Initialize the data quality pipeline."""
         self.config = config or QualityPipelineConfig()
         self.logger = logging.getLogger(__name__)
@@ -475,10 +470,10 @@ class DataQualityPipeline:
 
     async def assess_data_quality(
         self,
-        data: Union[List[Document], List[Chunk], List[Citation], Dict[str, List[Any]]],
-        query: Optional[str] = None,
-        contexts: Optional[List[str]] = None,
-        ground_truth: Optional[str] = None,
+        data: list[Document] | list[Chunk] | list[Citation] | dict[str, list[Any]],
+        query: str | None = None,
+        contexts: list[str] | None = None,
+        ground_truth: str | None = None,
     ) -> QualityAssessmentReport:
         """
         Perform comprehensive data quality assessment.
@@ -492,7 +487,7 @@ class DataQualityPipeline:
         Returns:
             Comprehensive quality assessment report
         """
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
         assessment_id = f"qa_{start_time.strftime('%Y%m%d_%H%M%S')}"
 
         self.logger.info(f"Starting data quality assessment {assessment_id}")
@@ -525,7 +520,7 @@ class DataQualityPipeline:
             self._generate_recommendations(report)
 
             # Record performance metrics
-            end_time = datetime.now(timezone.utc)
+            end_time = datetime.now(UTC)
             report.processing_time = (end_time - start_time).total_seconds()
 
             # Save results if configured
@@ -543,7 +538,7 @@ class DataQualityPipeline:
                 QualityAlert(
                     severity=AlertSeverity.CRITICAL,
                     message=f"Assessment failed: {str(e)}",
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                 )
             )
             raise
@@ -551,8 +546,8 @@ class DataQualityPipeline:
         return report
 
     def _categorize_data(
-        self, data: Union[List[Any], Dict[str, List[Any]]]
-    ) -> Dict[str, List[Any]]:
+        self, data: list[Any] | dict[str, list[Any]]
+    ) -> dict[str, list[Any]]:
         """Categorize data by type for appropriate processing."""
         if isinstance(data, dict):
             return data
@@ -574,10 +569,10 @@ class DataQualityPipeline:
     async def _run_assessment_components(
         self,
         report: QualityAssessmentReport,
-        data_by_type: Dict[str, List[Any]],
-        query: Optional[str],
-        contexts: Optional[List[str]],
-        ground_truth: Optional[str],
+        data_by_type: dict[str, list[Any]],
+        query: str | None,
+        contexts: list[str] | None,
+        ground_truth: str | None,
     ):
         """Run all enabled assessment components."""
 
@@ -604,8 +599,8 @@ class DataQualityPipeline:
         self,
         report: QualityAssessmentReport,
         query: str,
-        contexts: Optional[List[str]],
-        ground_truth: Optional[str],
+        contexts: list[str] | None,
+        ground_truth: str | None,
     ):
         """Run RAGAS evaluation component."""
         try:
@@ -635,7 +630,7 @@ class DataQualityPipeline:
                     QualityAlert(
                         severity=severity,
                         message=f"RAGAS validation: {issue}",
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
                 )
 
@@ -648,12 +643,12 @@ class DataQualityPipeline:
                 QualityAlert(
                     severity=AlertSeverity.ERROR,
                     message=f"RAGAS evaluation failed: {str(e)}",
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                 )
             )
 
     async def _run_duplicate_detection(
-        self, report: QualityAssessmentReport, data_by_type: Dict[str, List[Any]]
+        self, report: QualityAssessmentReport, data_by_type: dict[str, list[Any]]
     ):
         """Run duplicate detection component."""
         try:
@@ -719,7 +714,7 @@ class DataQualityPipeline:
                     QualityAlert(
                         severity=AlertSeverity.WARNING,
                         message=f"Duplicate detection: {issue}",
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
                 )
 
@@ -734,12 +729,12 @@ class DataQualityPipeline:
                 QualityAlert(
                     severity=AlertSeverity.ERROR,
                     message=f"Duplicate detection failed: {str(e)}",
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                 )
             )
 
     async def _run_citation_validation(
-        self, report: QualityAssessmentReport, citations: List[Citation]
+        self, report: QualityAssessmentReport, citations: list[Citation]
     ):
         """Run citation validation component."""
         try:
@@ -755,7 +750,7 @@ class DataQualityPipeline:
                 # Validate citation structure
                 if not citation.text or not citation.target_passage:
                     citation_errors.append(
-                        f"Missing text or target_passage in citation"
+                        "Missing text or target_passage in citation"
                     )
                     continue
 
@@ -797,7 +792,7 @@ class DataQualityPipeline:
                     QualityAlert(
                         severity=severity,
                         message=f"Citation validation: {issue}",
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                     )
                 )
 
@@ -810,7 +805,7 @@ class DataQualityPipeline:
                 QualityAlert(
                     severity=AlertSeverity.ERROR,
                     message=f"Citation validation failed: {str(e)}",
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                 )
             )
 
@@ -837,7 +832,7 @@ class DataQualityPipeline:
             self.logger.warning(f"Quality monitoring component failed: {e}")
             # Don't fail the entire assessment for monitoring issues
 
-    def _get_text_field_for_type(self, data_type: str) -> Optional[str]:
+    def _get_text_field_for_type(self, data_type: str) -> str | None:
         """Get the appropriate text field name for duplicate detection by data type."""
         field_mapping = {
             "documents": "content",
@@ -863,11 +858,7 @@ class DataQualityPipeline:
 
         import re
 
-        for pattern in classical_patterns:
-            if re.search(pattern, reference):
-                return True
-
-        return False
+        return any(re.search(pattern, reference) for pattern in classical_patterns)
 
     def _generate_recommendations(self, report: QualityAssessmentReport):
         """Generate quality improvement recommendations based on assessment results."""

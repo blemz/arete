@@ -2,9 +2,8 @@
 Clean Accessibility Service for WCAG 2.1 AA Compliance.
 """
 
-from typing import Dict, List, Optional, Tuple
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
 
 
 class AccessibilityLevel(Enum):
@@ -41,10 +40,10 @@ class AccessibilityConfig:
 class CleanAccessibilityService:
     """Clean service for implementing WCAG 2.1 AA compliance."""
 
-    def __init__(self, config: Optional[AccessibilityConfig] = None):
+    def __init__(self, config: AccessibilityConfig | None = None):
         """Initialize the accessibility service."""
         self.config = config or AccessibilityConfig()
-        self._contrast_cache: Dict[Tuple[str, str], float] = {}
+        self._contrast_cache: dict[tuple[str, str], float] = {}
 
     def generate_basic_wcag_css(self, theme_name: str = "light") -> str:
         """Generate basic WCAG compliant CSS."""
@@ -55,12 +54,12 @@ class CleanAccessibilityService:
             outline: 3px solid #4A90E2 !important;
             outline-offset: 2px !important;
         }
-        
+
         button, .stButton > button {
             min-height: 44px !important;
             min-width: 44px !important;
         }
-        
+
         .main {
             line-height: 1.5 !important;
         }
@@ -80,7 +79,7 @@ class CleanAccessibilityService:
         css += "</style>"
         return css
 
-    def validate_basic_wcag_compliance(self, theme_name: str) -> Dict[str, bool]:
+    def validate_basic_wcag_compliance(self, theme_name: str) -> dict[str, bool]:
         """Validate basic WCAG compliance."""
         return {
             "contrast_ratio_normal": theme_name == "high_contrast",

@@ -14,17 +14,16 @@ Features:
 - Cross-reference network creation
 """
 
-import asyncio
 import logging
 import os
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
+from typing import Any
 
-from arete.services.simple_llm_service import SimpleLLMService
-from arete.services.llm_provider import LLMMessage, MessageRole, LLMResponse
 from arete.config import get_settings
+from arete.services.llm_provider import LLMMessage, MessageRole
+from arete.services.simple_llm_service import SimpleLLMService
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -44,14 +43,14 @@ class ProcessingMode(Enum):
 class PhilosophicalContext:
     """Context information for philosophical text processing."""
 
-    author: Optional[str] = None
-    work_title: Optional[str] = None
-    philosophical_period: Optional[str] = (
+    author: str | None = None
+    work_title: str | None = None
+    philosophical_period: str | None = (
         None  # Ancient, Medieval, Modern, Contemporary
     )
-    text_type: Optional[str] = None  # dialogue, treatise, commentary, letter
-    key_concepts: List[str] = field(default_factory=list)
-    major_themes: List[str] = field(default_factory=list)
+    text_type: str | None = None  # dialogue, treatise, commentary, letter
+    key_concepts: list[str] = field(default_factory=list)
+    major_themes: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -61,8 +60,8 @@ class RestructuringResult:
     restructured_text: str
     processing_mode: ProcessingMode
     context: PhilosophicalContext
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    processing_stats: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    processing_stats: dict[str, Any] = field(default_factory=dict)
 
 
 class PhilosophicalTextRestructurer:
@@ -167,7 +166,7 @@ INPUT TEXT:
 OUTPUT FORMAT:
 **Philosophers:** Name1, Name2
 **Concepts:** concept1, concept2, concept3
-**Works:** "Work Title 1", "Work Title 2"  
+**Works:** "Work Title 1", "Work Title 2"
 **Places:** Location1, Location2
 **Characters:** character1, character2
 
@@ -232,7 +231,7 @@ OUTPUT: Comprehensive restructured text with all optimizations applied.
         self,
         text: str,
         mode: ProcessingMode = ProcessingMode.FULL_RESTRUCTURE,
-        context: Optional[PhilosophicalContext] = None,
+        context: PhilosophicalContext | None = None,
         chunk_size: int = 4000,
     ) -> RestructuringResult:
         """
@@ -330,7 +329,7 @@ Major Themes: {', '.join(context.major_themes) if context.major_themes else 'Non
             # Return original chunk if processing fails
             return chunk
 
-    def _chunk_text(self, text: str, chunk_size: int) -> List[str]:
+    def _chunk_text(self, text: str, chunk_size: int) -> list[str]:
         """Split text into chunks while preserving paragraph boundaries."""
         chunks = []
         current_chunk = ""
@@ -366,7 +365,7 @@ Major Themes: {', '.join(context.major_themes) if context.major_themes else 'Non
 
         return chunks
 
-    def _combine_chunks(self, processed_chunks: List[str], mode: ProcessingMode) -> str:
+    def _combine_chunks(self, processed_chunks: list[str], mode: ProcessingMode) -> str:
         """Combine processed chunks back into coherent text."""
 
         if mode == ProcessingMode.DIALOGUE_SEPARATION:
@@ -395,9 +394,9 @@ Major Themes: {', '.join(context.major_themes) if context.major_themes else 'Non
     async def restructure_file(
         self,
         input_file: Path,
-        output_file: Optional[Path] = None,
+        output_file: Path | None = None,
         mode: ProcessingMode = ProcessingMode.FULL_RESTRUCTURE,
-        context: Optional[PhilosophicalContext] = None,
+        context: PhilosophicalContext | None = None,
     ) -> Path:
         """
         Restructure a philosophical text file.
@@ -412,7 +411,7 @@ Major Themes: {', '.join(context.major_themes) if context.major_themes else 'Non
             Path to the restructured output file
         """
         # Read input file
-        with open(input_file, "r", encoding="utf-8") as f:
+        with open(input_file, encoding="utf-8") as f:
             original_text = f.read()
 
         # Process the text
@@ -428,7 +427,7 @@ Major Themes: {', '.join(context.major_themes) if context.major_themes else 'Non
         # Write restructured text
         with open(output_file, "w", encoding="utf-8") as f:
             # Add metadata header
-            f.write(f"# Restructured Philosophical Text\n\n")
+            f.write("# Restructured Philosophical Text\n\n")
             f.write(f"**Original:** {input_file.name}\n")
             f.write(f"**Processing Mode:** {mode.value}\n")
             f.write(f"**Provider:** {self.kg_provider}\n")
@@ -449,7 +448,7 @@ Major Themes: {', '.join(context.major_themes) if context.major_themes else 'Non
 
 
 async def restructure_socratic_dialogue(
-    text: str, author: str = "Plato", work_title: Optional[str] = None
+    text: str, author: str = "Plato", work_title: str | None = None
 ) -> RestructuringResult:
     """
     Convenience function for restructuring Socratic dialogues.
@@ -478,7 +477,7 @@ async def restructure_socratic_dialogue(
 
 
 async def extract_philosophical_arguments(
-    text: str, context: Optional[PhilosophicalContext] = None
+    text: str, context: PhilosophicalContext | None = None
 ) -> RestructuringResult:
     """
     Convenience function for extracting philosophical argument structures.

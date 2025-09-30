@@ -9,12 +9,10 @@ This is a wrapper that provides embedding-like functionality using
 Anthropic's models for semantic similarity tasks.
 """
 
-import asyncio
 import logging
-from typing import List, Optional, Dict, Any
-import httpx
-import numpy as np
-from ..config import Settings, get_settings
+from typing import Any
+
+from arete.config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +36,8 @@ class AnthropicEmbeddingService:
     def __init__(
         self,
         model_name: str = "claude-3-haiku-20240307",
-        api_key: Optional[str] = None,
-        settings: Optional[Settings] = None,
+        api_key: str | None = None,
+        settings: Settings | None = None,
         max_batch_size: int = 10,  # Lower batch size due to API limitations
         base_url: str = "https://api.anthropic.com/v1",
     ):
@@ -83,7 +81,7 @@ class AnthropicEmbeddingService:
             "This service uses text completion for semantic representation."
         )
 
-    def _text_to_embedding(self, text: str) -> List[float]:
+    def _text_to_embedding(self, text: str) -> list[float]:
         """
         Convert text to a deterministic embedding-like vector.
 
@@ -141,7 +139,7 @@ class AnthropicEmbeddingService:
 
         return features
 
-    async def generate_embedding(self, text: str) -> List[float]:
+    async def generate_embedding(self, text: str) -> list[float]:
         """
         Generate embedding for a single text.
 
@@ -169,7 +167,7 @@ class AnthropicEmbeddingService:
         )
         return embedding
 
-    async def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
+    async def generate_embeddings(self, texts: list[str]) -> list[list[float]]:
         """
         Generate embeddings for multiple texts.
 
@@ -193,8 +191,8 @@ class AnthropicEmbeddingService:
         return embeddings
 
     async def generate_embeddings_with_claude(
-        self, texts: List[str]
-    ) -> List[List[float]]:
+        self, texts: list[str]
+    ) -> list[list[float]]:
         """
         Alternative method that uses Claude API to generate semantic representations.
 
@@ -208,7 +206,7 @@ class AnthropicEmbeddingService:
         """Get embedding dimensions."""
         return self.dimensions
 
-    def get_model_info(self) -> Dict[str, Any]:
+    def get_model_info(self) -> dict[str, Any]:
         """Get model information."""
         return {
             "provider": "anthropic",

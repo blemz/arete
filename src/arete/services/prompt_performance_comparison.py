@@ -6,22 +6,20 @@ philosophical tutoring prompts across different LLM providers, including
 metrics collection, quality assessment, and optimization recommendations.
 """
 
-import logging
 import asyncio
 import hashlib
+import logging
+import re
+import statistics
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import List, Dict, Any, Optional, Set, Tuple
-import statistics
-import re
+from typing import Any
 
 from arete.services.prompt_service import PromptService, TutoringRequest
 from arete.services.prompt_template import (
-    PromptType,
-    PromptContext,
-    PhilosophicalContext,
     Citation,
+    PhilosophicalContext,
 )
 
 # Setup logger
@@ -52,9 +50,9 @@ class PerformanceMetrics:
     educational_value: float
     coherence_score: float
     timestamp: datetime = field(default_factory=datetime.now)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def get_overall_score(self, weights: Optional[Dict[str, float]] = None) -> float:
+    def get_overall_score(self, weights: dict[str, float] | None = None) -> float:
         """
         Calculate weighted overall performance score.
 
@@ -88,13 +86,13 @@ class PromptTest:
     """Test case for prompt performance evaluation."""
 
     query: str
-    expected_concepts: List[str]
-    philosophical_context: Optional[PhilosophicalContext] = None
+    expected_concepts: list[str]
+    philosophical_context: PhilosophicalContext | None = None
     student_level: str = "undergraduate"
-    learning_objective: Optional[str] = None
-    citations: List[Citation] = field(default_factory=list)
-    retrieved_passages: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    learning_objective: str | None = None
+    citations: list[Citation] = field(default_factory=list)
+    retrieved_passages: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -103,7 +101,7 @@ class ProviderComparison:
 
     provider: str
     average_metrics: PerformanceMetrics
-    individual_results: List[PerformanceMetrics] = field(default_factory=list)
+    individual_results: list[PerformanceMetrics] = field(default_factory=list)
     test_count: int = 0
     best_score: float = 0.0
     worst_score: float = 1.0
@@ -119,22 +117,22 @@ class OptimizationRecommendation:
     description: str
     expected_improvement: float  # Percentage improvement expected
     implementation_effort: str  # low, medium, high
-    affected_metrics: List[str] = field(default_factory=list)
+    affected_metrics: list[str] = field(default_factory=list)
 
 
 @dataclass
 class ComparisonResult:
     """Complete comparison results across providers."""
 
-    provider_comparisons: List[ProviderComparison]
-    test_cases_used: List[PromptTest]
+    provider_comparisons: list[ProviderComparison]
+    test_cases_used: list[PromptTest]
     total_tests: int
     best_provider: str
-    recommendations: List[OptimizationRecommendation]
+    recommendations: list[OptimizationRecommendation]
     comparison_timestamp: datetime = field(default_factory=datetime.now)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def get_provider_ranking(self) -> List[ProviderComparison]:
+    def get_provider_ranking(self) -> list[ProviderComparison]:
         """Get providers ranked by overall performance."""
         return sorted(
             self.provider_comparisons,
@@ -151,7 +149,7 @@ class PromptPerformanceComparison:
     accuracy assessment, citation quality, educational value, and coherence.
     """
 
-    def __init__(self, prompt_service: Optional[PromptService] = None):
+    def __init__(self, prompt_service: PromptService | None = None):
         """
         Initialize performance comparison service.
 
@@ -159,8 +157,8 @@ class PromptPerformanceComparison:
             prompt_service: PromptService instance for generating responses
         """
         self.prompt_service = prompt_service or PromptService()
-        self.comparison_cache: Dict[str, ComparisonResult] = {}
-        self.test_results: List[PerformanceMetrics] = []
+        self.comparison_cache: dict[str, ComparisonResult] = {}
+        self.test_results: list[PerformanceMetrics] = []
 
         # Philosophical concept keywords for accuracy evaluation
         self.philosophical_keywords = {
@@ -194,9 +192,9 @@ class PromptPerformanceComparison:
 
     async def run_provider_comparison(
         self,
-        test_cases: List[PromptTest],
-        providers: List[str],
-        include_metrics: List[MetricType] = None,
+        test_cases: list[PromptTest],
+        providers: list[str],
+        include_metrics: list[MetricType] = None,
         batch_size: int = 3,
         cache_results: bool = True,
     ) -> ComparisonResult:
@@ -284,9 +282,9 @@ class PromptPerformanceComparison:
     async def _run_provider_batch(
         self,
         provider: str,
-        test_cases: List[PromptTest],
-        include_metrics: List[MetricType],
-    ) -> List[PerformanceMetrics]:
+        test_cases: list[PromptTest],
+        include_metrics: list[MetricType],
+    ) -> list[PerformanceMetrics]:
         """Run a batch of test cases for a single provider."""
         tasks = []
 
@@ -307,7 +305,7 @@ class PromptPerformanceComparison:
         return valid_results
 
     async def _evaluate_single_test(
-        self, provider: str, test_case: PromptTest, include_metrics: List[MetricType]
+        self, provider: str, test_case: PromptTest, include_metrics: list[MetricType]
     ) -> PerformanceMetrics:
         """Evaluate a single test case for a provider."""
         # Create tutoring request
@@ -377,7 +375,7 @@ class PromptPerformanceComparison:
         )
 
     async def _evaluate_accuracy(
-        self, response_content: str, expected_concepts: List[str]
+        self, response_content: str, expected_concepts: list[str]
     ) -> float:
         """
         Evaluate response accuracy based on expected philosophical concepts.
@@ -421,7 +419,7 @@ class PromptPerformanceComparison:
         variations = concept_variations.get(concept, [])
         return any(var in text for var in variations)
 
-    def _evaluate_citation_quality(self, citations: List[Citation]) -> float:
+    def _evaluate_citation_quality(self, citations: list[Citation]) -> float:
         """
         Evaluate the quality of citations provided.
 
@@ -590,7 +588,7 @@ class PromptPerformanceComparison:
 
         return min(1.0, max(0.0, coherence))
 
-    def _analyze_logical_flow(self, sentences: List[str]) -> float:
+    def _analyze_logical_flow(self, sentences: list[str]) -> float:
         """Analyze if sentences follow logical progression."""
         if len(sentences) < 2:
             return 1.0
@@ -660,7 +658,7 @@ class PromptPerformanceComparison:
         # Normalize by possible connections
         return flow_score / max(1, len(sentences) - 1) if len(sentences) > 1 else 1.0
 
-    def _analyze_semantic_consistency(self, sentences: List[str]) -> float:
+    def _analyze_semantic_consistency(self, sentences: list[str]) -> float:
         """Check if all sentences relate to the same topic."""
         if len(sentences) < 2:
             return 1.0
@@ -739,7 +737,7 @@ class PromptPerformanceComparison:
         return min(1.0, consistency_ratio + depth_bonus)
 
     def _analyze_argument_structure(
-        self, sentences: List[str], full_response: str
+        self, sentences: list[str], full_response: str
     ) -> float:
         """Analyze philosophical argument structure."""
         response_lower = full_response.lower()
@@ -801,7 +799,7 @@ class PromptPerformanceComparison:
         return min(1.0, structure_score)
 
     def _analyze_linguistic_coherence(
-        self, sentences: List[str], full_response: str
+        self, sentences: list[str], full_response: str
     ) -> float:
         """Analyze surface linguistic features."""
         if len(sentences) < 2:
@@ -845,7 +843,7 @@ class PromptPerformanceComparison:
         return min(1.0, linguistic_score)
 
     def _calculate_provider_comparison(
-        self, provider: str, metrics_list: List[PerformanceMetrics]
+        self, provider: str, metrics_list: list[PerformanceMetrics]
     ) -> ProviderComparison:
         """Calculate comparison statistics for a provider."""
         if not metrics_list:
@@ -905,7 +903,7 @@ class PromptPerformanceComparison:
 
     def _generate_optimization_recommendations(
         self, result: ComparisonResult
-    ) -> List[OptimizationRecommendation]:
+    ) -> list[OptimizationRecommendation]:
         """Generate optimization recommendations based on comparison results."""
         recommendations = []
 
@@ -1007,9 +1005,9 @@ class PromptPerformanceComparison:
 
     def _generate_cache_key(
         self,
-        test_cases: List[PromptTest],
-        providers: List[str],
-        include_metrics: List[MetricType],
+        test_cases: list[PromptTest],
+        providers: list[str],
+        include_metrics: list[MetricType],
     ) -> str:
         """Generate cache key for comparison results."""
         # Create hash from test case queries and configuration
@@ -1025,7 +1023,7 @@ class PromptPerformanceComparison:
 
     def get_historical_comparisons(
         self, days_back: int = 30
-    ) -> List[PerformanceMetrics]:
+    ) -> list[PerformanceMetrics]:
         """Get historical comparison results."""
         cutoff_date = datetime.now() - timedelta(days=days_back)
 
@@ -1038,7 +1036,7 @@ class PromptPerformanceComparison:
         self.comparison_cache.clear()
         logger.info("Comparison cache cleared")
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         return {
             "cached_comparisons": len(self.comparison_cache),

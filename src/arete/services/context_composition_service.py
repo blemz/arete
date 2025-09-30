@@ -9,18 +9,19 @@ Provides intelligent context composition for LLM consumption with:
 - Performance optimization with caching
 """
 
+import hashlib
 import logging
 import time
-import hashlib
-from typing import List, Dict, Any, Optional, Union, Tuple
-from enum import Enum
 from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
 from uuid import UUID
 
-from ..config import Settings, get_settings
-from ..services.dense_retrieval_service import SearchResult
-from ..models.chunk import Chunk
-from ..models.citation import Citation
+from arete.config import Settings, get_settings
+from arete.models.chunk import Chunk
+from arete.models.citation import Citation
+from arete.services.dense_retrieval_service import SearchResult
+
 from .base import ServiceError
 
 logger = logging.getLogger(__name__)
@@ -46,7 +47,6 @@ class CitationFormat(str, Enum):
 class ContextCompositionError(ServiceError):
     """Base exception for context composition service errors."""
 
-    pass
 
 
 @dataclass
@@ -92,11 +92,11 @@ class ContextCompositionConfig:
 class PassageGroup:
     """A group of coherent text passages."""
 
-    chunks: List[Chunk]
+    chunks: list[Chunk]
     coherence_score: float
-    topic: Optional[str] = None
-    start_position: Optional[int] = None
-    end_position: Optional[int] = None
+    topic: str | None = None
+    start_position: int | None = None
+    end_position: int | None = None
     token_count: int = field(default=0, init=False)
 
     def __post_init__(self):
@@ -113,7 +113,7 @@ class PassageGroup:
         """Get composed text from all chunks."""
         return separator.join(chunk.text for chunk in self.chunks)
 
-    def get_metadata(self) -> Dict[str, Any]:
+    def get_metadata(self) -> dict[str, Any]:
         """Get combined metadata from all chunks."""
         metadata = {}
         for chunk in self.chunks:
@@ -128,8 +128,8 @@ class CitationContext:
     citation: Citation
     formatted_citation: str
     context_relevance: float
-    position_in_text: Optional[int] = None
-    anchor_text: Optional[str] = None
+    position_in_text: int | None = None
+    anchor_text: str | None = None
 
 
 @dataclass
@@ -142,8 +142,8 @@ class ContextResult:
     query: str
 
     # Structure
-    passage_groups: List[PassageGroup]
-    citations: List[CitationContext]
+    passage_groups: list[PassageGroup]
+    citations: list[CitationContext]
 
     # Metadata
     strategy_used: CompositionStrategy
@@ -152,8 +152,8 @@ class ContextResult:
     composition_time: float = 0.0
 
     # Performance metrics
-    performance_metrics: Dict[str, Any] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    performance_metrics: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class ContextCompositionService:
@@ -166,8 +166,8 @@ class ContextCompositionService:
 
     def __init__(
         self,
-        config: Optional[ContextCompositionConfig] = None,
-        settings: Optional[Settings] = None,
+        config: ContextCompositionConfig | None = None,
+        settings: Settings | None = None,
     ):
         """
         Initialize context composition service.
@@ -180,8 +180,8 @@ class ContextCompositionService:
         self.settings = settings or get_settings()
 
         # Caching for performance
-        self._composition_cache: Dict[str, ContextResult] = {}
-        self._cache_timestamps: Dict[str, float] = {}
+        self._composition_cache: dict[str, ContextResult] = {}
+        self._cache_timestamps: dict[str, float] = {}
 
         logger.info(
             f"Initialized ContextCompositionService with strategy: {self.config.strategy.value}, "
@@ -190,10 +190,10 @@ class ContextCompositionService:
 
     def compose_context(
         self,
-        search_results: List[SearchResult],
+        search_results: list[SearchResult],
         query: str,
-        citations: Optional[List[Citation]] = None,
-        config: Optional[ContextCompositionConfig] = None,
+        citations: list[Citation] | None = None,
+        config: ContextCompositionConfig | None = None,
     ) -> ContextResult:
         """
         Compose context from search results for LLM consumption.
@@ -272,10 +272,10 @@ class ContextCompositionService:
 
     def compose_context_batch(
         self,
-        search_results_list: List[List[SearchResult]],
-        queries: List[str],
-        config: Optional[ContextCompositionConfig] = None,
-    ) -> List[ContextResult]:
+        search_results_list: list[list[SearchResult]],
+        queries: list[str],
+        config: ContextCompositionConfig | None = None,
+    ) -> list[ContextResult]:
         """
         Compose context for multiple queries in batch.
 
@@ -293,7 +293,7 @@ class ContextCompositionService:
             )
 
         results = []
-        for search_results, query in zip(search_results_list, queries):
+        for search_results, query in zip(search_results_list, queries, strict=False):
             try:
                 result = self.compose_context(
                     search_results=search_results, query=query, config=config
@@ -329,7 +329,7 @@ class ContextCompositionService:
 
     def _validate_inputs(
         self,
-        search_results: List[SearchResult],
+        search_results: list[SearchResult],
         query: str,
         config: ContextCompositionConfig,
     ) -> None:
@@ -349,9 +349,9 @@ class ContextCompositionService:
 
     def _intelligent_stitching_composition(
         self,
-        search_results: List[SearchResult],
+        search_results: list[SearchResult],
         query: str,
-        citations: Optional[List[Citation]],
+        citations: list[Citation] | None,
         config: ContextCompositionConfig,
     ) -> ContextResult:
         """Compose context using intelligent stitching strategy."""
@@ -366,7 +366,7 @@ class ContextCompositionService:
         total_tokens = 0
         overlaps_detected = 0
 
-        for doc_id, doc_results in document_groups.items():
+        for _doc_id, doc_results in document_groups.items():
             # Sort by position for coherent ordering
             doc_results.sort(key=lambda r: r.chunk.position)
 
@@ -428,9 +428,9 @@ class ContextCompositionService:
 
     def _map_reduce_composition(
         self,
-        search_results: List[SearchResult],
+        search_results: list[SearchResult],
         query: str,
-        citations: Optional[List[Citation]],
+        citations: list[Citation] | None,
         config: ContextCompositionConfig,
     ) -> ContextResult:
         """Compose context using Map-Reduce strategy for large contexts."""
@@ -504,9 +504,9 @@ class ContextCompositionService:
 
     def _semantic_grouping_composition(
         self,
-        search_results: List[SearchResult],
+        search_results: list[SearchResult],
         query: str,
-        citations: Optional[List[Citation]],
+        citations: list[Citation] | None,
         config: ContextCompositionConfig,
     ) -> ContextResult:
         """Compose context using semantic grouping strategy."""
@@ -575,9 +575,9 @@ class ContextCompositionService:
 
     def _simple_concat_composition(
         self,
-        search_results: List[SearchResult],
+        search_results: list[SearchResult],
         query: str,
-        citations: Optional[List[Citation]],
+        citations: list[Citation] | None,
         config: ContextCompositionConfig,
     ) -> ContextResult:
         """Compose context using simple concatenation strategy."""
@@ -643,8 +643,8 @@ class ContextCompositionService:
         )
 
     def _group_by_document(
-        self, search_results: List[SearchResult]
-    ) -> Dict[UUID, List[SearchResult]]:
+        self, search_results: list[SearchResult]
+    ) -> dict[UUID, list[SearchResult]]:
         """Group search results by document ID."""
         groups = {}
         for result in search_results:
@@ -655,8 +655,8 @@ class ContextCompositionService:
         return groups
 
     def _remove_overlaps(
-        self, results: List[SearchResult], threshold: float
-    ) -> List[SearchResult]:
+        self, results: list[SearchResult], threshold: float
+    ) -> list[SearchResult]:
         """Remove overlapping chunks based on similarity threshold."""
         if not results:
             return results
@@ -685,8 +685,8 @@ class ContextCompositionService:
         return non_overlapping
 
     def _create_coherent_groups(
-        self, results: List[SearchResult], threshold: float
-    ) -> List[PassageGroup]:
+        self, results: list[SearchResult], threshold: float
+    ) -> list[PassageGroup]:
         """Create coherent passage groups from search results."""
         if not results:
             return []
@@ -748,7 +748,7 @@ class ContextCompositionService:
 
         return (position_coherence + text_coherence) / 2.0
 
-    def _calculate_group_coherence(self, results: List[SearchResult]) -> float:
+    def _calculate_group_coherence(self, results: list[SearchResult]) -> float:
         """Calculate overall coherence score for a group of results."""
         if len(results) <= 1:
             return 1.0
@@ -764,8 +764,8 @@ class ContextCompositionService:
         )
 
     def _group_by_semantic_similarity(
-        self, results: List[SearchResult], threshold: float
-    ) -> List[List[SearchResult]]:
+        self, results: list[SearchResult], threshold: float
+    ) -> list[list[SearchResult]]:
         """Group results by semantic similarity (simplified clustering)."""
         if not results:
             return []
@@ -796,22 +796,22 @@ class ContextCompositionService:
 
         return groups
 
-    def _extract_topic(self, results: List[SearchResult]) -> Optional[str]:
+    def _extract_topic(self, results: list[SearchResult]) -> str | None:
         """Extract topic from a group of search results."""
         # Simple implementation - could be enhanced with NLP
         common_words = set()
 
         for result in results:
-            words = set(
+            words = {
                 word.lower() for word in result.chunk.text.split() if len(word) > 3
-            )
+            }
             if not common_words:
                 common_words = words
             else:
                 common_words = common_words.intersection(words)
 
         if common_words:
-            return " ".join(sorted(list(common_words))[:3])
+            return " ".join(sorted(common_words)[:3])
 
         return None
 
@@ -864,7 +864,7 @@ class ContextCompositionService:
         return " ".join(words[:max_words]) + "..."
 
     def _compose_text_from_groups(
-        self, groups: List[PassageGroup], config: ContextCompositionConfig
+        self, groups: list[PassageGroup], config: ContextCompositionConfig
     ) -> str:
         """Compose final text from passage groups."""
         if not groups:
@@ -872,7 +872,7 @@ class ContextCompositionService:
 
         sections = []
 
-        for i, group in enumerate(groups):
+        for _i, group in enumerate(groups):
             group_text = group.get_composed_text()
 
             if config.add_source_info and group.topic:
@@ -884,10 +884,10 @@ class ContextCompositionService:
 
     def _process_citations(
         self,
-        citations: List[Citation],
+        citations: list[Citation],
         composed_text: str,
         config: ContextCompositionConfig,
-    ) -> List[CitationContext]:
+    ) -> list[CitationContext]:
         """Process and format citations for the composed context."""
         if not citations or not config.include_citations:
             return []
@@ -952,7 +952,7 @@ class ContextCompositionService:
         overlap = citation_words.intersection(text_words)
         return len(overlap) / len(citation_words)
 
-    def _find_citation_position(self, citation: Citation, text: str) -> Optional[int]:
+    def _find_citation_position(self, citation: Citation, text: str) -> int | None:
         """Find position of citation in composed text."""
         # Look for citation text in composed text
         citation_text = citation.text
@@ -969,8 +969,8 @@ class ContextCompositionService:
         return position if position != -1 else None
 
     def _create_metadata(
-        self, search_results: List[SearchResult], config: ContextCompositionConfig
-    ) -> Dict[str, Any]:
+        self, search_results: list[SearchResult], config: ContextCompositionConfig
+    ) -> dict[str, Any]:
         """Create metadata for the composed context."""
         if not config.include_metadata:
             return {}
@@ -998,7 +998,7 @@ class ContextCompositionService:
             },
         }
 
-    def _calculate_performance_metrics(self, result: ContextResult) -> Dict[str, Any]:
+    def _calculate_performance_metrics(self, result: ContextResult) -> dict[str, Any]:
         """Calculate performance metrics for the composition."""
         token_efficiency = (
             result.total_tokens / self.config.max_tokens
@@ -1033,9 +1033,9 @@ class ContextCompositionService:
 
     def _generate_cache_key(
         self,
-        search_results: List[SearchResult],
+        search_results: list[SearchResult],
         query: str,
-        citations: Optional[List[Citation]],
+        citations: list[Citation] | None,
         config: ContextCompositionConfig,
     ) -> str:
         """Generate cache key for composition request."""
@@ -1061,7 +1061,7 @@ class ContextCompositionService:
         key_string = "|".join(key_components)
         return hashlib.md5(key_string.encode()).hexdigest()
 
-    def _get_cached_result(self, cache_key: str) -> Optional[ContextResult]:
+    def _get_cached_result(self, cache_key: str) -> ContextResult | None:
         """Get cached composition result if valid."""
         if cache_key not in self._composition_cache:
             return None
@@ -1095,7 +1095,7 @@ class ContextCompositionService:
         self._cache_timestamps.clear()
         logger.info("Context composition cache cleared")
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         return {
             "cached_results": len(self._composition_cache),
@@ -1110,8 +1110,8 @@ class ContextCompositionService:
 
 # Factory function following established pattern
 def create_context_composition_service(
-    config: Optional[ContextCompositionConfig] = None,
-    settings: Optional[Settings] = None,
+    config: ContextCompositionConfig | None = None,
+    settings: Settings | None = None,
 ) -> ContextCompositionService:
     """
     Create context composition service with optional configuration.

@@ -1,13 +1,14 @@
 """Split-view layout system for Reflex app with resizable panels and mode management."""
 
+
 import reflex as rx
-from typing import Dict, Any, Optional, Literal
+
 from ...state.layout_state import LayoutState
 
 
 class SplitViewComponent(rx.Component):
     """Resizable split-view layout with chat and document panels."""
-    
+
     def render(self) -> rx.Component:
         return rx.box(
             # Main split container
@@ -52,7 +53,7 @@ class SplitViewComponent(rx.Component):
                         )
                     }
                 ),
-                
+
                 # Resizable divider
                 rx.cond(
                     LayoutState.layout_mode == "split",
@@ -77,7 +78,7 @@ class SplitViewComponent(rx.Component):
                     ),
                     rx.box()
                 ),
-                
+
                 # Document panel
                 rx.box(
                     rx.cond(
@@ -108,7 +109,7 @@ class SplitViewComponent(rx.Component):
                         "overflow": "hidden"
                     }
                 ),
-                
+
                 class_name=rx.cond(
                     LayoutState.split_orientation == "horizontal",
                     "flex flex-row h-full",
@@ -120,27 +121,27 @@ class SplitViewComponent(rx.Component):
                     "position": "relative"
                 }
             ),
-            
+
             # Layout mode controls
             self._render_layout_controls(),
-            
+
             # Mobile responsive overlay
             rx.cond(
                 LayoutState.is_mobile & (LayoutState.layout_mode == "split"),
                 self._render_mobile_overlay(),
                 rx.box()
             ),
-            
+
             class_name="relative w-full h-screen overflow-hidden",
             on_window_resize=LayoutState.handle_window_resize,
             on_mouse_move=LayoutState.handle_resize,
             on_mouse_up=LayoutState.end_resize
         )
-    
+
     def _render_chat_only(self) -> rx.Component:
         """Render chat interface in full-width mode."""
-        from ..chat.chat_interface import ChatInterface
-        
+        from components.chat.chat_interface import ChatInterface
+
         return rx.box(
             ChatInterface(),
             class_name="w-full h-full",
@@ -150,11 +151,11 @@ class SplitViewComponent(rx.Component):
                 "flex_direction": "column"
             }
         )
-    
+
     def _render_chat_split(self) -> rx.Component:
         """Render chat interface in split-view mode."""
-        from ..chat.chat_interface import ChatInterface
-        
+        from components.chat.chat_interface import ChatInterface
+
         return rx.box(
             # Split-view chat header
             rx.box(
@@ -183,29 +184,29 @@ class SplitViewComponent(rx.Component):
                 class_name="flex justify-between items-center p-2 border-b border-gray-200 dark:border-gray-700",
                 style={"min_height": "3rem"}
             ),
-            
+
             # Chat content
             rx.box(
                 ChatInterface(compact_mode=True),
                 class_name="flex-1 overflow-hidden"
             ),
-            
+
             class_name="flex flex-col h-full bg-white dark:bg-gray-900"
         )
-    
+
     def _render_document_only(self) -> rx.Component:
         """Render document viewer in full-width mode."""
-        from ..document.document_viewer import DocumentViewer
-        
+        from components.document.document_viewer import DocumentViewer
+
         return rx.box(
             DocumentViewer(),
             class_name="w-full h-full"
         )
-    
+
     def _render_document_split(self) -> rx.Component:
         """Render document viewer in split-view mode."""
-        from ..document.document_viewer import DocumentViewer
-        
+        from components.document.document_viewer import DocumentViewer
+
         return rx.box(
             # Split-view document header
             rx.box(
@@ -234,16 +235,16 @@ class SplitViewComponent(rx.Component):
                 class_name="flex justify-between items-center p-2 border-b border-gray-200 dark:border-gray-700",
                 style={"min_height": "3rem"}
             ),
-            
+
             # Document content
             rx.box(
                 DocumentViewer(compact_mode=True),
                 class_name="flex-1 overflow-hidden"
             ),
-            
+
             class_name="flex flex-col h-full bg-white dark:bg-gray-900"
         )
-    
+
     def _render_layout_controls(self) -> rx.Component:
         """Render layout mode controls."""
         return rx.box(
@@ -305,7 +306,7 @@ class SplitViewComponent(rx.Component):
             ),
             class_name="absolute top-4 right-4 z-10 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-2 border border-gray-200 dark:border-gray-700"
         )
-    
+
     def _render_mobile_overlay(self) -> rx.Component:
         """Render mobile responsive overlay."""
         return rx.box(

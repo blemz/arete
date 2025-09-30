@@ -3,29 +3,24 @@
 import asyncio
 import time
 from contextlib import asynccontextmanager, contextmanager
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 from uuid import UUID
 
 import neo4j
 from neo4j import AsyncGraphDatabase, GraphDatabase
 from neo4j.exceptions import (
     AuthError,
-    CypherSyntaxError,
-    DatabaseError,
-    Neo4jError,
     ServiceUnavailable,
-    SessionExpired,
     TransientError,
 )
 
-from ..config import get_settings
-from ..models.document import Document
-from ..models.entity import Entity
-from ..models.chunk import Chunk
+from arete.config import get_settings
+from arete.models.chunk import Chunk
+from arete.models.document import Document
+from arete.models.entity import Entity
+
 from .exceptions import (
     DatabaseConnectionError,
-    DatabaseQueryError,
-    DatabaseTransactionError,
 )
 
 
@@ -33,7 +28,7 @@ class Neo4jClient:
     """Neo4j database client with sync/async support and model integration."""
 
     def __init__(
-        self, uri: Optional[str] = None, auth: Optional[Tuple[str, str]] = None
+        self, uri: str | None = None, auth: tuple[str, str] | None = None
     ) -> None:
         """Initialize Neo4j client.
 
@@ -52,7 +47,7 @@ class Neo4jClient:
         settings = get_settings()
         self.uri = uri or settings.neo4j_uri
         self.auth = auth or settings.neo4j_auth
-        self.driver: Optional[Union[neo4j.Driver, neo4j.AsyncDriver]] = None
+        self.driver: neo4j.Driver | neo4j.AsyncDriver | None = None
 
     def _is_valid_uri(self, uri: str) -> bool:
         """Validate Neo4j URI format."""
@@ -61,7 +56,7 @@ class Neo4jClient:
     def _is_valid_auth(self, auth: Any) -> bool:
         """Validate authentication tuple format."""
         return (
-            isinstance(auth, (tuple, list))
+            isinstance(auth, tuple | list)
             and len(auth) == 2
             and all(isinstance(item, str) for item in auth)
         )
@@ -155,7 +150,7 @@ class Neo4jClient:
         except Exception:
             return False
 
-    async def async_detailed_health_check(self) -> Dict[str, Any]:
+    async def async_detailed_health_check(self) -> dict[str, Any]:
         """Perform detailed asynchronous health check with metrics."""
         start_time = time.time()
 
@@ -198,20 +193,20 @@ class Neo4jClient:
         return health_info
 
     # Session Management
-    def get_session(self, database: Optional[str] = None) -> neo4j.Session:
+    def get_session(self, database: str | None = None) -> neo4j.Session:
         """Get synchronous session."""
         if not self.is_connected:
             raise DatabaseConnectionError("Client is not connected")
         return self.driver.session(database=database)
 
-    def get_async_session(self, database: Optional[str] = None) -> neo4j.AsyncSession:
+    def get_async_session(self, database: str | None = None) -> neo4j.AsyncSession:
         """Get asynchronous session."""
         if not self.is_connected:
             raise DatabaseConnectionError("Client is not connected")
         return self.driver.session(database=database)
 
     @contextmanager
-    def session(self, database: Optional[str] = None):
+    def session(self, database: str | None = None):
         """Synchronous session context manager."""
         session = self.get_session(database=database)
         try:
@@ -220,7 +215,7 @@ class Neo4jClient:
             session.close()
 
     @asynccontextmanager
-    async def async_session(self, database: Optional[str] = None):
+    async def async_session(self, database: str | None = None):
         """Asynchronous session context manager."""
         session = self.get_async_session(database=database)
         try:
@@ -231,21 +226,21 @@ class Neo4jClient:
 
     # Transaction Support
     @contextmanager
-    def transaction(self, database: Optional[str] = None):
+    def transaction(self, database: str | None = None):
         """Synchronous transaction context manager."""
         with self.session(database=database) as session:
             with session.begin_transaction() as tx:
                 yield tx
 
     @asynccontextmanager
-    async def async_transaction(self, database: Optional[str] = None):
+    async def async_transaction(self, database: str | None = None):
         """Asynchronous transaction context manager."""
         async with self.async_session(database=database) as session:
             async with session.begin_transaction() as tx:
                 yield tx
 
     # Document Operations
-    def save_document(self, document: Document) -> Dict[str, Any]:
+    def save_document(self, document: Document) -> dict[str, Any]:
         """Save document to Neo4j synchronously."""
         query = """
         CREATE (d:Document $doc_data)
@@ -257,7 +252,7 @@ class Neo4jClient:
             record = result.single()
             return record["d"] if record else {}
 
-    async def async_save_document(self, document: Document) -> Dict[str, Any]:
+    async def async_save_document(self, document: Document) -> dict[str, Any]:
         """Save document to Neo4j asynchronously."""
         query = """
         CREATE (d:Document $doc_data)
@@ -269,7 +264,7 @@ class Neo4jClient:
             record = await result.single()
             return record["d"] if record else {}
 
-    def get_document(self, document_id: UUID) -> Optional[Dict[str, Any]]:
+    def get_document(self, document_id: UUID) -> dict[str, Any] | None:
         """Get document by ID synchronously."""
         query = """
         MATCH (d:Document {id: $doc_id})
@@ -281,7 +276,7 @@ class Neo4jClient:
             record = result.single()
             return record["d"] if record else None
 
-    async def async_get_document(self, document_id: UUID) -> Optional[Dict[str, Any]]:
+    async def async_get_document(self, document_id: UUID) -> dict[str, Any] | None:
         """Get document by ID asynchronously."""
         query = """
         MATCH (d:Document {id: $doc_id})
@@ -293,7 +288,7 @@ class Neo4jClient:
             record = await result.single()
             return record["d"] if record else None
 
-    def batch_save_documents(self, documents: List[Document]) -> List[Dict[str, Any]]:
+    def batch_save_documents(self, documents: list[Document]) -> list[dict[str, Any]]:
         """Batch save multiple documents synchronously."""
         query = """
         UNWIND $documents AS doc
@@ -309,8 +304,8 @@ class Neo4jClient:
             return result.data()
 
     async def async_batch_save_documents(
-        self, documents: List[Document]
-    ) -> List[Dict[str, Any]]:
+        self, documents: list[Document]
+    ) -> list[dict[str, Any]]:
         """Batch save multiple documents asynchronously."""
         query = """
         UNWIND $documents AS doc
@@ -326,7 +321,7 @@ class Neo4jClient:
             return await result.data()
 
     # Entity Operations
-    def save_entity(self, entity: Entity) -> Dict[str, Any]:
+    def save_entity(self, entity: Entity) -> dict[str, Any]:
         """Save entity to Neo4j synchronously."""
         query = """
         CREATE (e:Entity $entity_data)
@@ -338,7 +333,7 @@ class Neo4jClient:
             record = result.single()
             return record["e"] if record else {}
 
-    async def async_save_entity(self, entity: Entity) -> Dict[str, Any]:
+    async def async_save_entity(self, entity: Entity) -> dict[str, Any]:
         """Save entity to Neo4j asynchronously."""
         query = """
         CREATE (e:Entity $entity_data)
@@ -350,7 +345,7 @@ class Neo4jClient:
             record = await result.single()
             return record["e"] if record else {}
 
-    def get_entity(self, entity_id: UUID) -> Optional[Dict[str, Any]]:
+    def get_entity(self, entity_id: UUID) -> dict[str, Any] | None:
         """Get entity by ID synchronously."""
         query = """
         MATCH (e:Entity {id: $entity_id})
@@ -362,7 +357,7 @@ class Neo4jClient:
             record = result.single()
             return record["e"] if record else None
 
-    async def async_get_entity(self, entity_id: UUID) -> Optional[Dict[str, Any]]:
+    async def async_get_entity(self, entity_id: UUID) -> dict[str, Any] | None:
         """Get entity by ID asynchronously."""
         query = """
         MATCH (e:Entity {id: $entity_id})
@@ -374,7 +369,7 @@ class Neo4jClient:
             record = await result.single()
             return record["e"] if record else None
 
-    def batch_save_entities(self, entities: List[Entity]) -> List[Dict[str, Any]]:
+    def batch_save_entities(self, entities: list[Entity]) -> list[dict[str, Any]]:
         """Batch save multiple entities synchronously."""
         query = """
         UNWIND $entities AS entity
@@ -390,8 +385,8 @@ class Neo4jClient:
             return result.data()
 
     async def async_batch_save_entities(
-        self, entities: List[Entity]
-    ) -> List[Dict[str, Any]]:
+        self, entities: list[Entity]
+    ) -> list[dict[str, Any]]:
         """Batch save multiple entities asynchronously."""
         query = """
         UNWIND $entities AS entity
@@ -407,7 +402,7 @@ class Neo4jClient:
             return await result.data()
 
     # Chunk Operations
-    def save_chunk(self, chunk: Chunk) -> Dict[str, Any]:
+    def save_chunk(self, chunk: Chunk) -> dict[str, Any]:
         """Save chunk to Neo4j synchronously."""
         query = """
         CREATE (c:Chunk $chunk_data)
@@ -419,7 +414,7 @@ class Neo4jClient:
             record = result.single()
             return record["c"] if record else {}
 
-    async def async_save_chunk(self, chunk: Chunk) -> Dict[str, Any]:
+    async def async_save_chunk(self, chunk: Chunk) -> dict[str, Any]:
         """Save chunk to Neo4j asynchronously."""
         query = """
         CREATE (c:Chunk $chunk_data)
@@ -431,7 +426,7 @@ class Neo4jClient:
             record = await result.single()
             return record["c"] if record else {}
 
-    def get_chunk(self, chunk_id: UUID) -> Optional[Dict[str, Any]]:
+    def get_chunk(self, chunk_id: UUID) -> dict[str, Any] | None:
         """Get chunk by ID synchronously."""
         query = """
         MATCH (c:Chunk {id: $chunk_id})
@@ -443,7 +438,7 @@ class Neo4jClient:
             record = result.single()
             return record["c"] if record else None
 
-    async def async_get_chunk(self, chunk_id: UUID) -> Optional[Dict[str, Any]]:
+    async def async_get_chunk(self, chunk_id: UUID) -> dict[str, Any] | None:
         """Get chunk by ID asynchronously."""
         query = """
         MATCH (c:Chunk {id: $chunk_id})
@@ -455,7 +450,7 @@ class Neo4jClient:
             record = await result.single()
             return record["c"] if record else None
 
-    def batch_save_chunks(self, chunks: List[Chunk]) -> List[Dict[str, Any]]:
+    def batch_save_chunks(self, chunks: list[Chunk]) -> list[dict[str, Any]]:
         """Batch save multiple chunks synchronously."""
         query = """
         UNWIND $chunks AS chunk
@@ -471,8 +466,8 @@ class Neo4jClient:
             return result.data()
 
     async def async_batch_save_chunks(
-        self, chunks: List[Chunk]
-    ) -> List[Dict[str, Any]]:
+        self, chunks: list[Chunk]
+    ) -> list[dict[str, Any]]:
         """Batch save multiple chunks asynchronously."""
         query = """
         UNWIND $chunks AS chunk
@@ -490,7 +485,7 @@ class Neo4jClient:
     # Transaction-based operations
     async def async_save_document_in_transaction(
         self, document: Document, tx: neo4j.AsyncTransaction
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Save document within existing transaction."""
         query = """
         CREATE (d:Document $doc_data)
@@ -502,8 +497,8 @@ class Neo4jClient:
         return record["d"] if record else {}
 
     def batch_save_documents_in_transaction(
-        self, documents: List[Document], tx: neo4j.Transaction
-    ) -> List[Dict[str, Any]]:
+        self, documents: list[Document], tx: neo4j.Transaction
+    ) -> list[dict[str, Any]]:
         """Batch save documents within existing transaction."""
         query = """
         UNWIND $documents AS doc
@@ -520,7 +515,7 @@ class Neo4jClient:
     def run_query_with_retry(
         self,
         query: str,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: dict[str, Any] | None = None,
         max_retries: int = 3,
     ) -> Any:
         """Run query with retry logic for transient failures."""
@@ -541,7 +536,7 @@ class Neo4jClient:
     async def async_run_query_with_retry(
         self,
         query: str,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: dict[str, Any] | None = None,
         max_retries: int = 3,
     ) -> Any:
         """Run query with retry logic for transient failures asynchronously."""
