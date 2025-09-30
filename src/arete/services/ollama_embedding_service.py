@@ -19,23 +19,26 @@ logger = logging.getLogger(__name__)
 
 class OllamaEmbeddingError(Exception):
     """Base exception for Ollama embedding errors."""
+
     pass
 
 
 class OllamaConnectionError(OllamaEmbeddingError):
     """Raised when cannot connect to Ollama server."""
+
     pass
 
 
 class OllamaModelError(OllamaEmbeddingError):
     """Raised when model is not available or fails."""
+
     pass
 
 
 class OllamaEmbeddingService:
     """
     Ollama-based embedding service for state-of-the-art models.
-    
+
     Features:
     - Access to SOTA models like Qwen3-Embedding-8B
     - High-dimensional embeddings (8192 dims for Qwen3)
@@ -43,45 +46,47 @@ class OllamaEmbeddingService:
     - Caching for performance
     - Integration with existing Chunk models
     """
-    
+
     def __init__(
         self,
         model_name: Optional[str] = None,
         base_url: Optional[str] = None,
-        settings: Optional[Settings] = None
+        settings: Optional[Settings] = None,
     ):
         """
         Initialize Ollama embedding service.
-        
+
         Args:
             model_name: Name of Ollama model to use
             base_url: Ollama server URL
             settings: Configuration settings
         """
         self.settings = settings or get_settings()
-        
+
         # Model configuration
         self.model_name = model_name or self._get_default_model()
         self.base_url = base_url or self.settings.ollama_base_url
-        
+
         # Performance tracking
         self._embedding_count = 0
         self._batch_count = 0
-        
+
         # Simple embedding cache
         self._embedding_cache: Dict[str, List[float]] = {}
         self._cache_hits = 0
-        
+
         # Model info cache
         self._model_info: Optional[Dict[str, Any]] = None
-        
-        logger.info(f"Initialized OllamaEmbeddingService with model={self.model_name}, url={self.base_url}")
-    
+
+        logger.info(
+            f"Initialized OllamaEmbeddingService with model={self.model_name}, url={self.base_url}"
+        )
+
     def _get_default_model(self) -> str:
         """Get default Ollama embedding model."""
         # Use Qwen3-Embedding-8B as default - SOTA performance
         return "dengcao/qwen3-embedding-8b:q8_0"
-    
+
     def is_available(self) -> bool:
         """Check if Ollama server is available."""
         try:
@@ -89,43 +94,46 @@ class OllamaEmbeddingService:
             return response.status_code == 200
         except Exception:
             return False
-    
+
     def is_model_available(self) -> bool:
         """Check if the specified model is available in Ollama."""
         try:
             response = requests.get(f"{self.base_url}/api/tags", timeout=10)
             if response.status_code != 200:
                 return False
-            
+
             models = response.json().get("models", [])
             model_names = [model["name"] for model in models]
-            
+
             # Check exact match or partial match
-            return any(self.model_name in name or name in self.model_name for name in model_names)
-            
+            return any(
+                self.model_name in name or name in self.model_name
+                for name in model_names
+            )
+
         except Exception as e:
             logger.error(f"Failed to check model availability: {e}")
             return False
-    
+
     def pull_model_if_needed(self) -> bool:
         """Pull model if not available locally."""
         if self.is_model_available():
             return True
-        
+
         logger.info(f"Pulling model {self.model_name} from Ollama...")
         try:
             response = requests.post(
                 f"{self.base_url}/api/pull",
                 json={"name": self.model_name},
-                timeout=300  # 5 minutes for model download
+                timeout=300,  # 5 minutes for model download
             )
-            
+
             return response.status_code == 200
-            
+
         except Exception as e:
             logger.error(f"Failed to pull model {self.model_name}: {e}")
             return False
-    
+
     def get_model_info(self) -> Dict[str, Any]:
         """Get information about the current model."""
         if self._model_info is None:
@@ -133,73 +141,80 @@ class OllamaEmbeddingService:
                 response = requests.post(
                     f"{self.base_url}/api/show",
                     json={"name": self.model_name},
-                    timeout=10
+                    timeout=10,
                 )
-                
+
                 if response.status_code == 200:
                     model_data = response.json()
-                    
+
                     # Extract key information
                     self._model_info = {
-                        'model_name': self.model_name,
-                        'base_url': self.base_url,
-                        'is_available': True,
-                        'embeddings_generated': self._embedding_count,
-                        'batches_processed': self._batch_count,
-                        'cache_size': len(self._embedding_cache),
-                        'cache_hits': self._cache_hits,
-                        'cache_hit_rate': self._cache_hits / max(self._embedding_count, 1),
-                        'model_size': model_data.get('size', 'unknown'),
-                        'family': model_data.get('details', {}).get('family', 'unknown'),
-                        'format': model_data.get('details', {}).get('format', 'unknown')
+                        "model_name": self.model_name,
+                        "base_url": self.base_url,
+                        "is_available": True,
+                        "embeddings_generated": self._embedding_count,
+                        "batches_processed": self._batch_count,
+                        "cache_size": len(self._embedding_cache),
+                        "cache_hits": self._cache_hits,
+                        "cache_hit_rate": self._cache_hits
+                        / max(self._embedding_count, 1),
+                        "model_size": model_data.get("size", "unknown"),
+                        "family": model_data.get("details", {}).get(
+                            "family", "unknown"
+                        ),
+                        "format": model_data.get("details", {}).get(
+                            "format", "unknown"
+                        ),
                     }
-                    
+
                     # Try to determine embedding dimension for Qwen3
-                    if 'qwen3' in self.model_name.lower():
-                        self._model_info['embedding_dimension'] = 8192  # Qwen3-Embedding-8B dimension
+                    if "qwen3" in self.model_name.lower():
+                        self._model_info["embedding_dimension"] = (
+                            8192  # Qwen3-Embedding-8B dimension
+                        )
                     else:
-                        self._model_info['embedding_dimension'] = None  # Unknown
-                        
+                        self._model_info["embedding_dimension"] = None  # Unknown
+
                 else:
                     self._model_info = {
-                        'model_name': self.model_name,
-                        'base_url': self.base_url,
-                        'is_available': False,
-                        'error': f'HTTP {response.status_code}'
+                        "model_name": self.model_name,
+                        "base_url": self.base_url,
+                        "is_available": False,
+                        "error": f"HTTP {response.status_code}",
                     }
-                    
+
             except Exception as e:
                 logger.error(f"Failed to get model info: {e}")
                 self._model_info = {
-                    'model_name': self.model_name,
-                    'base_url': self.base_url,
-                    'is_available': False,
-                    'error': str(e)
+                    "model_name": self.model_name,
+                    "base_url": self.base_url,
+                    "is_available": False,
+                    "error": str(e),
                 }
-        
+
         return self._model_info.copy()
-    
+
     def generate_embedding(
         self,
         text: str,
         normalize: bool = True,
         max_retries: int = 3,
         retry_delay: float = 2.0,
-        **kwargs
+        **kwargs,
     ) -> List[float]:
         """
         Generate embedding for a single text using Ollama with retry logic.
-        
+
         Args:
             text: Input text to embed
             normalize: Whether to normalize the embedding (if supported)
             max_retries: Maximum number of retry attempts
             retry_delay: Delay between retries in seconds
             **kwargs: Additional parameters for the model
-            
+
         Returns:
             Embedding vector as list of floats
-            
+
         Raises:
             OllamaConnectionError: If cannot connect to Ollama
             OllamaModelError: If model fails or not available
@@ -207,7 +222,7 @@ class OllamaEmbeddingService:
         if not text or not text.strip():
             logger.warning("Empty text provided for embedding")
             return [0.0] * 8192  # Default dimension for Qwen3
-        
+
         # Check cache first
         cache_key = self._get_cache_key(text, normalize)
         if cache_key in self._embedding_cache:
@@ -215,55 +230,61 @@ class OllamaEmbeddingService:
             self._embedding_count += 1
             logger.debug(f"Cache hit for text: {text[:50]}...")
             return self._embedding_cache[cache_key]
-        
+
         last_exception = None
-        
+
         # Retry logic with exponential backoff
         for attempt in range(max_retries + 1):
             try:
                 # Make request to Ollama embeddings endpoint
                 response = requests.post(
                     f"{self.base_url}/api/embeddings",
-                    json={
-                        "model": self.model_name,
-                        "prompt": text.strip(),
-                        **kwargs
-                    },
-                    timeout=180  # 3 minute timeout for embedding generation (increased)
+                    json={"model": self.model_name, "prompt": text.strip(), **kwargs},
+                    timeout=180,  # 3 minute timeout for embedding generation (increased)
                 )
-                
+
                 if response.status_code != 200:
-                    raise OllamaModelError(f"Ollama returned HTTP {response.status_code}: {response.text}")
-                
+                    raise OllamaModelError(
+                        f"Ollama returned HTTP {response.status_code}: {response.text}"
+                    )
+
                 data = response.json()
                 embedding = data.get("embedding")
-                
+
                 if not embedding:
                     raise OllamaModelError("No embedding returned from Ollama")
-                
+
                 # Normalize if requested (basic L2 normalization)
                 if normalize:
                     import math
-                    norm = math.sqrt(sum(x*x for x in embedding))
+
+                    norm = math.sqrt(sum(x * x for x in embedding))
                     if norm > 0:
                         embedding = [x / norm for x in embedding]
-                
+
                 # Cache the result
                 self._embedding_cache[cache_key] = embedding
                 self._embedding_count += 1
-                
+
                 # Log successful retry if this wasn't the first attempt
                 if attempt > 0:
-                    logger.info(f"Successfully generated embedding after {attempt + 1} attempts")
-                
+                    logger.info(
+                        f"Successfully generated embedding after {attempt + 1} attempts"
+                    )
+
                 logger.debug(f"Generated Ollama embedding: {len(embedding)} dimensions")
                 return embedding
-                
-            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+
+            except (
+                requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout,
+            ) as e:
                 last_exception = e
                 if attempt < max_retries:
-                    wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
-                    logger.warning(f"Embedding attempt {attempt + 1} failed, retrying in {wait_time}s: {e}")
+                    wait_time = retry_delay * (2**attempt)  # Exponential backoff
+                    logger.warning(
+                        f"Embedding attempt {attempt + 1} failed, retrying in {wait_time}s: {e}"
+                    )
                     time.sleep(wait_time)
                 else:
                     logger.error(f"All {max_retries + 1} embedding attempts failed")
@@ -271,109 +292,112 @@ class OllamaEmbeddingService:
                 last_exception = e
                 logger.error(f"Non-retryable error in embedding generation: {e}")
                 break
-        
+
         # If we get here, all retries failed
         if isinstance(last_exception, requests.exceptions.ConnectionError):
-            raise OllamaConnectionError(f"Cannot connect to Ollama at {self.base_url}: {last_exception}")
+            raise OllamaConnectionError(
+                f"Cannot connect to Ollama at {self.base_url}: {last_exception}"
+            )
         elif isinstance(last_exception, requests.exceptions.Timeout):
-            raise OllamaModelError(f"Ollama request timed out after {max_retries + 1} attempts: {last_exception}")
+            raise OllamaModelError(
+                f"Ollama request timed out after {max_retries + 1} attempts: {last_exception}"
+            )
         else:
             logger.error(f"Failed to generate Ollama embedding: {last_exception}")
             raise OllamaModelError(f"Embedding generation failed: {last_exception}")
-    
+
     def generate_embeddings_batch(
         self,
         texts: List[str],
         batch_size: Optional[int] = None,
         normalize: bool = True,
         show_progress: bool = True,
-        **kwargs
+        **kwargs,
     ) -> List[List[float]]:
         """
         Generate embeddings for multiple texts.
-        
+
         Args:
             texts: List of input texts
             batch_size: Not used for Ollama (processes one at a time)
             normalize: Whether to normalize embeddings
             show_progress: Whether to show progress
             **kwargs: Additional model parameters
-            
+
         Returns:
             List of embedding vectors
         """
         if not texts:
             return []
-        
+
         embeddings = []
-        
+
         for i, text in enumerate(texts):
             try:
                 embedding = self.generate_embedding(text, normalize=normalize, **kwargs)
                 embeddings.append(embedding)
-                
+
                 if show_progress and (i + 1) % 5 == 0:
                     logger.info(f"Generated {i + 1}/{len(texts)} embeddings")
-                    
+
             except Exception as e:
-                logger.error(f"Failed to generate embedding for text {i} after retries: {e}")
+                logger.error(
+                    f"Failed to generate embedding for text {i} after retries: {e}"
+                )
                 # Return zero vector of appropriate dimension
                 embeddings.append([0.0] * 8192)
-        
+
         self._batch_count += 1
-        
+
         if show_progress:
             logger.info(f"Generated {len(embeddings)} Ollama embeddings")
-        
+
         return embeddings
-    
+
     async def generate_embeddings(
         self,
         texts: List[str],
         normalize: bool = True,
         show_progress: bool = True,
-        **kwargs
+        **kwargs,
     ) -> List[List[float]]:
         """
         Generate embeddings for multiple texts (async interface).
-        
+
         This method provides the async interface expected by the ingestion pipeline
         while wrapping the synchronous Ollama API calls.
-        
+
         Args:
             texts: List of input texts
             normalize: Whether to normalize embeddings
             show_progress: Whether to show progress
             **kwargs: Additional model parameters
-            
+
         Returns:
             List of embedding vectors
         """
         # For now, just wrap the synchronous batch method
         # In the future, this could be made truly async with asyncio.gather
         return self.generate_embeddings_batch(
-            texts=texts,
-            normalize=normalize, 
-            show_progress=show_progress,
-            **kwargs
+            texts=texts, normalize=normalize, show_progress=show_progress, **kwargs
         )
-    
+
     def generate_chunk_embedding(
         self,
         chunk: Chunk,
         use_vectorizable_text: bool = True,
         normalize: bool = True,
-        **kwargs
+        **kwargs,
     ) -> List[float]:
         """
         Generate embedding for a Chunk model using Ollama.
-        
+
         Args:
             chunk: Chunk model to embed
             use_vectorizable_text: Whether to use vectorizable_text
             normalize: Whether to normalize embedding
             **kwargs: Additional model parameters
-            
+
         Returns:
             Embedding vector as list of floats
         """
@@ -381,27 +405,27 @@ class OllamaEmbeddingService:
             text = chunk.get_vectorizable_text()
         else:
             text = chunk.text
-        
+
         return self.generate_embedding(text, normalize=normalize, **kwargs)
-    
+
     def generate_chunk_embeddings_batch(
         self,
         chunks: List[Chunk],
         use_vectorizable_text: bool = True,
         normalize: bool = True,
         show_progress: bool = True,
-        **kwargs
+        **kwargs,
     ) -> List[List[float]]:
         """
         Generate embeddings for multiple Chunk models.
-        
+
         Args:
             chunks: List of Chunk models to embed
             use_vectorizable_text: Whether to use vectorizable_text
             normalize: Whether to normalize embeddings
             show_progress: Whether to show progress
             **kwargs: Additional model parameters
-            
+
         Returns:
             List of embedding vectors
         """
@@ -411,19 +435,16 @@ class OllamaEmbeddingService:
                 texts.append(chunk.get_vectorizable_text())
             else:
                 texts.append(chunk.text)
-        
+
         return self.generate_embeddings_batch(
-            texts,
-            normalize=normalize,
-            show_progress=show_progress,
-            **kwargs
+            texts, normalize=normalize, show_progress=show_progress, **kwargs
         )
-    
+
     def _get_cache_key(self, text: str, normalize: bool) -> str:
         """Generate cache key for text and parameters."""
         key_data = f"{self.model_name}:{text}:{normalize}"
-        return hashlib.md5(key_data.encode('utf-8')).hexdigest()
-    
+        return hashlib.md5(key_data.encode("utf-8")).hexdigest()
+
     def clear_cache(self) -> None:
         """Clear embedding cache."""
         cache_size = len(self._embedding_cache)
@@ -435,21 +456,19 @@ class OllamaEmbeddingService:
 def create_ollama_embedding_service(
     model_name: Optional[str] = None,
     base_url: Optional[str] = None,
-    settings: Optional[Settings] = None
+    settings: Optional[Settings] = None,
 ) -> OllamaEmbeddingService:
     """
     Create Ollama embedding service with dependency injection.
-    
+
     Args:
         model_name: Ollama model name
         base_url: Ollama server URL
         settings: Configuration settings
-        
+
     Returns:
         Configured OllamaEmbeddingService instance
     """
     return OllamaEmbeddingService(
-        model_name=model_name,
-        base_url=base_url,
-        settings=settings
+        model_name=model_name, base_url=base_url, settings=settings
     )

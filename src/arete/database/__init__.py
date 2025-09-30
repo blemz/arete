@@ -10,6 +10,6 @@ from .exceptions import (
 __all__ = [
     "Neo4jClient",
     "DatabaseConnectionError",
-    "DatabaseQueryError", 
+    "DatabaseQueryError",
     "DatabaseTransactionError",
 ]

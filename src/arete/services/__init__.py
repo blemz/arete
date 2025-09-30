@@ -11,7 +11,7 @@ from .embedding_service import (
     ModelNotLoadedError,
     BatchProcessingError,
     get_embedding_service,
-    clear_embedding_service_cache
+    clear_embedding_service_cache,
 )
 
 from .expert_validation_service import ExpertValidationService
@@ -20,20 +20,20 @@ from .dense_retrieval_service import (
     DenseRetrievalService,
     SearchResult,
     RetrievalMetrics,
-    create_dense_retrieval_service
+    create_dense_retrieval_service,
 )
 from .sparse_retrieval_service import (
     SparseRetrievalService,
     BaseSparseRetriever,
     BM25Retriever,
     SPLADERetriever,
-    create_sparse_retrieval_service
+    create_sparse_retrieval_service,
 )
 
 __all__ = [
     # Embedding services
     "EmbeddingService",
-    "EmbeddingServiceError", 
+    "EmbeddingServiceError",
     "ModelNotLoadedError",
     "BatchProcessingError",
     "get_embedding_service",

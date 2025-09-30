@@ -50,7 +50,9 @@
       "Bash(reflex run:*)",
       "Bash(curl:*)",
       "mcp__serena__list_memories",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(mypy:*)",
+      "Bash(black:*)"
     ],
     "deny": []
   },

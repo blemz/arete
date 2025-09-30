@@ -3,7 +3,7 @@
 Enhanced Prompt Templates for Arete RAG System
 
 Provides intelligent, dynamic, and structured prompts that:
-1. Adapt to any philosophical text/author dynamically 
+1. Adapt to any philosophical text/author dynamically
 2. Structure responses in clear sections
 3. Use beginner-friendly language
 4. Include error guards against hallucination
@@ -17,24 +17,26 @@ from enum import Enum
 
 class PromptStyle(Enum):
     """Different prompt styles for different use cases."""
+
     EDUCATIONAL = "educational"  # For beginners, accessible language
-    SCHOLARLY = "scholarly"      # For advanced users, technical language
+    SCHOLARLY = "scholarly"  # For advanced users, technical language
     CONVERSATIONAL = "conversational"  # For casual exploration
 
 
 @dataclass
 class ContextMetadata:
     """Metadata about the retrieved context."""
+
     authors: Set[str]
-    works: Set[str] 
+    works: Set[str]
     total_chunks: int
     primary_source: Optional[str] = None
     citations: Dict[str, str] = None  # work -> citation format mapping
-    
+
     def __post_init__(self):
         if self.citations is None:
             self.citations = {}
-    
+
     def get_context_description(self) -> str:
         """Generate dynamic context description with explicit work titles."""
         if len(self.authors) == 1 and len(self.works) == 1:
@@ -56,12 +58,12 @@ class ContextMetadata:
                 return f"the following texts: {works_list}"
             else:
                 return "multiple classical philosophical texts"
-    
+
     def get_detailed_source_list(self) -> str:
         """Generate detailed list of sources for context header."""
         if not self.works:
             return "classical philosophical texts"
-            
+
         # Group works by author when possible
         author_works = {}
         for work in self.works:
@@ -71,12 +73,12 @@ class ContextMetadata:
                 if self._work_belongs_to_author(work, author):
                     matched_author = author
                     break
-            
+
             if matched_author:
                 if matched_author not in author_works:
                     author_works[matched_author] = []
                 author_works[matched_author].append(work)
-        
+
         # Format the source list
         source_parts = []
         for author, works in author_works.items():
@@ -85,39 +87,53 @@ class ContextMetadata:
             else:
                 works_str = ", ".join(sorted(works))
                 source_parts.append(f"{author}'s {works_str}")
-        
+
         # Add any unmatched works
-        unmatched_works = self.works - {work for works in author_works.values() for work in works}
+        unmatched_works = self.works - {
+            work for works in author_works.values() for work in works
+        }
         if unmatched_works:
             source_parts.extend(sorted(unmatched_works))
-        
+
         return ", ".join(source_parts)
-    
+
     def _work_belongs_to_author(self, work: str, author: str) -> bool:
         """Determine if a work belongs to a specific author."""
         # Simple heuristic matching - could be enhanced with a lookup table
         work_lower = work.lower()
         author_lower = author.lower()
-        
-        plato_works = {'apology', 'charmides', 'republic', 'meno', 'phaedo', 'symposium', 'timaeus'}
-        aristotle_works = {'nicomachean ethics', 'politics', 'metaphysics', 'poetics'}
-        
-        if author_lower == 'plato' and any(pw in work_lower for pw in plato_works):
+
+        plato_works = {
+            "apology",
+            "charmides",
+            "republic",
+            "meno",
+            "phaedo",
+            "symposium",
+            "timaeus",
+        }
+        aristotle_works = {"nicomachean ethics", "politics", "metaphysics", "poetics"}
+
+        if author_lower == "plato" and any(pw in work_lower for pw in plato_works):
             return True
-        elif author_lower == 'aristotle' and any(aw in work_lower for aw in aristotle_works):
+        elif author_lower == "aristotle" and any(
+            aw in work_lower for aw in aristotle_works
+        ):
             return True
-        
+
         return False
 
 
 class PromptTemplate:
     """Enhanced prompt template system for Arete RAG responses."""
-    
+
     @staticmethod
-    def extract_context_metadata(search_results: List[Dict[str, Any]]) -> ContextMetadata:
+    def extract_context_metadata(
+        search_results: List[Dict[str, Any]],
+    ) -> ContextMetadata:
         """
         Extract metadata from search results to build dynamic context.
-        
+
         This analyzes the retrieved chunks to identify:
         - Which authors are represented
         - Which works are cited
@@ -127,119 +143,129 @@ class PromptTemplate:
         authors = set()
         works = set()
         citations = {}
-        
+
         # Enhanced extraction from content and metadata
         for result in search_results:
             # Check both content and metadata for source information
-            content = result.get('properties', {}).get('content', '').lower()
-            metadata = result.get('properties', {})
-            
+            content = result.get("properties", {}).get("content", "").lower()
+            metadata = result.get("properties", {})
+
             # Try to extract from metadata first (more reliable)
-            if 'source' in metadata:
-                source = metadata['source']
-                if 'apology' in source.lower():
-                    works.add('Apology')
-                    authors.add('Plato')
-                    citations['Apology'] = 'Stephanus'
-                elif 'charmides' in source.lower():
-                    works.add('Charmides')
-                    authors.add('Plato')
-                    citations['Charmides'] = 'Stephanus'
-                elif 'republic' in source.lower():
-                    works.add('Republic')
-                    authors.add('Plato')
-                    citations['Republic'] = 'Stephanus'
-                elif 'nicomachean' in source.lower():
-                    works.add('Nicomachean Ethics')
-                    authors.add('Aristotle')
-                    citations['Nicomachean Ethics'] = 'Bekker'
-            
+            if "source" in metadata:
+                source = metadata["source"]
+                if "apology" in source.lower():
+                    works.add("Apology")
+                    authors.add("Plato")
+                    citations["Apology"] = "Stephanus"
+                elif "charmides" in source.lower():
+                    works.add("Charmides")
+                    authors.add("Plato")
+                    citations["Charmides"] = "Stephanus"
+                elif "republic" in source.lower():
+                    works.add("Republic")
+                    authors.add("Plato")
+                    citations["Republic"] = "Stephanus"
+                elif "nicomachean" in source.lower():
+                    works.add("Nicomachean Ethics")
+                    authors.add("Aristotle")
+                    citations["Nicomachean Ethics"] = "Bekker"
+
             # Fallback to content-based detection
             # Detect common authors from content patterns
-            if any(term in content for term in ['plato', 'platonic']):
-                authors.add('Plato')
-            if any(term in content for term in ['aristotle', 'aristotelian']):
-                authors.add('Aristotle')
-            if any(term in content for term in ['socrates', 'socratic']):
-                authors.add('Socrates')
-                
+            if any(term in content for term in ["plato", "platonic"]):
+                authors.add("Plato")
+            if any(term in content for term in ["aristotle", "aristotelian"]):
+                authors.add("Aristotle")
+            if any(term in content for term in ["socrates", "socratic"]):
+                authors.add("Socrates")
+
             # Detect works from content patterns
-            if any(term in content for term in ['apology', 'defense']):
-                works.add('Apology')
-                if 'Apology' not in citations:
-                    citations['Apology'] = 'Stephanus'
-            if any(term in content for term in ['charmides', 'temperance']):
-                works.add('Charmides')
-                if 'Charmides' not in citations:
-                    citations['Charmides'] = 'Stephanus'
-            if any(term in content for term in ['republic']):
-                works.add('Republic')
-                if 'Republic' not in citations:
-                    citations['Republic'] = 'Stephanus'
-            if any(term in content for term in ['nicomachean ethics']):
-                works.add('Nicomachean Ethics')
-                if 'Nicomachean Ethics' not in citations:
-                    citations['Nicomachean Ethics'] = 'Bekker'
-            if any(term in content for term in ['meno']):
-                works.add('Meno')
-                if 'Meno' not in citations:
-                    citations['Meno'] = 'Stephanus'
-            if any(term in content for term in ['phaedo']):
-                works.add('Phaedo')
-                if 'Phaedo' not in citations:
-                    citations['Phaedo'] = 'Stephanus'
-        
+            if any(term in content for term in ["apology", "defense"]):
+                works.add("Apology")
+                if "Apology" not in citations:
+                    citations["Apology"] = "Stephanus"
+            if any(term in content for term in ["charmides", "temperance"]):
+                works.add("Charmides")
+                if "Charmides" not in citations:
+                    citations["Charmides"] = "Stephanus"
+            if any(term in content for term in ["republic"]):
+                works.add("Republic")
+                if "Republic" not in citations:
+                    citations["Republic"] = "Stephanus"
+            if any(term in content for term in ["nicomachean ethics"]):
+                works.add("Nicomachean Ethics")
+                if "Nicomachean Ethics" not in citations:
+                    citations["Nicomachean Ethics"] = "Bekker"
+            if any(term in content for term in ["meno"]):
+                works.add("Meno")
+                if "Meno" not in citations:
+                    citations["Meno"] = "Stephanus"
+            if any(term in content for term in ["phaedo"]):
+                works.add("Phaedo")
+                if "Phaedo" not in citations:
+                    citations["Phaedo"] = "Stephanus"
+
         # Default fallback if no specific detection
         if not authors:
-            authors.add('Classical Philosophers')
+            authors.add("Classical Philosophers")
         if not works:
-            works.add('Classical Texts')
-            
+            works.add("Classical Texts")
+
         return ContextMetadata(
             authors=authors,
             works=works,
             total_chunks=len(search_results),
-            citations=citations
+            citations=citations,
         )
-    
+
     @staticmethod
     def build_educational_prompt(
         query: str,
         context_chunks: List[str],
         entities: List[Dict[str, Any]],
         search_results: List[Dict[str, Any]],
-        style: PromptStyle = PromptStyle.EDUCATIONAL
+        style: PromptStyle = PromptStyle.EDUCATIONAL,
     ) -> str:
         """
         Build an enhanced educational prompt with dynamic context and structured response format.
         """
-        
+
         # Extract dynamic context metadata
         metadata = PromptTemplate.extract_context_metadata(search_results)
         context_description = metadata.get_context_description()
         detailed_sources = metadata.get_detailed_source_list()
-        
+
         # Build entity context
-        entity_names = [e['name'] for e in entities[:5]]
-        entity_context = f"Key related concepts: {', '.join(entity_names)}" if entity_names else ""
-        
+        entity_names = [e["name"] for e in entities[:5]]
+        entity_context = (
+            f"Key related concepts: {', '.join(entity_names)}" if entity_names else ""
+        )
+
         # Combine context chunks with source headers
         if context_chunks:
             context_header = f"Context from {detailed_sources}:"
             combined_context = f"{context_header}\n\n" + "\n\n".join(context_chunks)
         else:
             combined_context = ""
-        
+
         # Build citation format instructions
         citation_formats = []
         for work, format_type in metadata.citations.items():
-            if format_type == 'Stephanus':
-                citation_formats.append(f"{work}: Use Stephanus numbers (e.g., Apology 38a)")
-            elif format_type == 'Bekker':
-                citation_formats.append(f"{work}: Use Bekker numbers (e.g., Ethics 1103a)")
-        
-        citation_instructions = "\n".join(citation_formats) if citation_formats else "Reference by work title and general location"
-        
+            if format_type == "Stephanus":
+                citation_formats.append(
+                    f"{work}: Use Stephanus numbers (e.g., Apology 38a)"
+                )
+            elif format_type == "Bekker":
+                citation_formats.append(
+                    f"{work}: Use Bekker numbers (e.g., Ethics 1103a)"
+                )
+
+        citation_instructions = (
+            "\n".join(citation_formats)
+            if citation_formats
+            else "Reference by work title and general location"
+        )
+
         # Select language style based on prompt style
         if style == PromptStyle.EDUCATIONAL:
             expertise_level = "You are a philosophy teacher who excels at making complex ideas accessible to beginners."
@@ -255,12 +281,14 @@ class PromptTemplate:
 - Reference scholarly conventions and interpretations
 - Maintain academic rigor while remaining accessible"""
         else:  # CONVERSATIONAL
-            expertise_level = "You are a knowledgeable philosophy guide for casual exploration."
+            expertise_level = (
+                "You are a knowledgeable philosophy guide for casual exploration."
+            )
             language_instruction = """
 - Use natural, conversational language
 - Balance accuracy with approachability
 - Encourage further exploration and questions"""
-        
+
         # Build the structured prompt
         prompt = f"""<instructions>
 {expertise_level}
@@ -320,52 +348,74 @@ List specific passages from the context that support your answer:
 </instructions>"""
 
         return prompt
-    
+
     @staticmethod
     def build_comparison_prompt(
         query: str,
         context_chunks: List[str],
         entities: List[Dict[str, Any]],
-        search_results: List[Dict[str, Any]]
+        search_results: List[Dict[str, Any]],
     ) -> str:
         """Build a specialized prompt for comparative philosophical questions."""
-        
+
         metadata = PromptTemplate.extract_context_metadata(search_results)
         context_description = metadata.get_context_description()
         detailed_sources = metadata.get_detailed_source_list()
-        
+
         # Detect if this is a comparison question
-        comparison_indicators = ['differ', 'compare', 'contrast', 'versus', 'vs', 'different', 'similar']
-        is_comparison = any(indicator in query.lower() for indicator in comparison_indicators)
-        
+        comparison_indicators = [
+            "differ",
+            "compare",
+            "contrast",
+            "versus",
+            "vs",
+            "different",
+            "similar",
+        ]
+        is_comparison = any(
+            indicator in query.lower() for indicator in comparison_indicators
+        )
+
         if not is_comparison:
             # Fall back to standard educational prompt
-            return PromptTemplate.build_educational_prompt(query, context_chunks, entities, search_results)
-        
-        entity_names = [e['name'] for e in entities[:5]]
-        entity_context = f"Key related concepts: {', '.join(entity_names)}" if entity_names else ""
-        
+            return PromptTemplate.build_educational_prompt(
+                query, context_chunks, entities, search_results
+            )
+
+        entity_names = [e["name"] for e in entities[:5]]
+        entity_context = (
+            f"Key related concepts: {', '.join(entity_names)}" if entity_names else ""
+        )
+
         # Combine context chunks with source headers
         if context_chunks:
             context_header = f"Context from {detailed_sources}:"
             combined_context = f"{context_header}\n\n" + "\n\n".join(context_chunks)
         else:
             combined_context = ""
-        
+
         # Build citation format instructions
         citation_formats = []
         for work, format_type in metadata.citations.items():
-            if format_type == 'Stephanus':
-                citation_formats.append(f"{work}: Use Stephanus numbers (e.g., Apology 38a)")
-            elif format_type == 'Bekker':
-                citation_formats.append(f"{work}: Use Bekker numbers (e.g., Ethics 1103a)")
-        
-        citation_instructions = "\n".join(citation_formats) if citation_formats else "Reference by work title and general location"
-        
+            if format_type == "Stephanus":
+                citation_formats.append(
+                    f"{work}: Use Stephanus numbers (e.g., Apology 38a)"
+                )
+            elif format_type == "Bekker":
+                citation_formats.append(
+                    f"{work}: Use Bekker numbers (e.g., Ethics 1103a)"
+                )
+
+        citation_instructions = (
+            "\n".join(citation_formats)
+            if citation_formats
+            else "Reference by work title and general location"
+        )
+
         # Check if comparison is possible with available sources
         authors_in_context = len(metadata.authors)
         works_in_context = len(metadata.works)
-        
+
         prompt = f"""<instructions>
 You are a philosophy teacher specializing in comparative analysis of classical philosophical ideas.
 
@@ -425,31 +475,47 @@ Provide specific quotes and references from the context:
 </instructions>"""
 
         return prompt
-    
+
     @staticmethod
     def select_best_prompt_type(query: str) -> str:
         """
         Analyze the query to select the most appropriate prompt template.
         """
         query_lower = query.lower()
-        
+
         # Comparison questions
-        comparison_indicators = ['differ', 'compare', 'contrast', 'versus', 'vs', 'different', 'similar', 'both']
+        comparison_indicators = [
+            "differ",
+            "compare",
+            "contrast",
+            "versus",
+            "vs",
+            "different",
+            "similar",
+            "both",
+        ]
         if any(indicator in query_lower for indicator in comparison_indicators):
-            return 'comparison'
-        
+            return "comparison"
+
         # Definition questions
-        definition_indicators = ['what is', 'define', 'meaning of', 'definition']
+        definition_indicators = ["what is", "define", "meaning of", "definition"]
         if any(indicator in query_lower for indicator in definition_indicators):
-            return 'educational'
-            
+            return "educational"
+
         # Complex analysis questions
-        analysis_indicators = ['why', 'how', 'analyze', 'explain', 'relationship', 'significance']
+        analysis_indicators = [
+            "why",
+            "how",
+            "analyze",
+            "explain",
+            "relationship",
+            "significance",
+        ]
         if any(indicator in query_lower for indicator in analysis_indicators):
-            return 'educational'
-            
+            return "educational"
+
         # Default to educational
-        return 'educational'
+        return "educational"
 
 
 def build_enhanced_prompt(
@@ -457,22 +523,26 @@ def build_enhanced_prompt(
     context_chunks: List[str],
     entities: List[Dict[str, Any]],
     search_results: List[Dict[str, Any]],
-    style: PromptStyle = PromptStyle.EDUCATIONAL
+    style: PromptStyle = PromptStyle.EDUCATIONAL,
 ) -> str:
     """
     Main function to build the best prompt for a given query and context.
-    
+
     This function:
     1. Analyzes the query type
     2. Extracts dynamic context metadata
     3. Selects the appropriate prompt template
     4. Returns a structured, intelligent prompt
     """
-    
+
     # Determine the best prompt type
     prompt_type = PromptTemplate.select_best_prompt_type(query)
-    
-    if prompt_type == 'comparison':
-        return PromptTemplate.build_comparison_prompt(query, context_chunks, entities, search_results)
+
+    if prompt_type == "comparison":
+        return PromptTemplate.build_comparison_prompt(
+            query, context_chunks, entities, search_results
+        )
     else:
-        return PromptTemplate.build_educational_prompt(query, context_chunks, entities, search_results, style)
+        return PromptTemplate.build_educational_prompt(
+            query, context_chunks, entities, search_results, style
+        )

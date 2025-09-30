@@ -15,6 +15,7 @@ from arete.models.user_preferences import Theme
 
 class AccessibilityLevel(Enum):
     """Accessibility compliance levels."""
+
     A = "A"
     AA = "AA"
     AAA = "AAA"
@@ -22,15 +23,17 @@ class AccessibilityLevel(Enum):
 
 class ColorContrastRatio(Enum):
     """Color contrast ratio standards."""
-    AA_NORMAL = 4.5      # WCAG AA for normal text
-    AA_LARGE = 3.0       # WCAG AA for large text (18pt+ or 14pt+ bold)
-    AAA_NORMAL = 7.0     # WCAG AAA for normal text
-    AAA_LARGE = 4.5      # WCAG AAA for large text
+
+    AA_NORMAL = 4.5  # WCAG AA for normal text
+    AA_LARGE = 3.0  # WCAG AA for large text (18pt+ or 14pt+ bold)
+    AAA_NORMAL = 7.0  # WCAG AAA for normal text
+    AAA_LARGE = 4.5  # WCAG AAA for large text
 
 
 @dataclass
 class AccessibilityConfig:
     """Configuration for accessibility features."""
+
     level: AccessibilityLevel = AccessibilityLevel.AA
     enable_keyboard_navigation: bool = True
     enable_screen_reader_support: bool = True
@@ -43,18 +46,18 @@ class AccessibilityConfig:
 
 class AccessibilityService:
     """Service for implementing WCAG 2.1 AA compliance and accessibility features."""
-    
+
     def __init__(self, config: Optional[AccessibilityConfig] = None):
         """Initialize the accessibility service."""
         self.config = config or AccessibilityConfig()
         self._contrast_cache: Dict[Tuple[str, str], float] = {}
-        
+
     def generate_wcag_compliant_css(
         self,
         theme: Theme,
         font_size: str = "medium",
         compact_mode: bool = False,
-        animations_enabled: bool = True
+        animations_enabled: bool = True,
     ) -> str:
         """Generate WCAG 2.1 AA compliant CSS."""
         css_methods = [
@@ -65,24 +68,24 @@ class AccessibilityService:
             self._get_keyboard_navigation_css(),
             self._get_screen_reader_css(),
             self._get_motion_css(animations_enabled),
-            self._get_responsive_css(compact_mode)
+            self._get_responsive_css(compact_mode),
         ]
-        
+
         # Extract CSS content from each method (remove <style> tags)
         css_content_parts = []
         for css_block in filter(None, css_methods):
             # Remove <style> and </style> tags and extract content
             content = css_block.strip()
-            if content.startswith('<style>'):
+            if content.startswith("<style>"):
                 content = content[7:]  # Remove <style>
-            if content.endswith('</style>'):
+            if content.endswith("</style>"):
                 content = content[:-8]  # Remove </style>
             css_content_parts.append(content.strip())
-        
+
         # Combine all CSS content into a single <style> block
         combined_css = "\n".join(css_content_parts)
         return f"<style>\n{combined_css}\n</style>"
-    
+
     def _get_base_accessibility_css(self) -> str:
         """Get base accessibility CSS that applies to all themes."""
         return """
@@ -175,7 +178,7 @@ class AccessibilityService:
         }
         </style>
         """
-        
+
     def _get_theme_specific_css(self, theme: Theme) -> str:
         """Get theme-specific CSS with WCAG compliant colors."""
         if theme == Theme.LIGHT:
@@ -197,7 +200,7 @@ class AccessibilityService:
             }
             </style>
             """
-            
+
         elif theme == Theme.DARK:
             return """
             <style>
@@ -217,20 +220,20 @@ class AccessibilityService:
             }
             </style>
             """
-            
+
         return ""
-        
+
     def _get_font_accessibility_css(self, font_size: str) -> str:
         """Get font accessibility CSS with proper sizing and spacing."""
         font_sizes = {
             "small": "0.9rem",
-            "medium": "1rem", 
+            "medium": "1rem",
             "large": "1.25rem",
-            "extra_large": "1.5rem"
+            "extra_large": "1.5rem",
         }
-        
+
         size = font_sizes.get(font_size, "1rem")
-        
+
         return f"""
         <style>
         /* Font Accessibility */
@@ -254,12 +257,12 @@ class AccessibilityService:
         }}
         </style>
         """
-        
+
     def _get_focus_indicators_css(self) -> str:
         """Get CSS for enhanced focus indicators."""
         if not self.config.enable_focus_indicators:
             return ""
-            
+
         return """
         <style>
         /* Enhanced Focus Indicators */
@@ -287,12 +290,12 @@ class AccessibilityService:
         }
         </style>
         """
-        
+
     def _get_keyboard_navigation_css(self) -> str:
         """Get CSS for enhanced keyboard navigation."""
         if not self.config.enable_keyboard_navigation:
             return ""
-            
+
         return """
         <style>
         /* Keyboard Navigation Enhancement */
@@ -323,12 +326,12 @@ class AccessibilityService:
         }
         </style>
         """
-        
+
     def _get_screen_reader_css(self) -> str:
         """Get CSS for screen reader support."""
         if not self.config.enable_screen_reader_support:
             return ""
-            
+
         return """
         <style>
         /* Screen Reader Support */
@@ -356,7 +359,7 @@ class AccessibilityService:
         }
         </style>
         """
-        
+
     def _get_motion_css(self, animations_enabled: bool) -> str:
         """Get CSS for motion and animation control."""
         if animations_enabled and not self.config.reduce_motion:
@@ -388,7 +391,7 @@ class AccessibilityService:
             }
             </style>
             """
-            
+
     def _get_responsive_css(self, compact_mode: bool) -> str:
         """Get responsive CSS for different screen sizes."""
         base_responsive = """
@@ -421,7 +424,7 @@ class AccessibilityService:
             }
         }
         """
-        
+
         if compact_mode:
             base_responsive += """
             /* Compact Mode */
@@ -434,42 +437,34 @@ class AccessibilityService:
                 padding-top: 1rem !important;
             }
             """
-            
+
         return base_responsive + "</style>"
-        
-    def generate_aria_attributes(self, element_type: str, content: str = "") -> Dict[str, str]:
+
+    def generate_aria_attributes(
+        self, element_type: str, content: str = ""
+    ) -> Dict[str, str]:
         """Generate appropriate ARIA attributes for UI elements."""
         attributes = {}
-        
+
         if element_type == "chat_message":
-            attributes.update({
-                "role": "log",
-                "aria-live": "polite",
-                "aria-label": f"Chat message: {content[:50]}..."
-            })
-            
+            attributes.update(
+                {
+                    "role": "log",
+                    "aria-live": "polite",
+                    "aria-label": f"Chat message: {content[:50]}...",
+                }
+            )
+
         elif element_type == "sidebar":
-            attributes.update({
-                "role": "navigation",
-                "aria-label": "Main navigation"
-            })
-            
+            attributes.update({"role": "navigation", "aria-label": "Main navigation"})
+
         elif element_type == "main_content":
-            attributes.update({
-                "role": "main",
-                "aria-label": "Main content area"
-            })
-            
+            attributes.update({"role": "main", "aria-label": "Main content area"})
+
         elif element_type == "button":
-            attributes.update({
-                "role": "button",
-                "aria-pressed": "false"
-            })
-            
+            attributes.update({"role": "button", "aria-pressed": "false"})
+
         elif element_type == "form":
-            attributes.update({
-                "role": "form",
-                "aria-label": "User input form"
-            })
-            
+            attributes.update({"role": "form", "aria-label": "User input form"})
+
         return attributes

@@ -32,8 +32,9 @@ logger = logging.getLogger(__name__)
 
 class ProcessingMode(Enum):
     """Different processing modes for philosophical texts."""
+
     DIALOGUE_SEPARATION = "dialogue_separation"
-    ARGUMENT_EXTRACTION = "argument_extraction" 
+    ARGUMENT_EXTRACTION = "argument_extraction"
     ENTITY_MARKUP = "entity_markup"
     CITATION_FORMATTING = "citation_formatting"
     FULL_RESTRUCTURE = "full_restructure"
@@ -42,9 +43,12 @@ class ProcessingMode(Enum):
 @dataclass
 class PhilosophicalContext:
     """Context information for philosophical text processing."""
+
     author: Optional[str] = None
     work_title: Optional[str] = None
-    philosophical_period: Optional[str] = None  # Ancient, Medieval, Modern, Contemporary
+    philosophical_period: Optional[str] = (
+        None  # Ancient, Medieval, Modern, Contemporary
+    )
     text_type: Optional[str] = None  # dialogue, treatise, commentary, letter
     key_concepts: List[str] = field(default_factory=list)
     major_themes: List[str] = field(default_factory=list)
@@ -53,6 +57,7 @@ class PhilosophicalContext:
 @dataclass
 class RestructuringResult:
     """Result of philosophical text restructuring."""
+
     restructured_text: str
     processing_mode: ProcessingMode
     context: PhilosophicalContext
@@ -63,33 +68,35 @@ class RestructuringResult:
 class PhilosophicalTextRestructurer:
     """
     LLM-powered service for restructuring philosophical texts for optimal RAG processing.
-    
+
     Uses KG_LLM_PROVIDER and KG_LLM_MODEL environment variables for consistent
     knowledge graph extraction quality.
     """
-    
+
     def __init__(self, settings=None):
         """
         Initialize the restructuring service.
-        
+
         Args:
             settings: Configuration settings (uses default if None)
         """
         self.settings = settings or get_settings()
         self.llm_service = SimpleLLMService(self.settings)
-        
+
         # Get KG-specific LLM configuration
         self.kg_provider = os.getenv("KG_LLM_PROVIDER", "openrouter")
         self.kg_model = os.getenv("KG_LLM_MODEL", "deepseek/deepseek-chat-v3.1:free")
-        
-        logger.info(f"Initialized PhilosophicalTextRestructurer with {self.kg_provider}:{self.kg_model}")
-        
+
+        logger.info(
+            f"Initialized PhilosophicalTextRestructurer with {self.kg_provider}:{self.kg_model}"
+        )
+
         # Processing prompts
         self._init_prompts()
-    
+
     def _init_prompts(self):
         """Initialize specialized prompts for different processing modes."""
-        
+
         self.prompts = {
             ProcessingMode.DIALOGUE_SEPARATION: """
 You are a classical philosophy expert specializing in Platonic dialogues. Transform the following unstructured philosophical text into properly formatted dialogue with clear speaker attributions.
@@ -111,7 +118,6 @@ OUTPUT FORMAT:
 
 Focus on accuracy - it's better to use **Speaker:** for unclear attributions than to guess incorrectly.
 """,
-
             ProcessingMode.ARGUMENT_EXTRACTION: """
 You are a philosophical scholar expert at analyzing argument structures. Extract and clearly structure the philosophical arguments from this text.
 
@@ -145,7 +151,6 @@ OUTPUT FORMAT:
 
 **Logical Structure:** [how premises connect to conclusion]
 """,
-
             ProcessingMode.ENTITY_MARKUP: """
 You are a philosophical knowledge extraction expert. Identify and mark all philosophical entities in this text for knowledge graph construction.
 
@@ -172,7 +177,6 @@ OUTPUT FORMAT:
 
 Mark entities with **Entity Type:** formatting throughout the text where they appear.
 """,
-
             ProcessingMode.CITATION_FORMATTING: """
 You are a scholarly editor specializing in classical philosophical citations. Create citation-ready chunks from this philosophical text.
 
@@ -203,7 +207,6 @@ OUTPUT FORMAT:
 
 **Citation Notes:** [any special attribution or reference formatting needed]
 """,
-
             ProcessingMode.FULL_RESTRUCTURE: """
 You are a philosophical text processing expert. Transform this unstructured philosophical text into a completely RAG-optimized format with dialogue separation, argument structure, entity markup, and citation formatting.
 
@@ -222,47 +225,47 @@ INPUT TEXT:
 CONTEXT: {context}
 
 OUTPUT: Comprehensive restructured text with all optimizations applied.
-"""
+""",
         }
-    
+
     async def restructure_text(
         self,
         text: str,
         mode: ProcessingMode = ProcessingMode.FULL_RESTRUCTURE,
         context: Optional[PhilosophicalContext] = None,
-        chunk_size: int = 4000
+        chunk_size: int = 4000,
     ) -> RestructuringResult:
         """
         Restructure philosophical text using specified processing mode.
-        
+
         Args:
             text: Original philosophical text to restructure
             mode: Processing mode to use
             context: Optional context information about the text
             chunk_size: Maximum size of text chunks for processing
-            
+
         Returns:
             RestructuringResult with restructured text and metadata
         """
         logger.info(f"Starting {mode.value} processing for {len(text)} characters")
-        
+
         context = context or PhilosophicalContext()
-        
+
         # Handle large texts by chunking
         if len(text) > chunk_size:
             chunks = self._chunk_text(text, chunk_size)
             processed_chunks = []
-            
+
             for i, chunk in enumerate(chunks):
                 logger.info(f"Processing chunk {i+1}/{len(chunks)}")
                 processed_chunk = await self._process_chunk(chunk, mode, context)
                 processed_chunks.append(processed_chunk)
-            
+
             # Combine processed chunks
             restructured_text = self._combine_chunks(processed_chunks, mode)
         else:
             restructured_text = await self._process_chunk(text, mode, context)
-        
+
         # Compile processing statistics
         processing_stats = {
             "original_length": len(text),
@@ -270,30 +273,29 @@ OUTPUT: Comprehensive restructured text with all optimizations applied.
             "mode": mode.value,
             "provider": self.kg_provider,
             "model": self.kg_model,
-            "chunks_processed": len(chunks) if len(text) > chunk_size else 1
+            "chunks_processed": len(chunks) if len(text) > chunk_size else 1,
         }
-        
+
         result = RestructuringResult(
             restructured_text=restructured_text,
             processing_mode=mode,
             context=context,
-            processing_stats=processing_stats
+            processing_stats=processing_stats,
         )
-        
-        logger.info(f"Restructuring complete: {len(text)} → {len(restructured_text)} characters")
+
+        logger.info(
+            f"Restructuring complete: {len(text)} → {len(restructured_text)} characters"
+        )
         return result
-    
+
     async def _process_chunk(
-        self, 
-        chunk: str, 
-        mode: ProcessingMode, 
-        context: PhilosophicalContext
+        self, chunk: str, mode: ProcessingMode, context: PhilosophicalContext
     ) -> str:
         """Process a single text chunk with the specified mode."""
-        
+
         # Get the appropriate prompt
         prompt_template = self.prompts[mode]
-        
+
         # Format prompt with context if needed
         if mode == ProcessingMode.FULL_RESTRUCTURE:
             context_info = f"""
@@ -307,13 +309,10 @@ Major Themes: {', '.join(context.major_themes) if context.major_themes else 'Non
             prompt = prompt_template.format(text=chunk, context=context_info)
         else:
             prompt = prompt_template.format(text=chunk)
-        
+
         # Create message for LLM
-        messages = [LLMMessage(
-            role=MessageRole.USER,
-            content=prompt
-        )]
-        
+        messages = [LLMMessage(role=MessageRole.USER, content=prompt)]
+
         try:
             # Generate response using KG-specific provider and model
             response = await self.llm_service.generate_response(
@@ -321,24 +320,24 @@ Major Themes: {', '.join(context.major_themes) if context.major_themes else 'Non
                 provider=self.kg_provider,
                 model=self.kg_model,
                 temperature=0.3,  # Lower temperature for more consistent formatting
-                max_tokens=6000   # Ensure enough tokens for restructured output
+                max_tokens=6000,  # Ensure enough tokens for restructured output
             )
-            
+
             return response.content.strip()
-            
+
         except Exception as e:
             logger.error(f"Error processing chunk with {self.kg_provider}: {e}")
             # Return original chunk if processing fails
             return chunk
-    
+
     def _chunk_text(self, text: str, chunk_size: int) -> List[str]:
         """Split text into chunks while preserving paragraph boundaries."""
         chunks = []
         current_chunk = ""
-        
+
         # Split by paragraphs to preserve structure
-        paragraphs = text.split('\n\n')
-        
+        paragraphs = text.split("\n\n")
+
         for paragraph in paragraphs:
             # If adding this paragraph would exceed chunk size
             if len(current_chunk) + len(paragraph) + 2 > chunk_size:
@@ -347,83 +346,87 @@ Major Themes: {', '.join(context.major_themes) if context.major_themes else 'Non
                     current_chunk = paragraph
                 else:
                     # Paragraph itself is too large, split by sentences
-                    sentences = paragraph.split('. ')
+                    sentences = paragraph.split(". ")
                     temp_chunk = ""
                     for sentence in sentences:
                         if len(temp_chunk) + len(sentence) + 2 > chunk_size:
                             if temp_chunk:
-                                chunks.append(temp_chunk.strip() + '.')
+                                chunks.append(temp_chunk.strip() + ".")
                             temp_chunk = sentence
                         else:
-                            temp_chunk += sentence + '. ' if not temp_chunk else sentence + '. '
-                    current_chunk = temp_chunk.rstrip('. ')
+                            temp_chunk += (
+                                sentence + ". " if not temp_chunk else sentence + ". "
+                            )
+                    current_chunk = temp_chunk.rstrip(". ")
             else:
-                current_chunk += '\n\n' + paragraph if current_chunk else paragraph
-        
+                current_chunk += "\n\n" + paragraph if current_chunk else paragraph
+
         if current_chunk:
             chunks.append(current_chunk.strip())
-        
+
         return chunks
-    
+
     def _combine_chunks(self, processed_chunks: List[str], mode: ProcessingMode) -> str:
         """Combine processed chunks back into coherent text."""
-        
+
         if mode == ProcessingMode.DIALOGUE_SEPARATION:
             # Join dialogues with clear separators
-            return '\n\n'.join(processed_chunks)
-        
+            return "\n\n".join(processed_chunks)
+
         elif mode == ProcessingMode.ARGUMENT_EXTRACTION:
             # Combine arguments with section separators
             combined = ""
             for i, chunk in enumerate(processed_chunks):
                 combined += f"\n\n## Section {i+1}\n\n{chunk}"
             return combined.strip()
-        
+
         elif mode == ProcessingMode.ENTITY_MARKUP:
             # Combine entity markups, merging duplicates
-            return '\n\n---\n\n'.join(processed_chunks)
-        
+            return "\n\n---\n\n".join(processed_chunks)
+
         elif mode == ProcessingMode.CITATION_FORMATTING:
             # Join citation chunks with clear divisions
-            return '\n\n---\n\n'.join(processed_chunks)
-        
+            return "\n\n---\n\n".join(processed_chunks)
+
         else:  # FULL_RESTRUCTURE
             # Smart combination preserving structure
-            return '\n\n'.join(processed_chunks)
-    
+            return "\n\n".join(processed_chunks)
+
     async def restructure_file(
         self,
         input_file: Path,
         output_file: Optional[Path] = None,
         mode: ProcessingMode = ProcessingMode.FULL_RESTRUCTURE,
-        context: Optional[PhilosophicalContext] = None
+        context: Optional[PhilosophicalContext] = None,
     ) -> Path:
         """
         Restructure a philosophical text file.
-        
+
         Args:
             input_file: Path to input text file
             output_file: Path for output (generated if None)
             mode: Processing mode to use
             context: Optional context information
-            
+
         Returns:
             Path to the restructured output file
         """
         # Read input file
-        with open(input_file, 'r', encoding='utf-8') as f:
+        with open(input_file, "r", encoding="utf-8") as f:
             original_text = f.read()
-        
+
         # Process the text
         result = await self.restructure_text(original_text, mode, context)
-        
+
         # Generate output filename if not provided
         if output_file is None:
             suffix = f"_{mode.value}"
-            output_file = input_file.parent / f"{input_file.stem}{suffix}_restructured.md"
-        
+            output_file = (
+                input_file.parent / f"{input_file.stem}{suffix}_restructured.md"
+            )
+
         # Write restructured text
-        with open(output_file, 'w', encoding='utf-8') as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             # Add metadata header
             f.write(f"# Restructured Philosophical Text\n\n")
             f.write(f"**Original:** {input_file.name}\n")
@@ -437,26 +440,25 @@ Major Themes: {', '.join(context.major_themes) if context.major_themes else 'Non
             f.write(f"**Processing Date:** {result.processing_stats}\n\n")
             f.write("---\n\n")
             f.write(result.restructured_text)
-        
+
         logger.info(f"Restructured text saved to: {output_file}")
         return output_file
 
 
 # Convenience functions for common use cases
 
+
 async def restructure_socratic_dialogue(
-    text: str,
-    author: str = "Plato",
-    work_title: Optional[str] = None
+    text: str, author: str = "Plato", work_title: Optional[str] = None
 ) -> RestructuringResult:
     """
     Convenience function for restructuring Socratic dialogues.
-    
+
     Args:
         text: Original dialogue text
         author: Author name (default: Plato)
         work_title: Title of the work
-        
+
     Returns:
         RestructuringResult with dialogue formatting
     """
@@ -466,34 +468,29 @@ async def restructure_socratic_dialogue(
         philosophical_period="Ancient",
         text_type="dialogue",
         key_concepts=["wisdom", "virtue", "knowledge", "justice"],
-        major_themes=["epistemology", "ethics", "metaphysics"]
+        major_themes=["epistemology", "ethics", "metaphysics"],
     )
-    
+
     restructurer = PhilosophicalTextRestructurer()
     return await restructurer.restructure_text(
-        text, 
-        mode=ProcessingMode.DIALOGUE_SEPARATION,
-        context=context
+        text, mode=ProcessingMode.DIALOGUE_SEPARATION, context=context
     )
 
 
 async def extract_philosophical_arguments(
-    text: str,
-    context: Optional[PhilosophicalContext] = None
+    text: str, context: Optional[PhilosophicalContext] = None
 ) -> RestructuringResult:
     """
     Convenience function for extracting philosophical argument structures.
-    
+
     Args:
         text: Original philosophical text
         context: Optional context information
-        
+
     Returns:
         RestructuringResult with argument structure
     """
     restructurer = PhilosophicalTextRestructurer()
     return await restructurer.restructure_text(
-        text,
-        mode=ProcessingMode.ARGUMENT_EXTRACTION,
-        context=context
+        text, mode=ProcessingMode.ARGUMENT_EXTRACTION, context=context
     )

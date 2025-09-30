@@ -8,6 +8,7 @@ This package provides clean data access layer with dual persistence strategy:
 Following Domain Driven Design principles with abstract repository interfaces
 for testability and clean architecture.
 """
+
 from .base import (
     BaseRepository,
     SearchableRepository,
@@ -25,7 +26,7 @@ from .retrieval import (
     RetrievalMethod,
     HybridStrategy,
     HybridRetrievalConfig,
-    create_retrieval_repository
+    create_retrieval_repository,
 )
 
 __all__ = [
@@ -33,7 +34,7 @@ __all__ = [
     "BaseRepository",
     "SearchableRepository",
     "GraphRepository",
-    "RepositoryError", 
+    "RepositoryError",
     "EntityNotFoundError",
     "DuplicateEntityError",
     "ValidationError",
@@ -44,7 +45,7 @@ __all__ = [
     "RetrievalRepository",
     # Retrieval configuration
     "RetrievalMethod",
-    "HybridStrategy", 
+    "HybridStrategy",
     "HybridRetrievalConfig",
     # Factory functions
     "create_embedding_repository",

@@ -95,6 +95,7 @@ exclude = '''
   | build
   | dist
   | migrations
+  | keyboard_navigation_service\.py
 )/
 '''
 

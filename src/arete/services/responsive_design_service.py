@@ -12,6 +12,7 @@ from enum import Enum
 
 class BreakpointSize(Enum):
     """Standard responsive breakpoint sizes."""
+
     MOBILE = 480
     TABLET = 768
     DESKTOP = 1024
@@ -20,6 +21,7 @@ class BreakpointSize(Enum):
 
 class DeviceType(Enum):
     """Device type classifications."""
+
     MOBILE = "mobile"
     TABLET = "tablet"
     DESKTOP = "desktop"
@@ -29,6 +31,7 @@ class DeviceType(Enum):
 @dataclass
 class ResponsiveConfig:
     """Configuration for responsive design features."""
+
     enable_mobile_optimization: bool = True
     enable_tablet_optimization: bool = True
     mobile_breakpoint: int = 480
@@ -41,45 +44,43 @@ class ResponsiveConfig:
 
 class ResponsiveDesignService:
     """Service for implementing responsive design in Streamlit."""
-    
+
     def __init__(self, config: Optional[ResponsiveConfig] = None):
         """Initialize the responsive design service."""
         self.config = config or ResponsiveConfig()
-        
+
     def generate_responsive_css(
-        self,
-        compact_mode: bool = False,
-        font_scale: float = 1.0
+        self, compact_mode: bool = False, font_scale: float = 1.0
     ) -> str:
         """Generate responsive CSS for the Streamlit app."""
         css_methods = [
             self._get_base_responsive_css(),
             self._get_mobile_css(),
             self._get_tablet_css(),
-            self._get_desktop_css()
+            self._get_desktop_css(),
         ]
-        
+
         if compact_mode:
             css_methods.append(self._get_compact_mode_css())
-            
+
         if font_scale != 1.0:
             css_methods.append(self._get_font_scale_css(font_scale))
-        
+
         # Extract CSS content from each method (remove <style> tags)
         css_content_parts = []
         for css_block in filter(None, css_methods):
             # Remove <style> and </style> tags and extract content
             content = css_block.strip()
-            if content.startswith('<style>'):
+            if content.startswith("<style>"):
                 content = content[7:]  # Remove <style>
-            if content.endswith('</style>'):
+            if content.endswith("</style>"):
                 content = content[:-8]  # Remove </style>
             css_content_parts.append(content.strip())
-        
+
         # Combine all CSS content into a single <style> block
         combined_css = "\n".join(css_content_parts)
         return f"<style>\n{combined_css}\n</style>"
-    
+
     def _get_base_responsive_css(self) -> str:
         """Get base responsive CSS that applies to all screen sizes."""
         return """
@@ -110,12 +111,12 @@ class ResponsiveDesignService:
         }
         </style>
         """
-        
+
     def _get_mobile_css(self) -> str:
         """Get CSS optimizations for mobile devices."""
         if not self.config.enable_mobile_optimization:
             return ""
-            
+
         return f"""
         <style>
         /* Mobile Optimizations */
@@ -155,12 +156,12 @@ class ResponsiveDesignService:
         }}
         </style>
         """
-        
+
     def _get_tablet_css(self) -> str:
         """Get CSS optimizations for tablet devices."""
         if not self.config.enable_tablet_optimization:
             return ""
-            
+
         return f"""
         <style>
         /* Tablet Optimizations */
@@ -187,7 +188,7 @@ class ResponsiveDesignService:
         }}
         </style>
         """
-        
+
     def _get_desktop_css(self) -> str:
         """Get CSS optimizations for desktop devices."""
         return f"""
@@ -212,7 +213,7 @@ class ResponsiveDesignService:
         }}
         </style>
         """
-        
+
     def _get_compact_mode_css(self) -> str:
         """Get CSS for compact mode."""
         return """
@@ -236,7 +237,7 @@ class ResponsiveDesignService:
         }
         </style>
         """
-        
+
     def _get_font_scale_css(self, scale: float) -> str:
         """Get CSS for font scaling."""
         return f"""
@@ -254,7 +255,7 @@ class ResponsiveDesignService:
         h6 {{ font-size: {scale * 1.1}rem !important; }}
         </style>
         """
-        
+
     def get_device_type(self, width: int) -> DeviceType:
         """Determine device type based on screen width."""
         if width <= self.config.mobile_breakpoint:
@@ -265,7 +266,7 @@ class ResponsiveDesignService:
             return DeviceType.DESKTOP
         else:
             return DeviceType.WIDE_DESKTOP
-            
+
     def get_optimal_sidebar_state(self, device_type: DeviceType) -> str:
         """Get optimal sidebar state for device type."""
         if device_type == DeviceType.MOBILE:
@@ -280,31 +281,35 @@ class ResponsiveDesignService:
         # For Streamlit, we'll default to desktop and let CSS handle responsiveness
         # In a real implementation, this would use JavaScript to detect screen width
         return DeviceType.DESKTOP
-        
-    def get_responsive_layout_config(self, device_type: Optional[DeviceType] = None) -> Dict[str, Any]:
+
+    def get_responsive_layout_config(
+        self, device_type: Optional[DeviceType] = None
+    ) -> Dict[str, Any]:
         """Get responsive layout configuration for the given device type."""
         if device_type is None:
             device_type = self.detect_device_type()
-            
+
         return {
-            'layout': 'wide' if device_type in [DeviceType.DESKTOP, DeviceType.WIDE_DESKTOP] else 'centered',
-            'sidebar_state': self.get_optimal_sidebar_state(device_type),
-            'initial_sidebar_state': self.get_optimal_sidebar_state(device_type)
+            "layout": (
+                "wide"
+                if device_type in [DeviceType.DESKTOP, DeviceType.WIDE_DESKTOP]
+                else "centered"
+            ),
+            "sidebar_state": self.get_optimal_sidebar_state(device_type),
+            "initial_sidebar_state": self.get_optimal_sidebar_state(device_type),
         }
 
     def generate_viewport_meta_tag(self) -> str:
         """Generate viewport meta tag for responsive design."""
         return '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">'
 
-        
     def get_responsive_css(self, device_type: Optional[DeviceType] = None) -> str:
         """Get responsive CSS for the given device type."""
         return self.generate_responsive_css(
             compact_mode=(device_type == DeviceType.MOBILE if device_type else False),
-            font_scale=0.9 if device_type == DeviceType.MOBILE else 1.0
+            font_scale=0.9 if device_type == DeviceType.MOBILE else 1.0,
         )
 
-        
     def optimize_for_mobile(self) -> None:
         """Optimize the service configuration for mobile devices."""
         # This is a placeholder method for mobile optimization
