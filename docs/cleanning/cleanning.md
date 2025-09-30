@@ -516,6 +516,52 @@ grep "from arete_ui" *.py
 
 ---
 
+---
+
+## Phase 4: Configuration and Legacy Code Cleanup
+
+### Configuration Files Cleanup
+
+**Files Deleted** (1):
+1. ✅ `.mcp.json` - Redundant (Serena configured globally in `~/.claude/.claude.json`)
+
+**Explanation**:
+- Serena MCP server is properly configured globally for all projects
+- Local `.mcp.json` was redundant and outdated (wrong path: D:/Coding/arete)
+- Global configuration allows Serena to work across all projects with per-project path specification
+
+### Legacy Experimental Code Removed
+
+**Directories Deleted** (3):
+1. ✅ `components/` - 4 files (~66KB) - Experimental UI components never integrated
+2. ✅ `pages/` - 1 file (~22KB) - Experimental Reflex page from "Branch B" work
+3. ✅ `config/` - Multiple files including schemas/ - Old configuration approach
+
+**Explanation**:
+- These were leftover from experimental parallel development (Branch B mentioned in BRANCHING_STRATEGY.md)
+- Production Reflex app at `src/arete/ui/reflex_app/` has its own `components/` and `pages/`
+- Root-level directories were never integrated into production codebase
+- Only 1 file (`ragas_quality_service.py`) had stale imports from root `config/`
+- **Space Saved**: ~100KB of unused experimental code
+
+### Final Cleanup Summary
+
+**Total Cleanup Across All Phases**:
+- **Scripts**: 13 → 8 files (38% reduction)
+- **Directories Removed**: 5 (arete/, arete_ui/, components/, pages/, config/)
+- **Files Deleted**: 8+ obsolete/redundant files
+- **Files Archived**: 3 historical documentation files
+- **Total Space Saved**: ~1.3MB of obsolete code and documentation
+
+**Repository Status**:
+- Clean root directory structure
+- Clear separation of production vs. archived code
+- All production functionality preserved
+- Configuration files reflect actual current state
+- Ready for Phase 8.3 (WebSocket stability) and Phase 9 (content expansion)
+
+---
+
 ## Notes
 
 - All legacy Streamlit UI files are ignored in this analysis (Reflex is now the primary UI)
@@ -524,3 +570,4 @@ grep "from arete_ui" *.py
 - Production functionality is preserved and prioritized
 - Historical documentation archived for reference, not deleted
 - Root directory now reflects Phase 8.2 complete status
+- Configuration properly separated: global MCP config vs. project-specific settings
