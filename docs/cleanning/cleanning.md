@@ -264,11 +264,95 @@ There are **2 similar prompt testing scripts**:
 - test_file.py
 - verify_database_content.py
 
+### Directory Cleanup - Phase 2 Complete ✅
+
+**Deleted Directories** (3):
+- ❌ `arete/` - Legacy Reflex app (13 files, ~342 lines)
+- ❌ `arete_ui/` - Unused Reflex template (2 files, ~36 lines)
+- ❌ `rxconfig.py` - Obsolete root config
+
+**Total Cleanup**:
+- **Scripts**: 13 → 8 files (38% reduction)
+- **Directories**: 3 legacy directories removed
+- **Code**: ~400+ lines of obsolete code removed
+
 ### Next Steps
 
-1. ⏳ Update CLAUDE.md with new script organization
-2. ⏳ Update README.md with correct script references
-3. ⏳ Commit changes to organization branch
+1. ⏳ Update CLAUDE.md with new organization
+2. ⏳ Update README.md with correct references
+3. ⏳ Commit all changes to organization branch
+
+---
+
+## Directory Structure Analysis
+
+### Three "arete" Directories Found
+
+#### 1. `arete/` (Root Level) - 🔴 LEGACY REFLEX APP
+**Status**: OBSOLETE - Old/experimental Reflex app
+**Contents**:
+- `arete/arete.py` - Old Reflex main app
+- `arete/components/` - Old components
+- `arete/pages/` - Old pages (home, chat)
+- `arete/state.py` - Old state management
+**Used By**: Root `rxconfig.py` references `app_name="arete"`
+**Decision**: **REMOVE** - Superseded by `src/arete/ui/reflex_app/`
+
+#### 2. `arete_ui/` (Root Level) - 🔴 LEGACY TEMPLATE
+**Status**: OBSOLETE - Default Reflex template code
+**Contents**:
+- `arete_ui/arete_ui.py` - "Welcome to Reflex!" template
+- `arete_ui/__init__.py`
+**Used By**: No imports found in codebase
+**Decision**: **REMOVE** - Unused template code
+
+#### 3. `src/arete/` - ✅ **PRODUCTION CODEBASE**
+**Status**: ACTIVE - Main application code
+**Contents**:
+- `src/arete/config.py` - Application configuration
+- `src/arete/database/` - Neo4j & Weaviate clients
+- `src/arete/models/` - Data models
+- `src/arete/repositories/` - Data access layer
+- `src/arete/services/` - Business logic
+- `src/arete/ui/reflex_app/` - **PRODUCTION REFLEX APP**
+**Used By**: All production scripts (chat_rag_clean.py, ingest_restructured_text.py, etc.)
+**Decision**: **KEEP** - Production codebase
+
+### Production Reflex App Location
+
+**Active App**: `src/arete/ui/reflex_app/`
+- Has its own `rxconfig.py` (backend_port=8001)
+- Contains `arete/arete.py` (production app)
+- Complete component structure
+- Used by all 4 running background processes
+
+### Verification
+
+```bash
+# Production scripts import from src/arete
+grep "from arete\." *.py
+# Result: All production scripts use src/arete
+
+# Nothing imports arete_ui
+grep "from arete_ui" *.py
+# Result: No imports found
+
+# Root arete/ only used by old rxconfig.py
+```
+
+### Removal Impact Analysis
+
+**Safe to Remove**:
+1. `arete/` directory (root level) - 342 lines of obsolete Reflex code
+2. `arete_ui/` directory - 36 lines of template code
+3. Root `rxconfig.py` - References obsolete `arete/` app
+
+**Must Keep**:
+- `src/arete/` - Entire production codebase
+- `src/arete/ui/reflex_app/` - Production Reflex app
+- `src/arete/ui/reflex_app/rxconfig.py` - Production config
+
+**Space Savings**: ~400+ lines of obsolete code
 
 ---
 
@@ -278,3 +362,4 @@ There are **2 similar prompt testing scripts**:
 - Scripts in `src/arete/ui/reflex_app/` are the active UI implementation
 - Focus is on root directory cleanup for better organization
 - Production functionality is preserved and prioritized
+- Root-level `arete/` and `arete_ui/` directories are legacy/experimental code that can be safely removed
