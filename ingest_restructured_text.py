@@ -83,6 +83,92 @@ from arete.repositories.entity import EntityRepository
 # Import LLM Graph Transformer for enhanced entity/relationship extraction
 from arete.services.llm_graph_transformer_service import LLMGraphTransformerService
 
+# Import text extractors for multi-format support
+from arete.processing.extractors import PDFExtractor
+
+
+def detect_and_convert_to_markdown(file_path: str, logger: logging.Logger) -> str:
+    """
+    Detect file type and convert to markdown if needed.
+
+    Args:
+        file_path: Path to input file
+        logger: Logger instance
+
+    Returns:
+        Path to markdown file (original if already markdown, converted if PDF/other)
+    """
+    file_path = Path(file_path)
+    file_extension = file_path.suffix.lower()
+
+    logger.info(f"Detecting file type: {file_extension}")
+
+    # If already markdown, return as-is
+    if file_extension in ['.md', '.markdown']:
+        logger.info("File is already markdown format")
+        return str(file_path)
+
+    # Handle PDF files
+    elif file_extension == '.pdf':
+        logger.info("PDF detected - converting to markdown using PDFExtractor")
+        print(f">> Converting PDF to markdown: {file_path.name}")
+
+        try:
+            # Extract using PDFExtractor
+            extractor = PDFExtractor(
+                preserve_layout=True,
+                extract_annotations=True
+            )
+
+            result = extractor.extract_from_file(str(file_path))
+
+            # Create output markdown file
+            output_path = file_path.parent / f"{file_path.stem}_converted.md"
+
+            # Create enhanced markdown with metadata header
+            metadata = result.get('metadata', {})
+            markdown_content = f"""# {metadata.title or file_path.stem}
+
+## Document Information
+- **Title**: {metadata.title or 'Unknown'}
+- **Author**: {metadata.author or 'Unknown'}
+- **Pages**: {metadata.page_count or 'Unknown'}
+- **Source**: {file_path.name}
+- **Extracted**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+---
+
+## Content
+
+{result.get('markdown_text', result.get('text', ''))}
+"""
+
+            # Write converted markdown
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(markdown_content)
+
+            logger.info(f"PDF converted successfully to: {output_path}")
+            print(f"   ✅ Converted to: {output_path.name}")
+            print(f"   📊 Statistics:")
+            print(f"      - Title: {metadata.title}")
+            print(f"      - Author: {metadata.author}")
+            print(f"      - Pages: {metadata.page_count}")
+            print(f"      - Words: {len(result.get('text', '').split()):,}")
+
+            return str(output_path)
+
+        except Exception as e:
+            logger.error(f"Failed to convert PDF: {e}")
+            print(f"❌ ERROR: Failed to convert PDF: {e}")
+            raise
+
+    # Handle other file types (future extensibility)
+    else:
+        logger.error(f"Unsupported file type: {file_extension}")
+        print(f"❌ ERROR: Unsupported file type: {file_extension}")
+        print(f"Supported formats: .pdf, .md, .markdown")
+        raise ValueError(f"Unsupported file type: {file_extension}")
+
 
 def start_databases(logger: logging.Logger) -> bool:
     """
@@ -766,20 +852,15 @@ class RestructuredTextParser:
         # Calculate character positions
         start_char = chunk_index * 1000  # Approximate position
         end_char = start_char + len(text)
-        
+
         return Chunk(
             text=text,
             chunk_type=ChunkType.SEMANTIC,
             document_id=document_id,
-            position=chunk_index,  # Sequential position in document
-            start_char=start_char,  # Starting character position
-            end_char=end_char,  # Ending character position
-            word_count=len(text.split()),
-            metadata={
-                'section_title': section_title,
-                'chunk_type': 'semantic_section',
-                'ai_structured': True
-            }
+            sequence_number=chunk_index,  # Sequential position in document
+            start_position=start_char,  # Starting character position
+            end_position=end_char,  # Ending character position
+            word_count=len(text.split())
         )
 
 
@@ -1343,15 +1424,22 @@ def main() -> None:
     
     if len(sys.argv) != 2:
         logger.info("Displaying usage information")
-        print("Usage: python ingest_restructured_text.py <path_to_ai_restructured_markdown>")
-        print("\nIngest your AI-restructured philosophical texts:")
-        print("  python ingest_restructured_text.py \"data/processed/Socratis Dialogues_First_2_books_ai_restructured.md\"")
-        print("  python ingest_restructured_text.py \"data/processed/Plato_Republic_ai_restructured.md\"")
+        print("Usage: python ingest_restructured_text.py <path_to_document>")
+        print("\nSupported formats:")
+        print("  📄 PDF files (.pdf) - Automatically converted to markdown")
+        print("  📝 Markdown files (.md, .markdown) - Direct ingestion")
+        print("\nExamples:")
+        print("  python ingest_restructured_text.py \"data/pdfs/Plato The Republic.pdf\"")
+        print("  python ingest_restructured_text.py \"data/processed/Socratis Dialogues_ai_restructured.md\"")
+        print("\nPDF Conversion:")
+        print("  PDFs are automatically converted to markdown using PyMuPDF")
+        print("  Preserves document structure and extracts metadata")
+        print("  Converted files saved with '_converted.md' suffix")
         print("\nExample with KG-specific LLM:")
         print("  export KG_LLM_PROVIDER=openai")
         print("  export KG_LLM_MODEL=gpt-4o-mini")
         print("  export OPENAI_API_KEY=your-api-key")
-        print("  python ingest_restructured_text.py \"path/to/text.md\"")
+        print("  python ingest_restructured_text.py \"path/to/document.pdf\"")
         print("\nConfiguration:")
         print("  See .env for complete KG_LLM_* configuration options")
         print("  Key variables:")
@@ -1360,23 +1448,33 @@ def main() -> None:
         print("    KG_LLM_MODEL=<model_name>  # KG-specific model")
         print("  Falls back to SELECTED_LLM_* if KG_LLM_* not set")
         return
-    
-    markdown_path = sys.argv[1]
-    
-    if not Path(markdown_path).exists():
-        logger.error(f"Input file not found: {markdown_path}")
-        print(f"ERROR: File not found: {markdown_path}")
+
+    input_file_path = sys.argv[1]
+
+    if not Path(input_file_path).exists():
+        logger.error(f"Input file not found: {input_file_path}")
+        print(f"ERROR: File not found: {input_file_path}")
         return
-    
-    logger.info("Starting Arete AI-Restructured Text Ingestion System")
-    logger.info(f"Processing file: {Path(markdown_path).name}")
-    logger.info(f"File path: {markdown_path}")
-    print(f">> Arete AI-Restructured Text Ingestion System")
-    print(f"Processing: {Path(markdown_path).name}")
-    print(f"Mode: AI-Enhanced RAG Ingestion")
-    print(f"Features: Semantic Chunks + LLM Graph Transformer + Enhanced Entities + AI Relationships + Vector Embeddings")
+
+    logger.info("Starting Arete Multi-Format Document Ingestion System")
+    logger.info(f"Input file: {Path(input_file_path).name}")
+    logger.info(f"File path: {input_file_path}")
+    print(f">> Arete Multi-Format Document Ingestion System")
+    print(f"Input: {Path(input_file_path).name}")
+    print(f"Mode: AI-Enhanced RAG Ingestion with Auto-Conversion")
+    print(f"Features: Auto PDF→MD + Semantic Chunks + LLM Graph Transformer + Enhanced Entities + AI Relationships + Vector Embeddings")
     print(f"LLM Graph Transformer: {'Enabled' if os.getenv('USE_LLM_GRAPH_TRANSFORMER', 'true').lower() == 'true' else 'Disabled'}")
     print("=" * 80)
+
+    # Step 1: Detect file type and convert to markdown if needed
+    logger.info("Step 1: File format detection and conversion")
+    try:
+        markdown_path = detect_and_convert_to_markdown(input_file_path, logger)
+        logger.info(f"Markdown ready for processing: {markdown_path}")
+    except Exception as e:
+        logger.error(f"File conversion failed: {e}")
+        print(f"❌ CONVERSION FAILED: {e}")
+        return
     
     # Step 0: Start databases automatically
     logger.info("=== Starting Database Services ===")
@@ -1387,7 +1485,7 @@ def main() -> None:
         print("\nManual startup: docker-compose up -d neo4j weaviate")
         return
     
-    # Step 1-6: Process the AI-restructured text
+    # Step 2: Process the markdown text (AI-restructured or converted)
     logger.info("Starting text ingestion phase...")
     result = asyncio.run(ingest_restructured_text(markdown_path, logger))
     

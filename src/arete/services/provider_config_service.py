@@ -4,6 +4,7 @@ Provider Configuration Management Service.
 Advanced configuration management system for LLM providers with validation,
 health monitoring, persistence, and backup capabilities.
 """
+import json
 import logging
 import os
 import time
@@ -608,7 +609,7 @@ class ProviderConfigurationService:
         """Save configurations to file."""
         try:
             data = {
-                provider: config.dict()
+                provider: config.model_dump()
                 for provider, config in self._configurations.items()
             }
             self.config_file.write_text(json.dumps(data, indent=2, default=str))
