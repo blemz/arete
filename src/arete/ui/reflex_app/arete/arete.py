@@ -35,6 +35,13 @@ class AreteState(rx.State):
     rag_status: str = "ready"  # ready, processing, error, unavailable
     response_time: float = 0.0
 
+    # WebSocket connection management
+    connection_status: str = "connecting"  # connecting, connected, reconnecting, disconnected, error
+    connection_attempts: int = 0
+    max_retry_attempts: int = 5
+    retry_delay: float = 1.0
+    show_connection_error: bool = False
+
     def set_user_query(self, query: str):
         """Set the user query."""
         self.user_query = query
@@ -278,6 +285,99 @@ Through examining various definitions, Socrates shows the difficulty of defining
         self.current_document = ""
         self.document_content = ""
 
+
+    async def check_connection(self):
+        """Monitor WebSocket connection status."""
+        # Reflex handles WebSocket connections internally
+        # This method can be called to update connection status
+        # In a real implementation, this would check Reflex's internal state
+        if self.connection_status == "connecting":
+            self.connection_status = "connected"
+            self.connection_attempts = 0
+
+    async def handle_connection_error(self):
+        """Handle connection errors with exponential backoff."""
+        import asyncio
+
+        if self.connection_attempts < self.max_retry_attempts:
+            self.connection_status = "reconnecting"
+            # Calculate exponential backoff delay
+            delay = self.retry_delay * (2 ** self.connection_attempts)
+            await asyncio.sleep(delay)
+            self.connection_attempts += 1
+            await self.attempt_reconnection()
+        else:
+            self.connection_status = "error"
+            self.show_connection_error = True
+
+    async def attempt_reconnection(self):
+        """Attempt to reconnect to WebSocket."""
+        # In a real implementation, this would trigger Reflex's reconnection
+        # For now, we simulate a reconnection attempt
+        try:
+            # Simulate connection attempt
+            await self.check_connection()
+        except Exception:
+            # If reconnection fails, handle error again
+            await self.handle_connection_error()
+
+    def manual_retry(self):
+        """Allow user to manually retry connection."""
+        self.connection_attempts = 0
+        self.connection_status = "connecting"
+        self.show_connection_error = False
+        # Trigger reconnection check
+        return self.check_connection
+
+
+
+def connection_indicator() -> rx.Component:
+    """Display connection status with retry option."""
+    return rx.cond(
+        AreteState.connection_status != "connected",
+        rx.box(
+            rx.cond(
+                AreteState.connection_status == "reconnecting",
+                rx.hstack(
+                    rx.spinner(size="1"),
+                    rx.text("Reconnecting...", size="2"),
+                    spacing="2"
+                ),
+                rx.cond(
+                    AreteState.show_connection_error,
+                    rx.hstack(
+                        rx.icon("alert-circle", color="red"),
+                        rx.text("Connection lost", size="2"),
+                        rx.button(
+                            "Retry",
+                            on_click=AreteState.manual_retry,
+                            size="1",
+                            color_scheme="blue"
+                        ),
+                        spacing="2"
+                    ),
+                    rx.cond(
+                        AreteState.connection_status == "connecting",
+                        rx.hstack(
+                            rx.spinner(size="1"),
+                            rx.text("Connecting...", size="2"),
+                            spacing="2"
+                        ),
+                        rx.fragment()
+                    )
+                )
+            ),
+            position="fixed",
+            top="10px",
+            right="10px",
+            bg="white",
+            padding="2",
+            border_radius="md",
+            box_shadow="md",
+            z_index="1000"
+        ),
+        rx.fragment()
+    )
 
 def index() -> rx.Component:
     """Home page."""
@@ -710,9 +810,10 @@ def footer() -> rx.Component:
 
 
 def base_layout(content: rx.Component) -> rx.Component:
-    """Base layout for all pages."""
+    """Base layout for all pages with connection indicator."""
     return rx.vstack(
         navbar(),
+        connection_indicator(),  # Add connection status indicator
         rx.box(content, flex="1", width="100%"),
         footer(),
         spacing="0",
