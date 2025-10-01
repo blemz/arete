@@ -346,7 +346,7 @@ def connection_indicator() -> rx.Component:
                 rx.cond(
                     AreteState.show_connection_error,
                     rx.hstack(
-                        rx.icon("alert-circle", color="red"),
+                        rx.icon("circle-alert", color="red"),
                         rx.text("Connection lost", size="2"),
                         rx.button(
                             "Retry",

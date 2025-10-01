@@ -54,7 +54,10 @@
       "Bash(mypy:*)",
       "Bash(black:*)",
       "Bash(ruff check:*)",
-      "Bash(pyright:*)"
+      "Bash(pyright:*)",
+      "mcp__serena__activate_project",
+      "mcp__serena__insert_before_symbol",
+      "Bash(git commit -m \"$(cat <<''EOF''\nPhase 8.3 Complete: WebSocket Stability and Production Readiness\n\nImplemented comprehensive WebSocket connection management following TDD methodology:\n\n**Features Implemented:**\n- Automatic reconnection with exponential backoff (5 attempts: 1s, 2s, 4s, 8s, 16s delays)\n- Real-time connection status indicator (connecting, connected, reconnecting, error states)\n- Manual retry button for user-initiated reconnection\n- Graceful error handling with comprehensive user feedback\n- Fixed-position UI indicator visible across all pages\n\n**Technical Implementation:**\n- Added connection_status, connection_attempts, retry_delay state variables to AreteState\n- Implemented check_connection(), handle_connection_error(), attempt_reconnection(), manual_retry() methods\n- Created connection_indicator() UI component with conditional rendering\n- Integrated indicator into base_layout for global visibility\n\n**Testing:**\n- Contract-based test suite in test_connection_state.py (12 focused tests)\n- Tests for state transitions, retry limits, exponential backoff, manual retry\n- Integration tests with existing chat and document functionality\n\n**Production Benefits:**\n- Eliminates need for manual page refresh on connection issues\n- Prevents server overload with exponential backoff\n- Clear user feedback improves experience during network instability\n- Resolves intermittent \"Connection Error\" on fresh page loads\n\nFollowing TDD Red-Green-Refactor cycle with >90% test coverage target.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": []
   },
