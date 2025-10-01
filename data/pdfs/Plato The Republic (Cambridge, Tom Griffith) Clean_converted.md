@@ -5,7 +5,7 @@
 - **Author**: Classical Philosopher
 - **Pages**: 386
 - **Source**: Plato The Republic (Cambridge, Tom Griffith) Clean.pdf
-- **Extracted**: 2025-10-01 16:49:32
+- **Extracted**: 2025-10-01 18:50:28
 
 ---
 

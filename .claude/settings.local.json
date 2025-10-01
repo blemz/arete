@@ -8,7 +8,8 @@
       "Bash(grep:*)",
       "mcp__serena__find_symbol",
       "mcp__serena__search_for_pattern",
-      "mcp__serena__find_file"
+      "mcp__serena__find_file",
+      "Bash(docker-compose:*)"
     ],
     "deny": [],
     "ask": []
