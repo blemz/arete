@@ -49,7 +49,7 @@ class EmbeddingServiceFactory:
 
         # Create service based on provider
         if provider_lower == "openai":
-            from .openai_embedding_service import OpenAIEmbeddingService
+            from .openai_embedding_service import OpenAIEmbeddingService  # noqa: PLC0415 - Lazy loading to avoid circular imports
 
             return OpenAIEmbeddingService(
                 model_name=model_name,
@@ -58,7 +58,7 @@ class EmbeddingServiceFactory:
             )
 
         elif provider_lower == "openrouter":
-            from .openrouter_embedding_service import OpenRouterEmbeddingService
+            from .openrouter_embedding_service import OpenRouterEmbeddingService  # noqa: PLC0415 - Lazy loading to avoid circular imports
 
             return OpenRouterEmbeddingService(
                 model_name=model_name,
@@ -68,7 +68,7 @@ class EmbeddingServiceFactory:
             )
 
         elif provider_lower == "gemini":
-            from .gemini_embedding_service import GeminiEmbeddingService
+            from .gemini_embedding_service import GeminiEmbeddingService  # noqa: PLC0415 - Lazy loading to avoid circular imports
 
             return GeminiEmbeddingService(
                 model_name=model_name,
@@ -77,7 +77,7 @@ class EmbeddingServiceFactory:
             )
 
         elif provider_lower == "anthropic":
-            from .anthropic_embedding_service import AnthropicEmbeddingService
+            from .anthropic_embedding_service import AnthropicEmbeddingService  # noqa: PLC0415 - Lazy loading to avoid circular imports
 
             return AnthropicEmbeddingService(
                 model_name=model_name,
@@ -88,7 +88,7 @@ class EmbeddingServiceFactory:
             )
 
         elif provider_lower == "ollama":
-            from .ollama_embedding_service import OllamaEmbeddingService
+            from .ollama_embedding_service import OllamaEmbeddingService  # noqa: PLC0415 - Lazy loading to avoid circular imports
 
             return OllamaEmbeddingService(
                 model_name=model_name,
@@ -97,7 +97,7 @@ class EmbeddingServiceFactory:
             )
 
         elif provider_lower == "sentence-transformers":
-            from .embedding_service import EmbeddingService
+            from .embedding_service import EmbeddingService  # noqa: PLC0415 - Lazy loading to avoid circular imports
 
             return EmbeddingService(
                 model_name=model_name,

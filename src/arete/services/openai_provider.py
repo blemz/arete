@@ -14,7 +14,7 @@ from typing import Any
 
 import httpx
 
-from arete.config import Settings
+from arete.config import Settings, get_settings
 from arete.services.llm_provider import (
     AuthenticationError,
     LLMMessage,
@@ -256,9 +256,9 @@ class OpenAIProvider(LLMProvider):
 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 401:
-                raise AuthenticationError("Invalid OpenAI API key", "openai")
+                raise AuthenticationError("Invalid OpenAI API key", "openai") from e
             elif e.response.status_code == 429:
-                raise RateLimitError("OpenAI API rate limit exceeded")
+                raise RateLimitError("OpenAI API rate limit exceeded") from e
             else:
                 logger.warning(f"Failed to fetch OpenAI models: {e}")
                 return self._default_models
@@ -336,11 +336,11 @@ class OpenAIProvider(LLMProvider):
         except httpx.HTTPStatusError as e:
             await self._handle_http_error(e)
         except Exception as e:
-            import traceback
+            import traceback  # noqa: PLC0415
 
             logger.error(f"Unexpected error in OpenAI generation: {e}")
             logger.error(f"Full traceback: {traceback.format_exc()}")
-            raise LLMProviderError(f"OpenAI generation failed: {str(e)}")
+            raise LLMProviderError(f"OpenAI generation failed: {str(e)}") from e
 
     async def _generate_standard_response(self, payload: dict[str, Any]) -> LLMResponse:
         """Generate standard (non-streaming) response."""

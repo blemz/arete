@@ -111,7 +111,6 @@ class KnowledgeGraphService:
         Returns:
             KnowledgeGraphExtractionResult with extraction statistics
         """
-        import time
 
         start_time = time.time()
         result = KnowledgeGraphExtractionResult()

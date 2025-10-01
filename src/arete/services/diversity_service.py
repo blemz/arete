@@ -280,8 +280,8 @@ class DiversityService:
             if isinstance(method, str):
                 try:
                     method = DiversityMethod(method)
-                except ValueError:
-                    raise DiversityError(f"Unknown diversification method: {method}")
+                except ValueError as e:
+                    raise DiversityError(f"Unknown diversification method: {method}") from e
             elif not isinstance(method, DiversityMethod):
                 raise DiversityError(f"Invalid method type: {type(method)}")
 
@@ -315,7 +315,7 @@ class DiversityService:
 
         except Exception as e:
             logger.error(f"Error in diversification: {e}")
-            raise DiversityError(f"Diversification failed: {e}")
+            raise DiversityError(f"Diversification failed: {e}") from e
 
     def _mmr_diversification(
         self, results: list[SearchResult]

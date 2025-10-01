@@ -17,9 +17,9 @@ class TestAnalyticsService:
         """Test centrality score calculation."""
         with patch.object(analytics_service, '_calculate_centrality') as mock_calc:
             mock_calc.return_value = mock_analytics_data["centrality_scores"]
-            
+
             scores = await analytics_service.get_centrality_scores()
-            
+
             assert "virtue" in scores
             assert "justice" in scores
             assert scores["virtue"]["degree"] == 10
@@ -30,9 +30,9 @@ class TestAnalyticsService:
         """Test centrality calculation for specific algorithm."""
         with patch.object(analytics_service, '_calculate_degree_centrality') as mock_degree:
             mock_degree.return_value = {"virtue": 10, "justice": 8, "wisdom": 6}
-            
+
             scores = await analytics_service.get_centrality_scores(algorithm="degree")
-            
+
             assert scores["virtue"] == 10
             assert scores["justice"] == 8
             mock_degree.assert_called_once()
@@ -42,9 +42,9 @@ class TestAnalyticsService:
         """Test community detection functionality."""
         with patch.object(analytics_service, '_detect_communities') as mock_communities:
             mock_communities.return_value = mock_analytics_data["communities"]
-            
+
             communities = await analytics_service.get_community_detection()
-            
+
             assert len(communities) == 1
             assert communities[0]["id"] == 0
             assert "virtue" in communities[0]["nodes"]
@@ -56,9 +56,9 @@ class TestAnalyticsService:
         """Test influence network analysis."""
         with patch.object(analytics_service, '_analyze_influence') as mock_influence:
             mock_influence.return_value = mock_analytics_data["influence_networks"]
-            
+
             networks = await analytics_service.get_influence_networks()
-            
+
             assert "socrates" in networks
             assert networks["socrates"]["influence_score"] == 0.9
             assert "virtue" in networks["socrates"]["connections"]
@@ -83,9 +83,9 @@ class TestAnalyticsService:
                 }
             ]
             mock_session.return_value.__enter__.return_value.run.return_value = mock_result
-            
+
             relationships = await analytics_service.get_concept_relationships("virtue")
-            
+
             assert len(relationships) == 2
             assert relationships[0]["target"] == "justice"
             assert relationships[1]["strength"] == 0.9
@@ -110,9 +110,9 @@ class TestAnalyticsService:
                     "key_concepts": ["divine command", "natural law"]
                 }
             ]
-            
+
             timeline = await analytics_service.get_philosophical_timeline()
-            
+
             assert len(timeline) == 2
             assert timeline[0]["period"] == "Classical Antiquity"
             assert "Socrates" in timeline[0]["philosophers"]
@@ -136,9 +136,9 @@ class TestAnalyticsService:
                     }
                 ]
             }
-            
+
             evolution = await analytics_service.get_concept_evolution("virtue")
-            
+
             assert evolution["concept"] == "virtue"
             assert len(evolution["timeline"]) == 2
             assert "Socrates" in evolution["timeline"][1]["key_thinkers"]
@@ -155,9 +155,9 @@ class TestAnalyticsService:
                 "diameter": 8,
                 "average_path_length": 3.2
             }
-            
+
             metrics = await analytics_service.get_network_metrics()
-            
+
             assert metrics["total_nodes"] == 150
             assert metrics["density"] == 0.027
             assert metrics["diameter"] == 8
@@ -180,9 +180,9 @@ class TestAnalyticsService:
                     "size": 20
                 }
             ]
-            
+
             clusters = await analytics_service.get_topic_clusters()
-            
+
             assert len(clusters) == 2
             assert clusters[0]["coherence_score"] == 0.85
             assert "virtue" in clusters[0]["topics"]
@@ -203,9 +203,9 @@ class TestAnalyticsService:
                     "key_contributions": ["theory of forms", "philosopher king"]
                 }
             }
-            
+
             influence_map = await analytics_service.get_philosopher_influence_map()
-            
+
             assert "socrates" in influence_map
             assert "plato" in influence_map["socrates"]["influenced"]
             assert influence_map["socrates"]["influence_score"] == 0.95
@@ -223,9 +223,9 @@ class TestAnalyticsService:
                     {"source": "virtue", "target": "justice", "weight": 0.7, "color": "#cccccc"}
                 ]
             }
-            
+
             viz_data = await analytics_service.generate_network_visualization_data()
-            
+
             assert len(viz_data["nodes"]) == 2
             assert len(viz_data["edges"]) == 1
             assert viz_data["nodes"][0]["id"] == "virtue"
@@ -250,9 +250,9 @@ class TestAnalyticsService:
                     "growth_rate": 0.12
                 }
             }
-            
+
             stats = await analytics_service.get_usage_statistics()
-            
+
             assert stats["total_queries"] == 1250
             assert len(stats["most_queried_concepts"]) == 3
             assert stats["most_queried_concepts"][0]["concept"] == "virtue"
@@ -261,9 +261,9 @@ class TestAnalyticsService:
         """Test concept similarity calculation."""
         with patch.object(analytics_service, '_compute_similarity') as mock_similarity:
             mock_similarity.return_value = 0.85
-            
+
             similarity = analytics_service.calculate_concept_similarity("virtue", "excellence")
-            
+
             assert similarity == 0.85
             mock_similarity.assert_called_once_with("virtue", "excellence")
 
@@ -285,9 +285,9 @@ class TestAnalyticsService:
                     "suggested_expansions": ["kierkegaard", "sartre"]
                 }
             ]
-            
+
             gaps = await analytics_service.get_knowledge_gaps()
-            
+
             assert len(gaps) == 2
             assert gaps[0]["concept"] == "stoicism"
             assert gaps[0]["missing_connections"] == 15
@@ -300,7 +300,7 @@ class TestAnalyticsService:
             min_score=0.5,
             max_results=100
         ) is True
-        
+
         # Test invalid parameters
         assert analytics_service.validate_parameters(
             algorithm="invalid_algorithm",
@@ -321,9 +321,9 @@ class TestAnalyticsService:
                     "export_format": "json"
                 }
             }
-            
+
             export_data = await analytics_service.export_analytics_data(format="json")
-            
+
             assert "centrality_scores" in export_data
             assert "communities" in export_data
             assert export_data["metadata"]["export_format"] == "json"
@@ -332,7 +332,7 @@ class TestAnalyticsService:
     async def test_error_handling_database_failure(self, analytics_service):
         """Test error handling when database operations fail."""
         analytics_service.neo4j_client.session.side_effect = Exception("Database connection failed")
-        
+
         with pytest.raises(Exception, match="Database connection failed"):
             await analytics_service.get_centrality_scores()
 
@@ -341,13 +341,13 @@ class TestAnalyticsService:
         """Test caching of centrality calculation results."""
         with patch.object(analytics_service, '_calculate_centrality') as mock_calc:
             mock_calc.return_value = {"virtue": 0.9, "justice": 0.8}
-            
+
             # First call should calculate
             result1 = await analytics_service.get_centrality_scores()
-            
+
             # Second call should use cache
             result2 = await analytics_service.get_centrality_scores()
-            
+
             assert result1 == result2
             # Should only calculate once if caching is implemented
             if hasattr(analytics_service, '_cache'):
@@ -360,9 +360,9 @@ class TestAnalyticsService:
             {"concept": "justice", "score": 0.8},
             {"concept": "wisdom", "score": 0.85}
         ]
-        
+
         aggregated = analytics_service.aggregate_scores(sample_data)
-        
+
         assert aggregated["average"] == 0.85
         assert aggregated["max"] == 0.9
         assert aggregated["min"] == 0.8

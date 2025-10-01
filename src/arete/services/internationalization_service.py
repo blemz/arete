@@ -5,8 +5,6 @@ This service provides comprehensive internationalization (i18n) functionality in
 language detection, text translation, locale-specific formatting, and cultural
 adaptations for the Arete philosophical tutoring system.
 """
-
-import json
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path

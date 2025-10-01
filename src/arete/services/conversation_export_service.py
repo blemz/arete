@@ -5,11 +5,8 @@ Provides functionality for exporting chat sessions to various formats
 including PDF, Markdown, JSON, HTML, and plain text with customizable
 formatting options and philosophical content optimization.
 """
-
-import json
 import os
 import tempfile
-import time
 import uuid
 from datetime import datetime
 
@@ -25,22 +22,22 @@ from arete.models.export_models import (
 
 # Optional imports for different export formats
 try:
-    from fpdf import FPDF
+    from fpdf import FPDF  # noqa: PLC0415
 
     FPDF_AVAILABLE = True
 except ImportError:
     FPDF_AVAILABLE = False
 
 try:
-    from docx import Document
-    from docx.shared import Inches
+    from docx import Document  # noqa: PLC0415
+    from docx.shared import Inches  # noqa: PLC0415
 
     DOCX_AVAILABLE = True
 except ImportError:
     DOCX_AVAILABLE = False
 
 try:
-    import markdown
+    import markdown  # noqa: PLC0415
 
     MARKDOWN_AVAILABLE = True
 except ImportError:
@@ -666,7 +663,6 @@ class ConversationExportService:
         self, session: ChatSession, file_path: str, options: ExportOptions
     ) -> None:
         """Export conversation to CSV format."""
-        import csv
 
         with open(file_path, "w", newline="", encoding="utf-8") as f:
             fieldnames = ["message_id", "role", "content", "timestamp"]
@@ -734,7 +730,6 @@ class ConversationExportService:
     def _compress_file(self, file_path: str) -> str | None:
         """Compress exported file using gzip."""
         try:
-            import gzip
 
             compressed_path = file_path + ".gz"
 

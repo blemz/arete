@@ -9,7 +9,6 @@ philosophical text search.
 
 import logging
 import math
-import time
 from abc import ABC, abstractmethod
 from collections import Counter as CollectionsCounter
 from dataclasses import dataclass, field
@@ -353,8 +352,6 @@ class BaseSparseRetriever(ABC):
         """
         if not text:
             return []
-
-        import re
 
         # Convert to lowercase
         text = text.lower()

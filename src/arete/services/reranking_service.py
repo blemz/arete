@@ -251,7 +251,7 @@ class RerankingService:
         """Initialize cross-encoder model."""
         try:
             # Import here to avoid dependency issues in tests
-            from sentence_transformers import CrossEncoder
+            from sentence_transformers import CrossEncoder  # noqa: PLC0415
 
             self.cross_encoder = CrossEncoder(self.config.model_name)
             logger.info(f"Loaded cross-encoder model: {self.config.model_name}")
@@ -269,7 +269,7 @@ class RerankingService:
         """Initialize embedding service for semantic similarity."""
         try:
             # Import at runtime to avoid circular imports
-            from .embedding_service import EmbeddingService
+            from .embedding_service import EmbeddingService  # noqa: PLC0415
 
             self.embedding_service = EmbeddingService(settings=self.settings)
             logger.info("Initialized embedding service for semantic similarity")
@@ -569,7 +569,7 @@ class RerankingService:
     ) -> float:
         """Calculate cosine similarity between two vectors."""
         try:
-            import numpy as np
+            import numpy as np  # noqa: PLC0415
 
             vec1_np = np.array(vec1)
             vec2_np = np.array(vec2)

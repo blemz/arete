@@ -623,7 +623,6 @@ class CitationTrackingService:
         self, citation1: Citation, citation2: Citation
     ) -> float:
         """Calculate similarity between two citations."""
-        import difflib
 
         # Text similarity
         text_sim = difflib.SequenceMatcher(

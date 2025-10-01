@@ -12,13 +12,13 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 def test_clients():
     """Test just client creation and basic connectivity."""
     print("=== Testing Basic Client Creation ===")
-    
+
     # Test Neo4j
     try:
-        from arete.database.client import Neo4jClient
+        from arete.database.client import Neo4jClient  # noqa: PLC0415
         neo4j = Neo4jClient()
         neo4j.connect()
-        
+
         # Use session to run a simple query
         with neo4j.session() as session:
             result = session.run("RETURN 1 as test").single()
@@ -27,10 +27,10 @@ def test_clients():
     except Exception as e:
         print(f"[ERROR] Neo4j: {e}")
         return False
-    
+
     # Test Weaviate (just connection, no search)
     try:
-        from arete.database.weaviate_client import WeaviateClient
+        from arete.database.weaviate_client import WeaviateClient  # noqa: PLC0415
         weaviate = WeaviateClient()
         weaviate.connect()
         health = weaviate.health_check()
@@ -39,21 +39,21 @@ def test_clients():
     except Exception as e:
         print(f"[ERROR] Weaviate: {e}")
         return False
-    
+
     return True
 
 def test_embedding():
     """Test embedding generation only."""
     print("\n=== Testing Embedding Generation ===")
-    
+
     try:
-        from arete.services.embedding_factory import get_embedding_service
+        from arete.services.embedding_factory import get_embedding_service  # noqa: PLC0415
         service = get_embedding_service()
-        
+
         embedding = service.generate_embedding("Hello world")
         print(f"[SUCCESS] Generated {len(embedding)}-dim embedding")
         return True
-        
+
     except Exception as e:
         print(f"[ERROR] Embedding: {e}")
         return False
@@ -61,13 +61,13 @@ def test_embedding():
 def test_repository_creation():
     """Test repository creation without actual search."""
     print("\n=== Testing Repository Creation ===")
-    
+
     try:
-        from arete.repositories.embedding import create_embedding_repository
+        from arete.repositories.embedding import create_embedding_repository  # noqa: PLC0415
         repo = create_embedding_repository()
         print(f"[SUCCESS] Created embedding repository: {type(repo).__name__}")
         return True
-        
+
     except Exception as e:
         print(f"[ERROR] Repository: {e}")
         return False
@@ -75,13 +75,13 @@ def test_repository_creation():
 if __name__ == "__main__":
     print("Minimal RAG Component Tests")
     print("="*40)
-    
+
     tests = [
         test_clients,
         test_embedding,
         test_repository_creation
     ]
-    
+
     results = []
     for test in tests:
         try:
@@ -89,16 +89,16 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"[ERROR] Test crashed: {e}")
             results.append(False)
-    
+
     passed = sum(results)
     total = len(results)
-    
+
     print(f"\n=== FINAL: {passed}/{total} tests passed ===")
-    
+
     if passed == total:
         print("[SUCCESS] Core components working!")
         print("Ready to proceed with search functionality.")
     else:
         print("[ERROR] Core issues need to be fixed first.")
-    
+
     sys.exit(0 if passed == total else 1)

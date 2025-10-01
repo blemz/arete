@@ -12,7 +12,7 @@ from typing import Any
 
 import httpx
 
-from arete.config import Settings
+from arete.config import Settings, get_settings
 from arete.services.llm_provider import (
     LLMMessage,
     LLMProvider,
@@ -74,7 +74,7 @@ class OllamaProvider(LLMProvider):
 
         try:
             # Check server availability synchronously for initialization
-            import asyncio
+            import asyncio  # noqa: PLC0415
 
             async def init_check():
                 available = await self._check_availability()
@@ -107,7 +107,7 @@ class OllamaProvider(LLMProvider):
             logger.error(f"Failed to initialize Ollama provider: {e}")
             if isinstance(e, ProviderUnavailableError):
                 raise
-            raise LLMProviderError(f"Ollama initialization failed: {e}")
+            raise LLMProviderError(f"Ollama initialization failed: {e}") from e
 
         logger.info("Ollama provider initialized successfully")
 
@@ -196,12 +196,12 @@ class OllamaProvider(LLMProvider):
         except httpx.ConnectError as e:
             raise ProviderUnavailableError(
                 f"Ollama server unavailable: {e}", provider=self.name
-            )
+            ) from e
         except httpx.TimeoutException as e:
-            raise LLMProviderError(f"Request timeout: {e}")
+            raise LLMProviderError(f"Request timeout: {e}") from e
         except Exception as e:
             logger.error(f"Unexpected error during generation: {e}")
-            raise LLMProviderError(f"Generation failed: {e}")
+            raise LLMProviderError(f"Generation failed: {e}") from e
 
     async def _generate_standard(
         self,
@@ -500,8 +500,6 @@ def create_ollama_provider(settings: Settings | None = None) -> OllamaProvider:
         Configured Ollama provider instance
     """
     if settings is None:
-        from arete.config import get_settings
-
         settings = get_settings()
 
     provider = OllamaProvider(settings)

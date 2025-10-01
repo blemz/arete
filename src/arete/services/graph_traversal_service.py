@@ -23,8 +23,8 @@ from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID, uuid4
 
 if TYPE_CHECKING:
-    from arete.database.client import Neo4jClient
-    from arete.services.dense_retrieval_service import SearchResult
+    from arete.database.client import Neo4jClient  # noqa: PLC0415
+    from arete.services.dense_retrieval_service import SearchResult  # noqa: PLC0415
 
 from arete.config import Settings, get_settings
 from arete.models.entity import Entity, EntityType
@@ -144,7 +144,7 @@ class CypherQuery:
 
     def get_cache_key(self) -> str:
         """Generate cache key for this query."""
-        import hashlib
+        import hashlib  # noqa: PLC0415
 
         query_str = f"{self.cypher}_{str(sorted(self.parameters.items()))}"
         return hashlib.md5(query_str.encode()).hexdigest()
@@ -751,7 +751,7 @@ def create_graph_traversal_service(
     """
     if neo4j_client is None:
         # Import at runtime to avoid circular import
-        from arete.database.client import Neo4jClient
+        from arete.database.client import Neo4jClient  # noqa: PLC0415
 
         neo4j_client = Neo4jClient()
         neo4j_client.connect()

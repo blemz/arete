@@ -18,7 +18,7 @@ class TestConnectionState:
     def arete_state(self):
         """AreteState instance for testing."""
         # Import here to avoid circular dependencies
-        from src.arete.ui.reflex_app.arete.arete import AreteState
+        from src.arete.ui.reflex_app.arete.arete import AreteState  # noqa: PLC0415
         return AreteState()
 
     def test_initial_connection_status(self, arete_state):
@@ -134,7 +134,7 @@ class TestConnectionIntegration:
     @pytest.fixture
     def arete_state(self):
         """AreteState instance for testing."""
-        from src.arete.ui.reflex_app.arete.arete import AreteState
+        from src.arete.ui.reflex_app.arete.arete import AreteState  # noqa: PLC0415
         return AreteState()
 
     @pytest.mark.asyncio

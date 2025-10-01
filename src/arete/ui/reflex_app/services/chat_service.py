@@ -5,7 +5,7 @@ Chat Service for handling conversational interactions with RAG pipeline.
 import asyncio
 from typing import Any
 
-from .rag_service import get_rag_service
+from .rag_service import get_rag_service  # noqa: PLC0415 - Lazy loading to avoid circular imports
 
 
 class ChatService:

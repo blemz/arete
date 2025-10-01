@@ -11,6 +11,7 @@ import pytest
 from pydantic import ValidationError
 
 from arete.models.document import Document, ProcessingStatus
+import time
 
 
 class TestDocument:
@@ -426,8 +427,6 @@ class TestDocument:
 
     def test_document_update_processing_status(self, sample_document_data):
         """Test processing status updates with timestamp tracking."""
-        import time
-
         document = Document(**sample_document_data)
         original_updated_at = document.updated_at
 

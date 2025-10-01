@@ -25,9 +25,10 @@ LLM Graph Transformer Integration:
 """
 
 import asyncio
+import subprocess
 import sys
 import time
-import subprocess
+from uuid import UUID
 import re
 import os
 import logging
@@ -243,7 +244,6 @@ class RestructuredTextParser:
                     if cleaned_name and len(cleaned_name) > 1:
                         try:
                             # Handle UUID conversion if needed
-                            from uuid import UUID
                             source_doc_id = UUID(document_id) if isinstance(document_id, str) else document_id
                             
                             entity = Entity(
@@ -822,7 +822,6 @@ async def ingest_restructured_text(markdown_path: str, logger: Optional[logging.
     print("\n=== Step 2: Parsing Metadata and Creating Document ===")
     
     # Check for LLM Graph Transformer enablement via environment or default to True
-    import os
     use_llm_transformer = os.getenv('USE_LLM_GRAPH_TRANSFORMER', 'true').lower() == 'true'
     logger.debug(f"LLM Graph Transformer enabled: {use_llm_transformer}")
     

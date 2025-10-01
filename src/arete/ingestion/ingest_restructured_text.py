@@ -13,6 +13,7 @@ This module handles:
 - Knowledge graph storage (Neo4j) and vector storage (Weaviate)
 """
 
+import argparse
 import logging
 import re
 from dataclasses import dataclass
@@ -532,8 +533,6 @@ class RSTProcessor:
 
 def main():
     """Main function for RST ingestion processing."""
-    import argparse
-
     parser = argparse.ArgumentParser(description="Process RestructuredText files for Arete")
     parser.add_argument("input_path", help="Path to RST file or directory")
     parser.add_argument("--store", action="store_true", help="Store processed documents in databases")

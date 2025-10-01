@@ -109,7 +109,7 @@ class LayoutState(rx.State):
         if not self.is_resizing or self.layout_mode != "split":
             return
 
-        import time
+        import time  # noqa: PLC0415
         current_time = time.time()
 
         # Debounce resize events for performance
@@ -311,7 +311,7 @@ class LayoutState(rx.State):
 
     def debounce_render(self, delay: float = 0.1):
         """Debounce render updates for performance."""
-        import asyncio
+        import asyncio  # noqa: PLC0415
 
         async def delayed_render():
             await asyncio.sleep(delay)

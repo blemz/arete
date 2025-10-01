@@ -23,7 +23,7 @@ class TestChatState:
     def test_add_user_message(self, chat_state):
         """Test adding user message."""
         chat_state.add_user_message("What is virtue?")
-        
+
         assert len(chat_state.messages) == 1
         assert chat_state.messages[0]["role"] == "user"
         assert chat_state.messages[0]["content"] == "What is virtue?"
@@ -36,9 +36,9 @@ class TestChatState:
             "citations": [{"chunk_id": "chunk_1", "source_text": "test"}],
             "entities": [{"name": "Virtue", "type": "Concept"}]
         }
-        
+
         chat_state.add_assistant_message(response_data)
-        
+
         assert len(chat_state.messages) == 1
         assert chat_state.messages[0]["role"] == "assistant"
         assert chat_state.messages[0]["content"] == "Virtue is moral excellence."
@@ -49,7 +49,7 @@ class TestChatState:
         """Test setting loading state."""
         chat_state.set_loading(True)
         assert chat_state.is_loading == True
-        
+
         chat_state.set_loading(False)
         assert chat_state.is_loading == False
 
@@ -68,9 +68,9 @@ class TestChatState:
         """Test clearing all messages."""
         chat_state.add_user_message("Test message")
         chat_state.add_assistant_message({"response": "Test response", "citations": [], "entities": []})
-        
+
         assert len(chat_state.messages) == 2
-        
+
         chat_state.clear_messages()
         assert chat_state.messages == []
 
@@ -78,7 +78,7 @@ class TestChatState:
         """Test updating current message input."""
         chat_state.update_current_message("What is")
         assert chat_state.current_message == "What is"
-        
+
         chat_state.update_current_message("What is virtue?")
         assert chat_state.current_message == "What is virtue?"
 
@@ -87,9 +87,9 @@ class TestChatState:
         chat_state.add_user_message("Hello")
         chat_state.add_assistant_message({"response": "Hi there!", "citations": [], "entities": []})
         chat_state.add_user_message("What is virtue?")
-        
+
         history = chat_state.get_conversation_history()
-        
+
         assert len(history) == 3
         assert history[0]["content"] == "Hello"
         assert history[1]["content"] == "Hi there!"
@@ -99,9 +99,9 @@ class TestChatState:
         """Test getting limited conversation history."""
         for i in range(5):
             chat_state.add_user_message(f"Message {i}")
-        
+
         history = chat_state.get_conversation_history(limit=3)
-        
+
         assert len(history) == 3
         assert history[0]["content"] == "Message 2"  # Should get last 3
 
@@ -111,34 +111,34 @@ class TestChatState:
         chat_state.add_assistant_message({"response": "Hi there!", "citations": [], "entities": []})
         chat_state.add_user_message("What is virtue?")
         chat_state.add_assistant_message({"response": "Virtue is excellence.", "citations": [], "entities": []})
-        
+
         last_message = chat_state.get_last_assistant_message()
-        
+
         assert last_message["content"] == "Virtue is excellence."
         assert last_message["role"] == "assistant"
 
     def test_get_last_assistant_message_none(self, chat_state):
         """Test getting last assistant message when none exists."""
         chat_state.add_user_message("Hello")
-        
+
         last_message = chat_state.get_last_assistant_message()
-        
+
         assert last_message is None
 
     def test_has_messages(self, chat_state):
         """Test checking if chat has messages."""
         assert chat_state.has_messages() == False
-        
+
         chat_state.add_user_message("Test")
         assert chat_state.has_messages() == True
 
     def test_get_message_count(self, chat_state):
         """Test getting message count."""
         assert chat_state.get_message_count() == 0
-        
+
         chat_state.add_user_message("Test 1")
         chat_state.add_assistant_message({"response": "Response 1", "citations": [], "entities": []})
-        
+
         assert chat_state.get_message_count() == 2
 
     def test_get_user_message_count(self, chat_state):
@@ -146,7 +146,7 @@ class TestChatState:
         chat_state.add_user_message("Test 1")
         chat_state.add_assistant_message({"response": "Response 1", "citations": [], "entities": []})
         chat_state.add_user_message("Test 2")
-        
+
         assert chat_state.get_user_message_count() == 2
 
     def test_get_assistant_message_count(self, chat_state):
@@ -154,23 +154,23 @@ class TestChatState:
         chat_state.add_user_message("Test 1")
         chat_state.add_assistant_message({"response": "Response 1", "citations": [], "entities": []})
         chat_state.add_assistant_message({"response": "Response 2", "citations": [], "entities": []})
-        
+
         assert chat_state.get_assistant_message_count() == 2
 
     @pytest.mark.asyncio
     async def test_send_message(self, chat_state):
         """Test sending a message through the chat state."""
         chat_state.current_message = "What is virtue?"
-        
+
         with patch.object(chat_state, 'chat_service') as mock_service:
             mock_service.send_message.return_value = {
                 "response": "Virtue is moral excellence.",
                 "citations": [],
                 "entities": []
             }
-            
+
             await chat_state.send_message()
-            
+
             # Should add both user and assistant messages
             assert len(chat_state.messages) == 2
             assert chat_state.messages[0]["role"] == "user"
@@ -181,12 +181,12 @@ class TestChatState:
     async def test_send_message_error_handling(self, chat_state):
         """Test error handling in send message."""
         chat_state.current_message = "What is virtue?"
-        
+
         with patch.object(chat_state, 'chat_service') as mock_service:
             mock_service.send_message.side_effect = Exception("Service error")
-            
+
             await chat_state.send_message()
-            
+
             assert chat_state.error_message == "Service error"
             assert chat_state.is_loading == False
 
@@ -194,9 +194,9 @@ class TestChatState:
     async def test_send_empty_message(self, chat_state):
         """Test sending empty message."""
         chat_state.current_message = ""
-        
+
         await chat_state.send_message()
-        
+
         assert len(chat_state.messages) == 0
         assert chat_state.error_message == "Message cannot be empty"
 
@@ -208,9 +208,9 @@ class TestChatState:
             "citations": [{"chunk_id": "chunk_1"}],
             "entities": [{"name": "Virtue"}]
         })
-        
+
         exported = chat_state.export_conversation()
-        
+
         assert "session_id" in exported
         assert "messages" in exported
         assert "exported_at" in exported
@@ -225,9 +225,9 @@ class TestChatState:
                 {"role": "assistant", "content": "Hi!", "timestamp": "2025-01-01T12:00:01", "citations": [], "entities": []}
             ]
         }
-        
+
         chat_state.import_conversation(conversation_data)
-        
+
         assert chat_state.session_id == "test_session"
         assert len(chat_state.messages) == 2
         assert chat_state.messages[0]["content"] == "Hello"
@@ -242,9 +242,9 @@ class TestChatState:
             ],
             "entities": []
         })
-        
+
         citations = chat_state.get_citations_from_message(0)
-        
+
         assert len(citations) == 2
         assert citations[0]["chunk_id"] == "chunk_1"
 
@@ -258,9 +258,9 @@ class TestChatState:
                 {"name": "Socrates", "type": "Person"}
             ]
         })
-        
+
         entities = chat_state.get_entities_from_message(0)
-        
+
         assert len(entities) == 2
         assert entities[0]["name"] == "Virtue"
         assert entities[1]["type"] == "Person"
@@ -271,9 +271,9 @@ class TestChatState:
         chat_state.add_assistant_message({"response": "Virtue is moral excellence.", "citations": [], "entities": []})
         chat_state.add_user_message("What about justice?")
         chat_state.add_assistant_message({"response": "Justice is fairness.", "citations": [], "entities": []})
-        
+
         results = chat_state.search_messages("virtue")
-        
+
         assert len(results) == 2  # Both user question and assistant response
         assert "virtue" in results[0]["content"].lower()
 
@@ -281,9 +281,9 @@ class TestChatState:
         """Test getting conversation statistics."""
         chat_state.add_user_message("Short")
         chat_state.add_assistant_message({"response": "This is a longer response with more words.", "citations": [], "entities": []})
-        
+
         stats = chat_state.get_message_statistics()
-        
+
         assert "total_messages" in stats
         assert "user_messages" in stats
         assert "assistant_messages" in stats
@@ -296,11 +296,11 @@ class TestChatState:
         chat_state.add_assistant_message({"response": "Virtue is...", "citations": [], "entities": []})
         chat_state.add_user_message("What is justice?")
         chat_state.add_assistant_message({"response": "Justice is...", "citations": [], "entities": []})
-        
+
         assert len(chat_state.messages) == 4
-        
+
         chat_state.undo_last_exchange()
-        
+
         assert len(chat_state.messages) == 2
         assert chat_state.messages[-1]["content"] == "Virtue is..."
 
@@ -308,16 +308,16 @@ class TestChatState:
         """Test regenerating last assistant response."""
         chat_state.add_user_message("What is virtue?")
         chat_state.add_assistant_message({"response": "Old response", "citations": [], "entities": []})
-        
+
         with patch.object(chat_state, 'chat_service') as mock_service:
             mock_service.send_message.return_value = {
                 "response": "New response",
                 "citations": [],
                 "entities": []
             }
-            
+
             chat_state.regenerate_last_response()
-            
+
             assert len(chat_state.messages) == 2
             assert chat_state.messages[1]["content"] == "New response"
 
@@ -325,7 +325,7 @@ class TestChatState:
         """Test setting typing indicator."""
         chat_state.set_typing_indicator(True)
         assert chat_state.is_typing == True
-        
+
         chat_state.set_typing_indicator(False)
         assert chat_state.is_typing == False
 
@@ -334,7 +334,7 @@ class TestChatState:
         assert chat_state.validate_message_input("Valid message") == True
         assert chat_state.validate_message_input("") == False
         assert chat_state.validate_message_input("   ") == False
-        
+
         # Test very long message
         long_message = "x" * 10000
         assert chat_state.validate_message_input(long_message) == False
@@ -348,9 +348,9 @@ class TestChatState:
             "citations": [{"chunk_id": "chunk_1"}],
             "entities": [{"name": "Virtue"}]
         }
-        
+
         formatted = chat_state.format_message_for_display(message)
-        
+
         assert "display_time" in formatted
         assert "has_citations" in formatted
         assert "has_entities" in formatted

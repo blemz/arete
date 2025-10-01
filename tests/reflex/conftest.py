@@ -123,7 +123,7 @@ def sample_documents():
 
 class MockReflex:
     """Mock Reflex components for testing without full rendering."""
-    
+
     @staticmethod
     def component(*args, **kwargs) -> Mock:
         """Create a mock Reflex component."""
@@ -133,22 +133,22 @@ class MockReflex:
         mock.children = kwargs.get('children', [])
         mock.props = kwargs
         return mock
-    
+
     @staticmethod
     def box(*args, **kwargs) -> Mock:
         """Mock rx.box component."""
         return MockReflex.component('box', *args, **kwargs)
-    
+
     @staticmethod
     def text(*args, **kwargs) -> Mock:
         """Mock rx.text component."""
         return MockReflex.component('text', *args, **kwargs)
-    
+
     @staticmethod
     def button(*args, **kwargs) -> Mock:
         """Mock rx.button component."""
         return MockReflex.component('button', *args, **kwargs)
-    
+
     @staticmethod
     def input(*args, **kwargs) -> Mock:
         """Mock rx.input component."""
@@ -176,7 +176,7 @@ def setup_test_environment():
 
 class ComponentTestHelper:
     """Helper class for testing Reflex components."""
-    
+
     @staticmethod
     def extract_props(component: Any) -> Dict[str, Any]:
         """Extract props from a component for testing."""
@@ -185,7 +185,7 @@ class ComponentTestHelper:
         if hasattr(component, 'kwargs'):
             return component.kwargs
         return {}
-    
+
     @staticmethod
     def find_child_by_type(component: Any, child_type: str) -> Optional[Any]:
         """Find child component by type."""
@@ -198,7 +198,7 @@ class ComponentTestHelper:
                 if found:
                     return found
         return None
-    
+
     @staticmethod
     def count_children(component: Any) -> int:
         """Count child components."""

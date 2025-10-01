@@ -505,12 +505,12 @@ def create_llm_router(
         Configured intelligent router
     """
     if settings is None:
-        from arete.config import get_settings
+        from arete.config import get_settings  # noqa: PLC0415
 
         settings = get_settings()
 
     if llm_service is None:
-        from arete.services.llm_provider import create_llm_service
+        from arete.services.llm_provider import create_llm_service  # noqa: PLC0415
 
         llm_service = create_llm_service(settings)
 

@@ -100,7 +100,7 @@ class EnhancedKnowledgeGraphService:
     def _initialize_transformer(self):
         """Initialize the LLMGraphTransformer with philosophical schema."""
         try:
-            from arete.services.llm_graph_transformer_service import (
+            from arete.services.llm_graph_transformer_service import (  # noqa: PLC0415
                 LLMGraphTransformerService,
             )
 
@@ -127,7 +127,7 @@ class EnhancedKnowledgeGraphService:
 
     def _create_kg_llm_service(self) -> SimpleLLMService:
         """Create a specialized LLM service for knowledge graph extraction."""
-        from arete.services.simple_llm_service import SimpleLLMService
+        from arete.services.simple_llm_service import SimpleLLMService  # noqa: PLC0415
 
         print(
             f"DEBUG: Creating KG LLM service with {self.config.kg_llm_provider}/{self.config.kg_llm_model}"
@@ -267,7 +267,7 @@ class EnhancedKnowledgeGraphService:
         """
 
         try:
-            from arete.services.llm_provider import LLMMessage, MessageRole
+            from arete.services.llm_provider import LLMMessage, MessageRole  # noqa: PLC0415
 
             messages = [LLMMessage(role=MessageRole.USER, content=prompt)]
             response = await self.llm_service.generate_response(

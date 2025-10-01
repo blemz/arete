@@ -100,7 +100,7 @@ class EmbeddingRepository(SearchableRepository[Chunk]):
     def embedding_service(self):
         """Get embedding service with lazy initialization."""
         if self._embedding_service is None:
-            from arete.services.embedding_factory import get_embedding_service
+            from arete.services.embedding_factory import get_embedding_service  # noqa: PLC0415 - Avoid circular import
 
             self._embedding_service = get_embedding_service(settings=self.settings)
 
@@ -693,12 +693,12 @@ def create_embedding_repository(
 
     # Create clients if not provided
     if neo4j_client is None:
-        from arete.database.client import Neo4jClient
+        from arete.database.client import Neo4jClient  # noqa: PLC0415 - Lazy instantiation
 
         neo4j_client = Neo4jClient()  # Uses default settings
 
     if weaviate_client is None:
-        from arete.database.weaviate_client import WeaviateClient
+        from arete.database.weaviate_client import WeaviateClient  # noqa: PLC0415 - Lazy instantiation
 
         weaviate_client = WeaviateClient()
 

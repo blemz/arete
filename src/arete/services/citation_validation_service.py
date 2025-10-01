@@ -10,9 +10,7 @@ This service provides comprehensive citation validation and accuracy checking:
 """
 
 import asyncio
-import difflib
 import logging
-import re
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -253,7 +251,6 @@ class CitationValidationService:
         Returns:
             Batch validation result with aggregate metrics
         """
-        import time
 
         start_time = time.time()
 

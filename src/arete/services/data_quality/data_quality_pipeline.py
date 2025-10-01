@@ -856,8 +856,6 @@ class DataQualityPipeline:
             r"[A-Z][a-z]+ \d+[a-z]?",  # Generic Work 123a
         ]
 
-        import re
-
         return any(re.search(pattern, reference) for pattern in classical_patterns)
 
     def _generate_recommendations(self, report: QualityAssessmentReport):
@@ -930,7 +928,6 @@ class DataQualityPipeline:
             # Save summary
             summary_file = results_dir / f"{report.assessment_id}_summary.json"
             with open(summary_file, "w") as f:
-                import json
 
                 json.dump(report.get_summary_dict(), f, indent=2, default=str)
 

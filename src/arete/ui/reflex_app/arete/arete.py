@@ -67,10 +67,10 @@ class AreteState(rx.State):
 
             # Try to get RAG response, fallback to simple response
             try:
-                import os
-                import subprocess
-                import sys
-                from datetime import datetime
+                import os  # noqa: PLC0415
+                import subprocess  # noqa: PLC0415
+                import sys  # noqa: PLC0415
+                from datetime import datetime  # noqa: PLC0415
 
                 start_time = datetime.now()
 
@@ -297,7 +297,7 @@ Through examining various definitions, Socrates shows the difficulty of defining
 
     async def handle_connection_error(self):
         """Handle connection errors with exponential backoff."""
-        import asyncio
+        import asyncio  # noqa: PLC0415
 
         if self.connection_attempts < self.max_retry_attempts:
             self.connection_status = "reconnecting"

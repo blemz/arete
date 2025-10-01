@@ -89,10 +89,10 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
                 "constraint violation" in error_msg.lower()
                 or "already exists" in error_msg.lower()
             ):
-                raise DuplicateEntityError(f"Entity already exists: {error_msg}")
+                raise DuplicateEntityError(f"Entity already exists: {error_msg}") from e
             else:
                 logger.error(f"Failed to create entity {entity.id}: {error_msg}")
-                raise RepositoryError(f"Failed to create entity: {error_msg}")
+                raise RepositoryError(f"Failed to create entity: {error_msg}") from e
 
     async def get_by_id(self, entity_id: UUID | str) -> Entity | None:
         """
@@ -116,7 +116,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
         except Exception as e:
             logger.error(f"Failed to get entity {entity_id}: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve entity: {str(e)}")
+            raise RepositoryError(f"Failed to retrieve entity: {str(e)}") from e
 
     async def update(self, entity: Entity) -> Entity:
         """
@@ -153,10 +153,10 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
         except Exception as e:
             error_msg = str(e)
             if "not found" in error_msg.lower():
-                raise EntityNotFoundError(f"Entity not found: {entity.id}")
+                raise EntityNotFoundError(f"Entity not found: {entity.id}") from e
             else:
                 logger.error(f"Failed to update entity {entity.id}: {error_msg}")
-                raise RepositoryError(f"Failed to update entity: {error_msg}")
+                raise RepositoryError(f"Failed to update entity: {error_msg}") from e
 
     async def delete(self, entity_id: UUID | str) -> bool:
         """
@@ -187,7 +187,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
         except Exception as e:
             logger.error(f"Failed to delete entity {entity_id}: {str(e)}")
-            raise RepositoryError(f"Failed to delete entity: {str(e)}")
+            raise RepositoryError(f"Failed to delete entity: {str(e)}") from e
 
     async def list_all(
         self,
@@ -238,7 +238,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
         except Exception as e:
             logger.error(f"Failed to list entities: {str(e)}")
-            raise RepositoryError(f"Failed to list entities: {str(e)}")
+            raise RepositoryError(f"Failed to list entities: {str(e)}") from e
 
     async def count(self, filters: dict[str, Any] | None = None) -> int:
         """
@@ -278,7 +278,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
         except Exception as e:
             logger.error(f"Failed to count entities: {str(e)}")
-            raise RepositoryError(f"Failed to count entities: {str(e)}")
+            raise RepositoryError(f"Failed to count entities: {str(e)}") from e
 
     async def exists(self, entity_id: UUID | str) -> bool:
         """
@@ -308,7 +308,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
         except Exception as e:
             logger.error(f"Failed to check entity existence {entity_id}: {str(e)}")
-            raise RepositoryError(f"Failed to check entity existence: {str(e)}")
+            raise RepositoryError(f"Failed to check entity existence: {str(e)}") from e
 
     async def search_by_text(
         self, query: str, limit: int = 10, similarity_threshold: float = 0.7
@@ -339,7 +339,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
         except Exception as e:
             logger.error(f"Failed to search entities by text: {str(e)}")
-            raise RepositoryError(f"Failed to search by text: {str(e)}")
+            raise RepositoryError(f"Failed to search by text: {str(e)}") from e
 
     async def search_by_embedding(
         self, embedding: list[float], limit: int = 10, similarity_threshold: float = 0.7
@@ -370,7 +370,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
         except Exception as e:
             logger.error(f"Failed to search entities by embedding: {str(e)}")
-            raise RepositoryError(f"Failed to search by embedding: {str(e)}")
+            raise RepositoryError(f"Failed to search by embedding: {str(e)}") from e
 
     async def get_related(
         self,
@@ -428,7 +428,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
         except Exception as e:
             logger.error(f"Failed to get related entities for {entity_id}: {str(e)}")
-            raise RepositoryError(f"Failed to get related entities: {str(e)}")
+            raise RepositoryError(f"Failed to get related entities: {str(e)}") from e
 
     async def get_neighbors(
         self, entity_id: UUID | str, depth: int = 1, limit: int = 10
@@ -463,7 +463,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
         except Exception as e:
             logger.error(f"Failed to get neighbors for {entity_id}: {str(e)}")
-            raise RepositoryError(f"Failed to get neighbors: {str(e)}")
+            raise RepositoryError(f"Failed to get neighbors: {str(e)}") from e
 
     # Entity-specific methods
 
@@ -495,7 +495,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
         except Exception as e:
             logger.error(f"Failed to search entities by name: {str(e)}")
-            raise RepositoryError(f"Failed to search by name: {str(e)}")
+            raise RepositoryError(f"Failed to search by name: {str(e)}") from e
 
     async def get_by_type(self, entity_type: EntityType) -> list[Entity]:
         """
@@ -525,7 +525,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
         except Exception as e:
             logger.error(f"Failed to search entities by type: {str(e)}")
-            raise RepositoryError(f"Failed to search by type: {str(e)}")
+            raise RepositoryError(f"Failed to search by type: {str(e)}") from e
 
     async def search_entities(
         self, query: str, limit: int = 10, hybrid_weight: float = 0.7
@@ -587,7 +587,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
         except Exception as e:
             logger.error(f"Failed to perform hybrid entity search: {str(e)}")
-            raise RepositoryError(f"Failed to perform hybrid search: {str(e)}")
+            raise RepositoryError(f"Failed to perform hybrid search: {str(e)}") from e
 
     # Knowledge Graph Methods
 
@@ -713,7 +713,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
             print(f"DEBUG: Exception in create_relationship: {error_msg}")
             print(f"DEBUG: Exception type: {type(e).__name__}")
             if "not found" in error_msg.lower():
-                raise EntityNotFoundError(f"Entity not found: {error_msg}")
+                raise EntityNotFoundError(f"Entity not found: {error_msg}") from e
             else:
                 logger.error(f"Failed to create relationship: {error_msg}")
                 # Don't re-raise the exception for now, just return False
@@ -780,7 +780,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
         except Exception as e:
             logger.error(f"Failed to get relationships for {entity_id}: {str(e)}")
-            raise RepositoryError(f"Failed to get relationships: {str(e)}")
+            raise RepositoryError(f"Failed to get relationships: {str(e)}") from e
 
     async def batch_create_triples(
         self, triples: list[dict[str, Any]], entity_name_to_id: dict[str, UUID]
@@ -850,7 +850,7 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
         except Exception as e:
             logger.error(f"Failed to batch create triples: {str(e)}")
-            raise RepositoryError(f"Failed to batch create triples: {str(e)}")
+            raise RepositoryError(f"Failed to batch create triples: {str(e)}") from e
 
     async def find_or_create_entities_by_name(
         self,
@@ -906,4 +906,4 @@ class EntityRepository(GraphRepository[Entity], SearchableRepository[Entity]):
 
         except Exception as e:
             logger.error(f"Failed to find or create entities: {str(e)}")
-            raise RepositoryError(f"Failed to find or create entities: {str(e)}")
+            raise RepositoryError(f"Failed to find or create entities: {str(e)}") from e

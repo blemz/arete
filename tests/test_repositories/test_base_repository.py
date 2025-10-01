@@ -54,12 +54,12 @@ class TestRepositoryInterfaceContracts:
             'create', 'get_by_id', 'update', 'delete', 
             'list_all', 'count', 'exists'
         }
-        
+
         actual_methods = {
             name for name in dir(BaseRepository) 
             if not name.startswith('_') and callable(getattr(BaseRepository, name))
         }
-        
+
         assert required_methods.issubset(actual_methods)
 
     def test_searchable_repository_extends_base(self):
@@ -69,12 +69,12 @@ class TestRepositoryInterfaceContracts:
     def test_searchable_repository_has_search_methods(self):
         """Test that SearchableRepository defines search methods."""
         search_methods = {'search_by_text', 'search_by_embedding'}
-        
+
         actual_methods = {
             name for name in dir(SearchableRepository)
             if not name.startswith('_') and callable(getattr(SearchableRepository, name))
         }
-        
+
         assert search_methods.issubset(actual_methods)
 
     def test_graph_repository_extends_base(self):
@@ -84,12 +84,12 @@ class TestRepositoryInterfaceContracts:
     def test_graph_repository_has_graph_methods(self):
         """Test that GraphRepository defines graph traversal methods."""
         graph_methods = {'get_related', 'get_neighbors'}
-        
+
         actual_methods = {
             name for name in dir(GraphRepository)
             if not name.startswith('_') and callable(getattr(GraphRepository, name))
         }
-        
+
         assert graph_methods.issubset(actual_methods)
 
 
@@ -123,7 +123,7 @@ class TestRepositoryExceptions:
 
 class MockBaseRepository(BaseRepository[MockModel]):
     """Concrete implementation of BaseRepository for testing."""
-    
+
     def __init__(self):
         self.data = {}
         self.create_mock = AsyncMock()
@@ -182,9 +182,9 @@ class TestBaseRepositoryImplementation:
     async def test_create_method_contract(self, repository, mock_entity):
         """Test create method follows contract."""
         repository.create_mock.return_value = mock_entity
-        
+
         result = await repository.create(mock_entity)
-        
+
         repository.create_mock.assert_called_once_with(mock_entity)
         assert result == mock_entity
 
@@ -193,9 +193,9 @@ class TestBaseRepositoryImplementation:
         """Test get_by_id method follows contract."""
         entity_id = uuid4()
         repository.get_by_id_mock.return_value = mock_entity
-        
+
         result = await repository.get_by_id(entity_id)
-        
+
         repository.get_by_id_mock.assert_called_once_with(entity_id)
         assert result == mock_entity
 
@@ -204,18 +204,18 @@ class TestBaseRepositoryImplementation:
         """Test get_by_id returns None for non-existent entity."""
         entity_id = uuid4()
         repository.get_by_id_mock.return_value = None
-        
+
         result = await repository.get_by_id(entity_id)
-        
+
         assert result is None
 
     @pytest.mark.asyncio
     async def test_update_method_contract(self, repository, mock_entity):
         """Test update method follows contract."""
         repository.update_mock.return_value = mock_entity
-        
+
         result = await repository.update(mock_entity)
-        
+
         repository.update_mock.assert_called_once_with(mock_entity)
         assert result == mock_entity
 
@@ -224,9 +224,9 @@ class TestBaseRepositoryImplementation:
         """Test delete method follows contract."""
         entity_id = uuid4()
         repository.delete_mock.return_value = True
-        
+
         result = await repository.delete(entity_id)
-        
+
         repository.delete_mock.assert_called_once_with(entity_id)
         assert result is True
 
@@ -235,18 +235,18 @@ class TestBaseRepositoryImplementation:
         """Test delete returns False for non-existent entity."""
         entity_id = uuid4()
         repository.delete_mock.return_value = False
-        
+
         result = await repository.delete(entity_id)
-        
+
         assert result is False
 
     @pytest.mark.asyncio
     async def test_list_all_method_contract(self, repository, mock_entity):
         """Test list_all method follows contract."""
         repository.list_all_mock.return_value = [mock_entity]
-        
+
         result = await repository.list_all(limit=10, offset=5, filters={"name": "test"})
-        
+
         repository.list_all_mock.assert_called_once_with(10, 5, {"name": "test"})
         assert result == [mock_entity]
 
@@ -254,9 +254,9 @@ class TestBaseRepositoryImplementation:
     async def test_list_all_with_defaults(self, repository):
         """Test list_all uses default parameters."""
         repository.list_all_mock.return_value = []
-        
+
         result = await repository.list_all()
-        
+
         repository.list_all_mock.assert_called_once_with(100, 0, None)
         assert result == []
 
@@ -264,9 +264,9 @@ class TestBaseRepositoryImplementation:
     async def test_count_method_contract(self, repository):
         """Test count method follows contract."""
         repository.count_mock.return_value = 5
-        
+
         result = await repository.count(filters={"active": True})
-        
+
         repository.count_mock.assert_called_once_with({"active": True})
         assert result == 5
 
@@ -274,9 +274,9 @@ class TestBaseRepositoryImplementation:
     async def test_count_without_filters(self, repository):
         """Test count method without filters."""
         repository.count_mock.return_value = 10
-        
+
         result = await repository.count()
-        
+
         repository.count_mock.assert_called_once_with(None)
         assert result == 10
 
@@ -285,9 +285,9 @@ class TestBaseRepositoryImplementation:
         """Test exists method follows contract."""
         entity_id = uuid4()
         repository.exists_mock.return_value = True
-        
+
         result = await repository.exists(entity_id)
-        
+
         repository.exists_mock.assert_called_once_with(entity_id)
         assert result is True
 
@@ -296,9 +296,9 @@ class TestBaseRepositoryImplementation:
         """Test exists returns False for missing entity."""
         entity_id = uuid4()
         repository.exists_mock.return_value = False
-        
+
         result = await repository.exists(entity_id)
-        
+
         assert result is False
 
 
@@ -314,7 +314,7 @@ class TestRepositoryErrorHandling:
     async def test_create_raises_duplicate_entity_error(self, repository, mock_entity):
         """Test create raises DuplicateEntityError for duplicate entities."""
         repository.create_mock.side_effect = DuplicateEntityError("Entity already exists")
-        
+
         with pytest.raises(DuplicateEntityError):
             await repository.create(mock_entity)
 
@@ -322,7 +322,7 @@ class TestRepositoryErrorHandling:
     async def test_create_raises_validation_error(self, repository, mock_entity):
         """Test create raises ValidationError for invalid entities."""
         repository.create_mock.side_effect = ValidationError("Invalid entity data")
-        
+
         with pytest.raises(ValidationError):
             await repository.create(mock_entity)
 
@@ -330,7 +330,7 @@ class TestRepositoryErrorHandling:
     async def test_update_raises_entity_not_found_error(self, repository, mock_entity):
         """Test update raises EntityNotFoundError for missing entities."""
         repository.update_mock.side_effect = EntityNotFoundError("Entity not found")
-        
+
         with pytest.raises(EntityNotFoundError):
             await repository.update(mock_entity)
 
@@ -338,7 +338,7 @@ class TestRepositoryErrorHandling:
     async def test_repository_operations_raise_base_error(self, repository):
         """Test that repository operations can raise base RepositoryError."""
         repository.get_by_id_mock.side_effect = RepositoryError("Database connection failed")
-        
+
         with pytest.raises(RepositoryError):
             await repository.get_by_id(uuid4())
 

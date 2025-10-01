@@ -44,9 +44,9 @@ class TestAnalyticsComponent:
         with patch('src.arete.ui.reflex_app.state.analytics_state.AnalyticsState') as mock_state:
             mock_state.analytics_data = sample_analytics_data
             mock_state.is_loading = False
-            
+
             rendered = analytics_component.render()
-            
+
             assert rendered is not None
 
     def test_render_loading_state(self, analytics_component):
@@ -54,9 +54,9 @@ class TestAnalyticsComponent:
         with patch('src.arete.ui.reflex_app.state.analytics_state.AnalyticsState') as mock_state:
             mock_state.is_loading = True
             mock_state.analytics_data = None
-            
+
             rendered = analytics_component.render()
-            
+
             assert rendered is not None
 
     def test_centrality_scores_chart(self, analytics_component):
@@ -66,9 +66,9 @@ class TestAnalyticsComponent:
             "justice": {"degree": 12, "betweenness": 0.45},
             "wisdom": {"degree": 10, "betweenness": 0.38}
         }
-        
+
         chart = analytics_component.create_centrality_chart(centrality_data)
-        
+
         assert chart is not None
 
     def test_network_graph_visualization(self, analytics_component):
@@ -82,9 +82,9 @@ class TestAnalyticsComponent:
                 {"source": "virtue", "target": "justice", "weight": 0.8}
             ]
         }
-        
+
         graph = analytics_component.create_network_graph(network_data)
-        
+
         assert graph is not None
 
     def test_community_detection_visualization(self, analytics_component):
@@ -93,9 +93,9 @@ class TestAnalyticsComponent:
             {"id": 0, "nodes": ["virtue", "justice"], "modularity": 0.75, "color": "#ff6b6b"},
             {"id": 1, "nodes": ["wisdom", "knowledge"], "modularity": 0.68, "color": "#4ecdc4"}
         ]
-        
+
         community_viz = analytics_component.create_community_visualization(communities)
-        
+
         assert community_viz is not None
 
     def test_influence_network_chart(self, analytics_component):
@@ -105,9 +105,9 @@ class TestAnalyticsComponent:
             "plato": {"influence_score": 0.88, "connections": 22},
             "aristotle": {"influence_score": 0.92, "connections": 28}
         }
-        
+
         influence_chart = analytics_component.create_influence_chart(influence_data)
-        
+
         assert influence_chart is not None
 
     def test_timeline_visualization(self, analytics_component):
@@ -117,9 +117,9 @@ class TestAnalyticsComponent:
             {"period": "Classical", "start": -400, "end": -300, "concepts": ["virtue", "justice"]},
             {"period": "Hellenistic", "start": -300, "end": 300, "concepts": ["ataraxia", "apatheia"]}
         ]
-        
+
         timeline = analytics_component.create_timeline_visualization(timeline_data)
-        
+
         assert timeline is not None
 
     def test_concept_evolution_chart(self, analytics_component):
@@ -132,9 +132,9 @@ class TestAnalyticsComponent:
                 {"period": "Aristotelian", "definition": "Disposition to excellence", "frequency": 0.9}
             ]
         }
-        
+
         evolution_chart = analytics_component.create_concept_evolution_chart(evolution_data)
-        
+
         assert evolution_chart is not None
 
     def test_metrics_dashboard(self, analytics_component):
@@ -147,9 +147,9 @@ class TestAnalyticsComponent:
             "most_central_concept": "virtue",
             "largest_community_size": 25
         }
-        
+
         dashboard = analytics_component.create_metrics_dashboard(metrics)
-        
+
         assert dashboard is not None
 
     def test_interactive_filters(self, analytics_component):
@@ -159,9 +159,9 @@ class TestAnalyticsComponent:
             "philosophers": ["Socrates", "Plato", "Aristotle", "Augustine"],
             "concept_types": ["Virtue", "Knowledge", "Justice", "Truth"]
         }
-        
+
         filters = analytics_component.create_interactive_filters(filter_options)
-        
+
         assert filters is not None
 
     def test_comparison_charts(self, analytics_component):
@@ -171,9 +171,9 @@ class TestAnalyticsComponent:
             {"concept": "justice", "aristotle_score": 0.8, "plato_score": 0.95},
             {"concept": "wisdom", "aristotle_score": 0.85, "plato_score": 0.88}
         ]
-        
+
         comparison_chart = analytics_component.create_comparison_chart(comparison_data)
-        
+
         assert comparison_chart is not None
 
     def test_heatmap_visualization(self, analytics_component):
@@ -183,9 +183,9 @@ class TestAnalyticsComponent:
             "justice": {"virtue": 0.8, "wisdom": 0.6, "temperance": 0.7},
             "wisdom": {"virtue": 0.7, "justice": 0.6, "knowledge": 0.95}
         }
-        
+
         heatmap = analytics_component.create_relationship_heatmap(relationship_matrix)
-        
+
         assert heatmap is not None
 
     def test_usage_statistics_charts(self, analytics_component):
@@ -199,29 +199,29 @@ class TestAnalyticsComponent:
             ],
             "user_engagement": {"avg_session": 12.5, "bounce_rate": 0.15}
         }
-        
+
         usage_charts = analytics_component.create_usage_statistics(usage_stats)
-        
+
         assert usage_charts is not None
 
     def test_export_analytics_functionality(self, analytics_component, sample_analytics_data):
         """Test analytics export functionality."""
         export_menu = analytics_component.create_export_menu(sample_analytics_data)
-        
+
         assert export_menu is not None
 
     def test_real_time_updates(self, analytics_component):
         """Test real-time analytics updates."""
         with patch.object(analytics_component, 'setup_websocket_updates') as mock_setup:
             analytics_component.enable_real_time_updates()
-            
+
             mock_setup.assert_called_once()
 
     def test_drill_down_functionality(self, analytics_component):
         """Test drill-down functionality for detailed analysis."""
         with patch.object(analytics_component, 'show_detailed_view') as mock_detail:
             analytics_component.handle_concept_click("virtue")
-            
+
             mock_detail.assert_called_once_with("virtue")
 
     def test_color_scheme_customization(self, analytics_component):
@@ -231,9 +231,9 @@ class TestAnalyticsComponent:
             "dark": ["#8c564b", "#e377c2", "#7f7f7f"],
             "colorblind": ["#d62728", "#9467bd", "#8c564b"]
         }
-        
+
         analytics_component.set_color_scheme("dark")
-        
+
         assert analytics_component.current_color_scheme == "dark"
 
     def test_responsive_chart_design(self, analytics_component):
@@ -241,7 +241,7 @@ class TestAnalyticsComponent:
         with patch.object(analytics_component, 'is_mobile_view', return_value=True):
             mobile_chart = analytics_component.create_responsive_chart({}, chart_type="bar")
             assert mobile_chart is not None
-        
+
         with patch.object(analytics_component, 'is_mobile_view', return_value=False):
             desktop_chart = analytics_component.create_responsive_chart({}, chart_type="bar")
             assert desktop_chart is not None
@@ -251,13 +251,13 @@ class TestAnalyticsComponent:
         with patch.object(analytics_component, 'animate_chart_update') as mock_animate:
             new_data = {"virtue": 0.9, "justice": 0.8}
             analytics_component.update_chart_data("centrality", new_data)
-            
+
             mock_animate.assert_called_once()
 
     def test_tooltip_functionality(self, analytics_component):
         """Test chart tooltip functionality."""
         tooltip_config = analytics_component.create_tooltip_config()
-        
+
         assert "enabled" in tooltip_config
         assert "format" in tooltip_config
         assert tooltip_config["enabled"] == True
@@ -269,9 +269,9 @@ class TestAnalyticsComponent:
             "show_values": True,
             "interactive": True
         }
-        
+
         legend = analytics_component.create_legend(legend_config)
-        
+
         assert legend is not None
 
     def test_data_quality_indicators(self, analytics_component):
@@ -282,9 +282,9 @@ class TestAnalyticsComponent:
             "consistency": 0.92,
             "timeliness": 0.85
         }
-        
+
         quality_display = analytics_component.create_quality_indicators(quality_metrics)
-        
+
         assert quality_display is not None
 
     def test_statistical_summaries(self, analytics_component):
@@ -296,9 +296,9 @@ class TestAnalyticsComponent:
             "min": 0.45,
             "max": 0.95
         }
-        
+
         summary = analytics_component.create_statistical_summary(stats_data)
-        
+
         assert summary is not None
 
     def test_trend_analysis(self, analytics_component):
@@ -308,9 +308,9 @@ class TestAnalyticsComponent:
             "justice": [0.4, 0.5, 0.6, 0.65, 0.7, 0.75],
             "time_labels": ["2020", "2021", "2022", "2023", "2024", "2025"]
         }
-        
+
         trend_chart = analytics_component.create_trend_analysis(trend_data)
-        
+
         assert trend_chart is not None
 
     def test_accessibility_features(self, analytics_component):
@@ -318,25 +318,25 @@ class TestAnalyticsComponent:
         with patch.object(analytics_component, 'add_alt_text') as mock_alt_text:
             with patch.object(analytics_component, 'add_keyboard_navigation') as mock_keyboard:
                 analytics_component.ensure_chart_accessibility()
-                
+
                 mock_alt_text.assert_called_once()
                 mock_keyboard.assert_called_once()
 
     def test_performance_optimization(self, analytics_component):
         """Test performance optimization for large datasets."""
         large_dataset = {"concepts": list(range(1000)), "relationships": list(range(5000))}
-        
+
         with patch.object(analytics_component, 'use_data_sampling') as mock_sampling:
             analytics_component.render_large_dataset(large_dataset)
-            
+
             mock_sampling.assert_called_once()
 
     def test_error_handling_in_visualizations(self, analytics_component):
         """Test error handling in visualizations."""
         invalid_data = {"malformed": "data"}
-        
+
         error_display = analytics_component.handle_visualization_error(invalid_data)
-        
+
         assert error_display is not None
 
     def test_custom_chart_types(self, analytics_component):
@@ -347,21 +347,21 @@ class TestAnalyticsComponent:
             "node_styling": "by_importance",
             "edge_styling": "by_relationship_type"
         }
-        
+
         custom_chart = analytics_component.create_custom_chart(custom_config)
-        
+
         assert custom_chart is not None
 
     def test_data_refresh_controls(self, analytics_component):
         """Test data refresh controls."""
         refresh_controls = analytics_component.create_refresh_controls()
-        
+
         assert refresh_controls is not None
 
     def test_fullscreen_chart_mode(self, analytics_component):
         """Test fullscreen chart mode."""
         fullscreen_button = analytics_component.create_fullscreen_button()
-        
+
         assert fullscreen_button is not None
 
     def test_chart_interaction_handlers(self, analytics_component):
@@ -369,11 +369,11 @@ class TestAnalyticsComponent:
         with patch.object(analytics_component, 'handle_node_click') as mock_node_click:
             with patch.object(analytics_component, 'handle_edge_hover') as mock_edge_hover:
                 analytics_component.setup_interaction_handlers()
-                
+
                 # Simulate interactions
                 analytics_component.on_node_click({"id": "virtue"})
                 analytics_component.on_edge_hover({"source": "virtue", "target": "justice"})
-                
+
                 mock_node_click.assert_called_once()
                 mock_edge_hover.assert_called_once()
 
@@ -384,9 +384,9 @@ class TestAnalyticsComponent:
             "detailed": {"charts": ["centrality", "communities", "evolution"]},
             "comparison": {"charts": ["heatmap", "comparison", "trends"]}
         }
-        
+
         preset_selector = analytics_component.create_preset_selector(presets)
-        
+
         assert preset_selector is not None
 
     def test_annotation_system(self, analytics_component):
@@ -395,7 +395,7 @@ class TestAnalyticsComponent:
             {"x": 0.5, "y": 0.8, "text": "Peak virtue discussions", "type": "peak"},
             {"x": 0.3, "y": 0.6, "text": "Concept introduction", "type": "milestone"}
         ]
-        
+
         annotated_chart = analytics_component.add_annotations(annotations)
-        
+
         assert annotated_chart is not None

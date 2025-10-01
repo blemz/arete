@@ -12,14 +12,14 @@ from functools import lru_cache
 from typing import Any
 
 try:
-    import torch
+    import torch  # noqa: PLC0415
 
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
 
 try:
-    from sentence_transformers import SentenceTransformer
+    from sentence_transformers import SentenceTransformer  # noqa: PLC0415
 
     SENTENCE_TRANSFORMERS_AVAILABLE = True
 except ImportError:
@@ -408,7 +408,7 @@ class EmbeddingService:
             return ""
 
         # Unicode normalization for classical texts (Greek, Sanskrit, etc.)
-        import unicodedata
+        import unicodedata  # noqa: PLC0415
 
         processed = unicodedata.normalize("NFKC", text)
 

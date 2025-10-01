@@ -168,7 +168,7 @@ class SimpleLLMService:
             except Exception as e:
                 raise LLMProviderError(
                     f"Failed to create provider '{provider_name}': {e}"
-                )
+                ) from e
 
         provider = self._providers[provider_name]
 
@@ -184,11 +184,11 @@ class SimpleLLMService:
                     f"Authentication failed for {provider_name}. "
                     f"Please check your API key configuration.",
                     provider_name,
-                )
+                ) from None
             except Exception as e:
                 raise LLMProviderError(
                     f"Failed to initialize provider '{provider_name}': {e}"
-                )
+                ) from e
 
         return provider
 
@@ -276,7 +276,7 @@ class SimpleLLMService:
             logger.error(f"Error generating response with {provider_name}: {e}")
             raise LLMProviderError(
                 f"Failed to generate response with {provider_name}: {e}"
-            )
+            ) from e
 
     def list_available_providers(self) -> list[str]:
         """Get list of available provider types."""
@@ -458,7 +458,7 @@ class SimpleLLMService:
         Args:
             backup_file: Path to backup file
         """
-        from pathlib import Path
+        from pathlib import Path  # noqa: PLC0415
 
         self.config_service.restore_backup(Path(backup_file))
 
@@ -506,7 +506,7 @@ async def quick_generate(prompt: str, provider: str | None = None, **kwargs) -> 
     Returns:
         Generated response text
     """
-    from arete.services.llm_provider import LLMMessage, MessageRole
+    from arete.services.llm_provider import LLMMessage, MessageRole  # noqa: PLC0415
 
     service = get_llm_service()
 
@@ -591,7 +591,7 @@ def set_provider_interactive() -> None:
 
 if __name__ == "__main__":
     # Quick test/demo
-    import asyncio
+    import asyncio  # noqa: PLC0415
 
     async def demo():
         print("🤖 SimpleLLMService Demo")

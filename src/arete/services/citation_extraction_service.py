@@ -8,10 +8,7 @@ This service provides comprehensive citation extraction and validation functiona
 - Format citations according to classical philosophical standards
 - Integration with response generation pipeline for source attribution
 """
-
-import difflib
 import logging
-import re
 from dataclasses import dataclass, field
 from uuid import uuid4
 
@@ -174,7 +171,6 @@ class CitationExtractionService:
         Returns:
             Extraction result with found citations and validation metrics
         """
-        import time
 
         start_time = time.time()
 

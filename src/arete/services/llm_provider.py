@@ -211,23 +211,23 @@ class LLMProviderFactory:
         provider_type = provider_type.lower()
 
         if provider_type == "ollama":
-            from arete.services.ollama_provider import OllamaProvider
+            from arete.services.ollama_provider import OllamaProvider  # noqa: PLC0415
 
             return OllamaProvider(self.settings)
         elif provider_type == "openrouter":
-            from arete.services.openrouter_provider import OpenRouterProvider
+            from arete.services.openrouter_provider import OpenRouterProvider  # noqa: PLC0415
 
             return OpenRouterProvider(self.settings)
         elif provider_type == "gemini":
-            from arete.services.gemini_provider import GeminiProvider
+            from arete.services.gemini_provider import GeminiProvider  # noqa: PLC0415
 
             return GeminiProvider(self.settings)
         elif provider_type == "anthropic":
-            from .anthropic_provider import AnthropicProvider
+            from .anthropic_provider import AnthropicProvider  # noqa: PLC0415 - Lazy loading to avoid circular imports
 
             return AnthropicProvider(self.settings)
         elif provider_type == "openai":
-            from arete.services.openai_provider import OpenAIProvider
+            from arete.services.openai_provider import OpenAIProvider  # noqa: PLC0415
 
             return OpenAIProvider(self.settings)
         else:
@@ -470,7 +470,7 @@ def create_llm_service(settings: Settings | None = None) -> MultiProviderLLMServ
         Configured LLM service instance
     """
     if settings is None:
-        from arete.config import get_settings
+        from arete.config import get_settings  # noqa: PLC0415
 
         settings = get_settings()
 

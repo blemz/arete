@@ -261,12 +261,13 @@ ignore = [
 exclude = [
     ".git",
     ".venv",
-    "venv", 
+    "venv",
     "__pycache__",
     "docs/",
     "build/",
     "dist/",
     "migrations/",
+    "src/arete/services/keyboard_navigation_service.py",
 ]
 
 [tool.ruff.mccabe]

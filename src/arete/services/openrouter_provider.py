@@ -13,7 +13,7 @@ from typing import Any
 
 import httpx
 
-from arete.config import Settings
+from arete.config import Settings, get_settings
 from arete.services.llm_provider import (
     AuthenticationError,
     LLMMessage,
@@ -86,7 +86,7 @@ class OpenRouterProvider(LLMProvider):
 
         try:
             # Run async initialization
-            import asyncio
+            import asyncio  # noqa: PLC0415
 
             async def init_check():
                 models = await self._get_available_models()
@@ -116,7 +116,7 @@ class OpenRouterProvider(LLMProvider):
             logger.error(f"Failed to initialize OpenRouter provider: {e}")
             if isinstance(e, ProviderUnavailableError | AuthenticationError):
                 raise
-            raise LLMProviderError(f"OpenRouter initialization failed: {e}")
+            raise LLMProviderError(f"OpenRouter initialization failed: {e}") from e
 
         logger.info("OpenRouter provider initialized successfully")
 
@@ -174,7 +174,7 @@ class OpenRouterProvider(LLMProvider):
         except httpx.ConnectError as e:
             raise ProviderUnavailableError(
                 f"OpenRouter API unavailable: {e}", provider=self.name
-            )
+            ) from e
         except Exception as e:
             if isinstance(e, AuthenticationError | ProviderUnavailableError):
                 raise
@@ -231,12 +231,12 @@ class OpenRouterProvider(LLMProvider):
         except httpx.ConnectError as e:
             raise ProviderUnavailableError(
                 f"OpenRouter API unavailable: {e}", provider=self.name
-            )
+            ) from e
         except httpx.TimeoutException as e:
-            raise LLMProviderError(f"Request timeout: {e}")
+            raise LLMProviderError(f"Request timeout: {e}") from e
         except Exception as e:
             logger.error(f"Unexpected error during generation: {e}")
-            raise LLMProviderError(f"Generation failed: {e}")
+            raise LLMProviderError(f"Generation failed: {e}") from e
 
     async def _generate_standard(
         self,
@@ -587,8 +587,6 @@ def create_openrouter_provider(
         Configured OpenRouter provider instance
     """
     if settings is None:
-        from arete.config import get_settings
-
         settings = get_settings()
 
     provider = OpenRouterProvider(settings)

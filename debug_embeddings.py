@@ -10,15 +10,16 @@ Usage:
     python debug_embeddings.py [--document-id UUID] [--limit N]
 """
 
+import argparse
 import asyncio
+import json
+import logging
 import sys
 import time
-import logging
-import argparse
-from pathlib import Path
-from typing import List, Optional, Dict, Any
-from uuid import UUID
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+from uuid import UUID
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -118,7 +119,6 @@ async def test_embedding_generation(chunks_data: List[Dict[str, Any]]) -> List[C
         try:
             # Handle metadata field - it might be stored as JSON string in Neo4j
             if 'metadata' in chunk_data and isinstance(chunk_data['metadata'], str):
-                import json
                 try:
                     chunk_data['metadata'] = json.loads(chunk_data['metadata'])
                 except json.JSONDecodeError:

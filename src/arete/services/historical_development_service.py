@@ -133,7 +133,7 @@ class HistoricalDevelopmentService:
     def client(self) -> Neo4jClient:
         """Get or create Neo4j client."""
         if self.neo4j_client is None:
-            from arete.database.client import Neo4jClient
+            from arete.database.client import Neo4jClient  # noqa: PLC0415
 
             self.neo4j_client = Neo4jClient()
         return self.neo4j_client
@@ -258,7 +258,7 @@ class HistoricalDevelopmentService:
 
         except Exception as e:
             self.logger.error(f"Timeline construction failed: {e}")
-            raise TimelineConstructionError(f"Failed to construct timeline: {str(e)}")
+            raise TimelineConstructionError(f"Failed to construct timeline: {str(e)}") from e
 
     async def _extract_historical_events(
         self, session: AsyncSession, entity_types: list[EntityType] | None
@@ -465,7 +465,7 @@ class HistoricalDevelopmentService:
             self.logger.error(f"Period analysis failed: {e}")
             raise HistoricalAnalysisError(
                 f"Failed to analyze period {period}: {str(e)}"
-            )
+            ) from e
 
     def _get_period_boundaries(self, period: TimePeriod) -> tuple[int, int]:
         """Get start and end years for a historical period."""
@@ -607,7 +607,7 @@ class HistoricalDevelopmentService:
             self.logger.error(f"Concept development tracing failed: {e}")
             raise HistoricalAnalysisError(
                 f"Failed to trace concept {concept_id}: {str(e)}"
-            )
+            ) from e
 
 
 def create_historical_development_service(

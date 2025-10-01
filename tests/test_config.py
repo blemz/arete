@@ -18,7 +18,7 @@ class TestSettings:
     def test_settings_defaults(self):
         """Test that default settings are loaded correctly."""
         settings = Settings()
-        
+
         # Test default values
         assert settings.neo4j_uri == "bolt://localhost:7687"
         assert settings.neo4j_username == "neo4j"
@@ -42,9 +42,9 @@ class TestSettings:
         monkeypatch.setenv("LOG_LEVEL", "DEBUG")
         monkeypatch.setenv("DEBUG", "true")
         monkeypatch.setenv("MAX_CONTEXT_TOKENS", "8000")
-        
+
         settings = Settings()
-        
+
         assert settings.neo4j_uri == "bolt://test:7687"
         assert settings.neo4j_username == "testuser"
         assert settings.neo4j_password == "testpass"
@@ -59,15 +59,15 @@ class TestSettings:
         # Test invalid log level
         with pytest.raises(ValidationError):
             Settings(log_level="INVALID")
-        
+
         # Test invalid max_context_tokens (negative)
         with pytest.raises(ValidationError):
             Settings(max_context_tokens=-1)
-        
+
         # Test invalid chunk_size (too small)
         with pytest.raises(ValidationError):
             Settings(chunk_size=50)
-        
+
         # Test invalid chunk_overlap (too large)
         with pytest.raises(ValidationError):
             Settings(chunk_overlap=1500)
@@ -85,10 +85,10 @@ DEBUG=false
 MAX_CONTEXT_TOKENS=6000
 """
         env_file.write_text(env_content)
-        
+
         # Load settings with custom env_file
         settings = Settings(_env_file=str(env_file))
-        
+
         assert settings.neo4j_uri == "bolt://envfile:7687"
         assert settings.neo4j_username == "envuser"
         assert settings.neo4j_password == "envpass"
@@ -100,18 +100,18 @@ MAX_CONTEXT_TOKENS=6000
         """Test that get_settings returns the same instance."""
         settings1 = get_settings()
         settings2 = get_settings()
-        
+
         assert settings1 is settings2
 
     def test_settings_repr(self):
         """Test that settings representation doesn't leak sensitive data."""
         settings = Settings(neo4j_password="secret123")
         repr_str = repr(settings)
-        
+
         # Password should not appear in representation (excluded via repr=False)
         assert "secret123" not in repr_str
         assert "neo4j_password" not in repr_str  # Field excluded from repr
-        
+
         # Other fields should be present
         assert "neo4j_uri" in repr_str
         assert "neo4j_username" in repr_str
@@ -123,7 +123,7 @@ MAX_CONTEXT_TOKENS=6000
             neo4j_username="testuser",
             neo4j_password="testpass"
         )
-        
+
         assert settings.neo4j_auth == ("testuser", "testpass")
 
 
@@ -133,7 +133,7 @@ class TestConfigurationIntegration:
     def test_config_directory_structure(self):
         """Test that config directory is properly structured."""
         config_dir = Path("config")
-        
+
         # These directories should exist or be creatable
         expected_dirs = ["development", "production", "testing"]
         for dir_name in expected_dirs:
@@ -145,18 +145,18 @@ class TestConfigurationIntegration:
         # Create config directory structure
         config_dir = tmp_path / "config"
         config_dir.mkdir()
-        
+
         dev_config = config_dir / "development.env"
         dev_config.write_text("LOG_LEVEL=DEBUG\nDEBUG=true")
-        
+
         prod_config = config_dir / "production.env"
         prod_config.write_text("LOG_LEVEL=ERROR\nDEBUG=false")
-        
+
         # Test development config
         dev_settings = Settings(_env_file=str(dev_config))
         assert dev_settings.log_level == "DEBUG"
         assert dev_settings.debug is True
-        
+
         # Test production config
         prod_settings = Settings(_env_file=str(prod_config))
         assert prod_settings.log_level == "ERROR"

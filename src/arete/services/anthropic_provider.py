@@ -13,7 +13,7 @@ from typing import Any
 
 import httpx
 
-from arete.config import Settings
+from arete.config import Settings, get_settings
 from arete.services.llm_provider import (
     AuthenticationError,
     LLMMessage,
@@ -130,7 +130,7 @@ class AnthropicProvider(LLMProvider):
             logger.info("Anthropic provider initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize Anthropic provider: {e}")
-            raise LLMProviderError(f"Anthropic initialization failed: {e}")
+            raise LLMProviderError(f"Anthropic initialization failed: {e}") from e
 
     async def generate_response(
         self,
@@ -182,12 +182,12 @@ class AnthropicProvider(LLMProvider):
         except httpx.ConnectError as e:
             raise ProviderUnavailableError(
                 f"Anthropic API unavailable: {e}", provider=self.name
-            )
+            ) from e
         except httpx.TimeoutException as e:
-            raise LLMProviderError(f"Request timeout: {e}")
+            raise LLMProviderError(f"Request timeout: {e}") from e
         except Exception as e:
             logger.error(f"Unexpected error during generation: {e}")
-            raise LLMProviderError(f"Generation failed: {e}")
+            raise LLMProviderError(f"Generation failed: {e}") from e
 
     async def _generate_standard(
         self,
@@ -549,8 +549,6 @@ def create_anthropic_provider(settings: Settings | None = None) -> AnthropicProv
         Configured Anthropic provider instance
     """
     if settings is None:
-        from arete.config import get_settings
-
         settings = get_settings()
 
     provider = AnthropicProvider(settings)

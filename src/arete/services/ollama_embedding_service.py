@@ -7,7 +7,6 @@ including dengcao/Qwen3-Embedding-8B:Q8_0 for maximum quality.
 
 import hashlib
 import logging
-import time
 from typing import Any
 
 import requests
@@ -254,7 +253,7 @@ class OllamaEmbeddingService:
 
                 # Normalize if requested (basic L2 normalization)
                 if normalize:
-                    import math
+                    import math  # noqa: PLC0415
 
                     norm = math.sqrt(sum(x * x for x in embedding))
                     if norm > 0:

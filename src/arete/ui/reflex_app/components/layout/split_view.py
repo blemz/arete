@@ -140,7 +140,7 @@ class SplitViewComponent(rx.Component):
 
     def _render_chat_only(self) -> rx.Component:
         """Render chat interface in full-width mode."""
-        from components.chat.chat_interface import ChatInterface
+        from components.chat.chat_interface import ChatInterface  # noqa: PLC0415
 
         return rx.box(
             ChatInterface(),
@@ -154,7 +154,7 @@ class SplitViewComponent(rx.Component):
 
     def _render_chat_split(self) -> rx.Component:
         """Render chat interface in split-view mode."""
-        from components.chat.chat_interface import ChatInterface
+        from components.chat.chat_interface import ChatInterface  # noqa: PLC0415
 
         return rx.box(
             # Split-view chat header
@@ -196,7 +196,7 @@ class SplitViewComponent(rx.Component):
 
     def _render_document_only(self) -> rx.Component:
         """Render document viewer in full-width mode."""
-        from components.document.document_viewer import DocumentViewer
+        from components.document.document_viewer import DocumentViewer  # noqa: PLC0415
 
         return rx.box(
             DocumentViewer(),
@@ -205,7 +205,7 @@ class SplitViewComponent(rx.Component):
 
     def _render_document_split(self) -> rx.Component:
         """Render document viewer in split-view mode."""
-        from components.document.document_viewer import DocumentViewer
+        from components.document.document_viewer import DocumentViewer  # noqa: PLC0415
 
         return rx.box(
             # Split-view document header

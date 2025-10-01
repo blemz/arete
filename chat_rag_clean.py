@@ -4,18 +4,19 @@ Real RAG CLI Interface for Arete
 
 Tests the full RAG system using your ingested Plato dialogues with:
 - Vector similarity search in Weaviate
-- Entity and relationship queries in Neo4j  
+- Entity and relationship queries in Neo4j
 - Multi-provider LLM generation
 - Accurate citations from source texts
 """
 
-import sys
-import asyncio
 import argparse
+import asyncio
 import logging
-from pathlib import Path
+import re
+import sys
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 # Configure logging - minimal output for clean user experience
 logging.basicConfig(
@@ -370,8 +371,6 @@ class AreteRAGCLI:
     def _clean_text_for_display(self, text: str) -> str:
         """Clean text for safe console display."""
         try:
-            import re
-            
             # Remove XML/entity markup tags for cleaner citations
             # Remove <entity type="...">content</entity> patterns
             text = re.sub(r'<entity[^>]*>(.*?)</entity>', r'\1', text)

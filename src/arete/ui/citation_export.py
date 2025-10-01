@@ -317,7 +317,7 @@ class CitationExporter:
 
     def _export_csv(self, citations: list[Any]) -> str:
         """Export as CSV format."""
-        import csv
+        import csv  # noqa: PLC0415
         output = StringIO()
 
         fieldnames = ["Author", "Work", "Reference", "Text", "Source"]

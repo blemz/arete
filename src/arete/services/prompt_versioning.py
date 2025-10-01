@@ -5,8 +5,6 @@ This module provides comprehensive version management for prompt templates,
 including creation, storage, retrieval, rollback capabilities, and comparison
 functionality for maintaining and evolving prompt quality over time.
 """
-
-import gzip
 import json
 import logging
 import os

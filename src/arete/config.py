@@ -1,9 +1,11 @@
 """
 Configuration management for Arete Graph-RAG system.
 """
+import sys
 from functools import lru_cache
 from typing import Literal
 
+from loguru import logger
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -323,10 +325,6 @@ def get_settings() -> Settings:
 
 def setup_logging() -> None:
     """Setup logging configuration."""
-    import sys
-
-    from loguru import logger
-
     settings = get_settings()
 
     # Remove default logger

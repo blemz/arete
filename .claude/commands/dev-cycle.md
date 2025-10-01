@@ -1,6 +1,6 @@
 # Dev Cycle Command
 
-Implements a complete TDD development cycle for the Enhanced CAM Extraction System.
+Implements a complete TDD development cycle for this project.
 
 ## Command: /dev-cycle
 
@@ -47,4 +47,4 @@ Implements a complete TDD development cycle for the Enhanced CAM Extraction Syst
 ## Continuation Protocol:
 - After /clear, the next cycle begins automatically by reading the updated TODO.md and implementing the next identified phase.
 
-This ensures continuous progress toward completing all remaining components in the Enhanced CAM Extraction System roadmap.
+This ensures continuous progress toward completing all remaining components in this project roadmap.

@@ -530,7 +530,7 @@ class GraphAnalyticsVisualizer:
 
     def _create_mock_topic_clustering_result(self) -> TopicClusteringResult:
         """Create mock topic clustering result for demonstration."""
-        from arete.services.graph_analytics_service import ConceptCluster
+        from arete.services.graph_analytics_service import ConceptCluster  # noqa: PLC0415
 
         clusters = [
             ConceptCluster(

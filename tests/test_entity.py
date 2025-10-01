@@ -45,7 +45,7 @@ class TestMentionData:
     def test_mention_data_creation_with_valid_data(self, sample_mention_data):
         """Test basic MentionData creation with valid data."""
         mention = MentionData(**sample_mention_data)
-        
+
         assert mention.text == "Socrates"
         assert mention.context == "As Socrates once said, the unexamined life is not worth living."
         assert mention.start_position == 3
@@ -62,7 +62,7 @@ class TestMentionData:
             "confidence": 0.8,
             "document_id": uuid.uuid4()
         }
-        
+
         with pytest.raises(ValidationError) as exc_info:
             MentionData(**mention_data)
         assert "text" in str(exc_info.value)
@@ -77,7 +77,7 @@ class TestMentionData:
             "confidence": 0.8,
             "document_id": uuid.uuid4()
         }
-        
+
         with pytest.raises(ValidationError) as exc_info:
             MentionData(**mention_data)
         assert "at least 1 character" in str(exc_info.value)
@@ -148,7 +148,7 @@ class TestMentionData:
             "confidence": 0.9,
             "document_id": uuid.uuid4()
         }
-        
+
         mention = MentionData(**mention_data)
         assert mention.text_length == 8
 
@@ -159,7 +159,7 @@ class TestRelationshipData:
     def test_relationship_data_creation_with_valid_data(self, sample_relationship_data):
         """Test basic RelationshipData creation with valid data."""
         relationship = RelationshipData(**sample_relationship_data)
-        
+
         assert isinstance(relationship.target_entity_id, uuid.UUID)
         assert relationship.relationship_type == "STUDENT_OF"
         assert relationship.confidence == 0.85
@@ -225,7 +225,7 @@ class TestRelationshipData:
             target_entity_id=uuid.uuid4(),
             relationship_type="RELATES_TO"
         )
-        
+
         assert relationship.confidence == 0.5  # Default confidence
         assert relationship.source is None
         assert relationship.bidirectional is False
@@ -604,7 +604,7 @@ class TestEntity:
             confidence=0.9,
             document_id=uuid.uuid4()
         )
-        
+
         entity.add_mention(mention)
         assert len(entity.mentions) == 1
         assert entity.mentions[0].text == "Republic"
@@ -641,7 +641,7 @@ class TestEntity:
             confidence=0.95,
             source="historical_records"
         )
-        
+
         entity.add_relationship(relationship)
         assert len(entity.relationships) == 1
         assert entity.relationships[0].relationship_type == "STUDENT_OF"
@@ -754,10 +754,10 @@ class TestEntity:
             "entity_type": EntityType.PERSON,
             "source_document_id": uuid.uuid4()
         }
-        
+
         aristotle_id = uuid.uuid4()
         socrates_id = uuid.uuid4()
-        
+
         relationships = [
             RelationshipData(
                 target_entity_id=aristotle_id,
@@ -770,10 +770,10 @@ class TestEntity:
                 confidence=0.95
             )
         ]
-        
+
         entity = Entity(relationships=relationships, **entity_data)
         related_ids = entity.get_related_entity_ids()
-        
+
         assert len(related_ids) == 2
         assert aristotle_id in related_ids
         assert socrates_id in related_ids
@@ -785,7 +785,7 @@ class TestEntity:
             "entity_type": EntityType.PERSON,
             "source_document_id": uuid.uuid4()
         }
-        
+
         relationships = [
             RelationshipData(
                 target_entity_id=uuid.uuid4(),
@@ -803,9 +803,9 @@ class TestEntity:
                 confidence=0.7
             )
         ]
-        
+
         entity = Entity(relationships=relationships, **entity_data)
-        
+
         # Find by specific type
         teacher_rels = entity.get_relationships_by_type("TEACHER_OF")
         assert len(teacher_rels) == 2
@@ -976,7 +976,7 @@ class TestEntityIntegration:
             entity_type=EntityType.PERSON,
             source_document_id=uuid.uuid4()
         )
-        
+
         socrates.add_relationship(RelationshipData(
             target_entity_id=plato_id,
             relationship_type="TEACHER_OF",
@@ -989,7 +989,7 @@ class TestEntityIntegration:
             entity_type=EntityType.PERSON,
             source_document_id=uuid.uuid4()
         )
-        
+
         plato.add_relationship(RelationshipData(
             target_entity_id=socrates_id,
             relationship_type="STUDENT_OF",
@@ -1004,7 +1004,7 @@ class TestEntityIntegration:
         # Verify relationship networks
         assert socrates.relationship_count == 1
         assert plato.relationship_count == 2
-        
+
         # Test relationship type filtering
         teacher_rels = plato.get_relationships_by_type("TEACHER_OF")
         assert len(teacher_rels) == 1
@@ -1076,7 +1076,7 @@ def minimal_entity_data() -> Dict[str, Any]:
 def sample_complex_entity() -> Dict[str, Any]:
     """Sample complex entity with multiple mentions and relationships."""
     document_id = uuid.uuid4()
-    
+
     return {
         "name": "Aristotle",
         "entity_type": EntityType.PERSON,

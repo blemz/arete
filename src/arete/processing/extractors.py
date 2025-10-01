@@ -1,6 +1,8 @@
 """Text extraction from various document formats."""
 
+import os
 import re
+import tempfile
 from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
@@ -15,6 +17,13 @@ except Exception:  # pragma: no cover - spaCy optional import handled at runtime
     spacy = None
     Language = None
     EntityRuler = None
+
+try:
+    import fitz  # PyMuPDF
+    import pymupdf4llm
+except Exception:  # pragma: no cover - PyMuPDF optional import handled at runtime
+    fitz = None
+    pymupdf4llm = None
 
 from arete.models.entity import Entity, EntityType, MentionData
 
@@ -124,14 +133,6 @@ class PDFExtractor:
             raise ValueError("Invalid PDF data")
 
         try:
-            import os
-            import re
-            import tempfile
-            from pathlib import Path
-
-            import fitz  # PyMuPDF
-            import pymupdf4llm
-
             # Create temporary file with better handling for Windows
             tmp_fd = None
             tmp_path = None
@@ -220,7 +221,7 @@ class PDFExtractor:
             else:
                 raise
         except Exception as e:
-            raise ValueError(f"Failed to extract PDF content: {e}")
+            raise ValueError(f"Failed to extract PDF content: {e}") from e
 
     def _extract_title_from_text(self, text: str) -> str:
         """Extract title from PDF text content."""
@@ -285,7 +286,6 @@ class PDFExtractor:
             return "Epictetus"
 
         # Look for author patterns like "by [Name]" or "[Name] translated by"
-        import re
         author_patterns = [
             r"by\s+([A-Z][a-z]+ [A-Z][a-z]+)",
             r"([A-Z][A-Z\s]+)\s+translated",
@@ -462,7 +462,7 @@ class TEIXMLExtractor:
             }
 
         except ET.ParseError as e:
-            raise ValueError(f"Invalid XML format: {e}")
+            raise ValueError(f"Invalid XML format: {e}") from e
 
     def _extract_metadata(self, root: ET.Element) -> dict[str, str]:
         """Extract metadata from TEI header.

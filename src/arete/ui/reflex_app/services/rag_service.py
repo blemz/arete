@@ -175,7 +175,7 @@ Answer:"""
     def _clean_response(self, response: str) -> str:
         """Clean up the LLM response."""
         # Remove XML tags and entities as in chat_rag_clean.py
-        import re
+        import re  # noqa: PLC0415
         response = re.sub(r"&[a-zA-Z0-9#]+;", "", response)
         response = re.sub(r"<[^>]+>", "", response)
         return response.strip()

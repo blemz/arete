@@ -9,9 +9,9 @@ import logging
 from datetime import datetime
 
 import reflex as rx
-from services.rag_service import get_rag_service
 
 from src.arete.data.models import ChatMessage, CitationWithScore
+from src.arete.ui.reflex_app.services.rag_service import get_rag_service
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ class ChatState(rx.State):
             self.response_time = (datetime.now() - start_time).total_seconds()
 
             # Parse and format the response using ResponseParser
-            from ..components.response_parser import ResponseParser
+            from ..components.response_parser import ResponseParser  # noqa: PLC0415
             parsed_response = ResponseParser.parse_response(response_text)
 
             # Create structured markdown response with sections

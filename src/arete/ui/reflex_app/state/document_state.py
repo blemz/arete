@@ -100,7 +100,7 @@ class DocumentState(rx.State):
     def _load_document_async(self, document_id: str, url: str):
         """Load document content asynchronously."""
         # Mock document loading
-        import time
+        import time  # noqa: PLC0415
         time.sleep(0.5)  # Simulate loading time
 
         # Mock document content

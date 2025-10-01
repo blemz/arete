@@ -15,12 +15,12 @@ from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
 if TYPE_CHECKING:
-    from arete.services.dense_retrieval_service import (
+    from arete.services.dense_retrieval_service import (  # noqa: PLC0415
         DenseRetrievalService,
         SearchResult,
     )
-    from arete.services.graph_traversal_service import GraphTraversalService
-    from arete.services.sparse_retrieval_service import SparseRetrievalService
+    from arete.services.graph_traversal_service import GraphTraversalService  # noqa: PLC0415
+    from arete.services.sparse_retrieval_service import SparseRetrievalService  # noqa: PLC0415
 from arete.config import Settings, get_settings
 
 from .base import RepositoryError
@@ -98,8 +98,7 @@ class RetrievalRepository:
 
         # Initialize services with dependency injection
         if dense_service is None:
-            # Import at runtime to avoid circular import
-            from arete.services.dense_retrieval_service import (
+            from arete.services.dense_retrieval_service import (  # noqa: PLC0415 - Avoid circular import
                 create_dense_retrieval_service,
             )
 
@@ -108,8 +107,7 @@ class RetrievalRepository:
             self.dense_service = dense_service
 
         if sparse_service is None:
-            # Import at runtime to avoid circular import
-            from arete.services.sparse_retrieval_service import (
+            from arete.services.sparse_retrieval_service import (  # noqa: PLC0415 - Avoid circular import
                 create_sparse_retrieval_service,
             )
 
@@ -121,8 +119,8 @@ class RetrievalRepository:
 
         if graph_service is None:
             # Import at runtime to avoid circular import
-            from arete.database.client import Neo4jClient
-            from arete.services.graph_traversal_service import GraphTraversalService
+            from arete.database.client import Neo4jClient  # noqa: PLC0415 - Avoid circular import
+            from arete.services.graph_traversal_service import GraphTraversalService  # noqa: PLC0415 - Avoid circular import
 
             # Initialize Neo4j client and graph service
             neo4j_client = Neo4jClient()
@@ -432,7 +430,7 @@ class RetrievalRepository:
         is the weighted average of its dense and sparse scores.
         """
         # Import SearchResult at runtime to avoid circular import
-        from arete.services.dense_retrieval_service import SearchResult
+        from arete.services.dense_retrieval_service import SearchResult  # noqa: PLC0415 - Avoid circular import
 
         # Create mapping of chunk_id to results
         dense_map = {str(r.chunk.id): r for r in dense_results}
@@ -499,7 +497,7 @@ class RetrievalRepository:
         RRF Score = Σ(1 / (k + rank)) where k is a constant (typically 60)
         """
         # Import SearchResult at runtime to avoid circular import
-        from arete.services.dense_retrieval_service import SearchResult
+        from arete.services.dense_retrieval_service import SearchResult  # noqa: PLC0415 - Avoid circular import
 
         # Create mapping of chunk_id to rank
         dense_ranks = {str(r.chunk.id): i + 1 for i, r in enumerate(dense_results)}
@@ -715,8 +713,8 @@ class RetrievalRepository:
                 # This is a simplified conversion - in practice you'd want to
                 # integrate this with your chunk/document storage
 
-                from arete.models.chunk import Chunk
-                from arete.services.dense_retrieval_service import SearchResult
+                from arete.models.chunk import Chunk  # noqa: PLC0415
+                from arete.services.dense_retrieval_service import SearchResult  # noqa: PLC0415
 
                 # Create a synthetic chunk representing the graph result
                 chunk = Chunk(
@@ -832,8 +830,8 @@ class RetrievalRepository:
         self, search_result: "SearchResult"
     ) -> "GraphResult":
         """Convert SearchResult to GraphResult for integration purposes."""
-        from arete.models.entity import Entity, EntityType
-        from arete.services.graph_traversal_service import GraphResult
+        from arete.models.entity import Entity, EntityType  # noqa: PLC0415
+        from arete.services.graph_traversal_service import GraphResult  # noqa: PLC0415
 
         # Extract entity information from search result metadata
         entity_name = search_result.metadata.get("entity_name", "Unknown Entity")

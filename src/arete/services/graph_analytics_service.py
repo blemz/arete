@@ -150,7 +150,7 @@ class GraphAnalyticsService:
     def client(self) -> Neo4jClient:
         """Get or create Neo4j client."""
         if self.neo4j_client is None:
-            from arete.database.client import Neo4jClient
+            from arete.database.client import Neo4jClient  # noqa: PLC0415
 
             self.neo4j_client = Neo4jClient()
         return self.neo4j_client
@@ -205,7 +205,7 @@ class GraphAnalyticsService:
             self.logger.error(f"Centrality analysis failed: {e}")
             raise CentralityAnalysisError(
                 f"Failed to compute {metric} centrality: {str(e)}"
-            )
+            ) from e
 
     async def _analyze_degree_centrality(
         self,
@@ -474,7 +474,7 @@ class GraphAnalyticsService:
 
         except Exception as e:
             self.logger.error(f"Community detection failed: {e}")
-            raise CommunityDetectionError(f"Failed to detect communities: {str(e)}")
+            raise CommunityDetectionError(f"Failed to detect communities: {str(e)}") from e
 
     async def _detect_communities_label_propagation(
         self, session: AsyncSession, min_community_size: int
@@ -629,7 +629,7 @@ class GraphAnalyticsService:
 
         except Exception as e:
             self.logger.error(f"Influence network analysis failed: {e}")
-            raise AnalysisError(f"Failed to analyze influence network: {str(e)}")
+            raise AnalysisError(f"Failed to analyze influence network: {str(e)}") from e
 
     async def cluster_topics(
         self, similarity_threshold: float = 0.7, min_cluster_size: int = 3
@@ -724,7 +724,7 @@ class GraphAnalyticsService:
 
         except Exception as e:
             self.logger.error(f"Topic clustering failed: {e}")
-            raise AnalysisError(f"Failed to perform topic clustering: {str(e)}")
+            raise AnalysisError(f"Failed to perform topic clustering: {str(e)}") from e
 
 
 def create_graph_analytics_service(

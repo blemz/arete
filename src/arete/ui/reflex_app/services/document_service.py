@@ -10,9 +10,9 @@ from typing import Any
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 
 try:
-    from src.arete.core.config import get_settings
+    from src.arete.core.config import get_settings  # noqa: PLC0415
     from src.arete.core.database.neo4j_client import Neo4jClient
-    from src.arete.core.database.weaviate_client import WeaviateClient
+    from src.arete.core.database.weaviate_client import WeaviateClient  # noqa: PLC0415
 except ImportError as e:
     print(f"Warning: Could not import Arete components: {e}")
 
@@ -178,7 +178,7 @@ class DocumentService:
                 base_filters["document_id"] = document_id
 
             # This would use the RAG service for proper vector search
-            from .rag_service import get_rag_service
+            from .rag_service import get_rag_service  # noqa: PLC0415
             rag_service = get_rag_service()
 
             chunks = await rag_service.search_similar_chunks(

@@ -4,7 +4,10 @@ Check what data is actually in Weaviate collections.
 """
 
 import sys
+import traceback
 from pathlib import Path
+
+import weaviate
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -12,9 +15,8 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 def check_weaviate_data():
     """Check what's in Weaviate collections."""
     print("=== Checking Weaviate Data ===\n")
-    
+
     try:
-        import weaviate
         
         # Connect directly with minimal checks
         client = weaviate.connect_to_local(
@@ -93,7 +95,6 @@ def check_weaviate_data():
         
     except Exception as e:
         print(f"[ERROR] Check failed: {str(e)}")
-        import traceback
         traceback.print_exc()
         return False
 

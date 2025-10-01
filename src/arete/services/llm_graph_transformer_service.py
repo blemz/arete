@@ -433,7 +433,7 @@ Text: {text}
 Analysis:"""
 
         try:
-            from arete.services.llm_provider import LLMMessage, MessageRole
+            from arete.services.llm_provider import LLMMessage, MessageRole  # noqa: PLC0415
 
             messages = [LLMMessage(role=MessageRole.USER, content=prompt)]
             response = await self.llm_service.generate_response(
@@ -450,8 +450,6 @@ Analysis:"""
         self, response: str, document_id: str
     ) -> tuple[list[Entity], list[dict[str, Any]]]:
         """Parse JSON response from fallback extraction."""
-        import json
-        import re
 
         entities = []
         relationships = []

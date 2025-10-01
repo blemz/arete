@@ -78,10 +78,10 @@ class DocumentRepository(SearchableRepository[Document]):
                 "constraint violation" in error_msg.lower()
                 or "already exists" in error_msg.lower()
             ):
-                raise DuplicateEntityError(f"Document already exists: {error_msg}")
+                raise DuplicateEntityError(f"Document already exists: {error_msg}") from e
             else:
                 logger.error(f"Failed to create document {entity.id}: {error_msg}")
-                raise RepositoryError(f"Failed to create document: {error_msg}")
+                raise RepositoryError(f"Failed to create document: {error_msg}") from e
 
     async def get_by_id(self, entity_id: UUID | str) -> Document | None:
         """
@@ -105,7 +105,7 @@ class DocumentRepository(SearchableRepository[Document]):
 
         except Exception as e:
             logger.error(f"Failed to get document {entity_id}: {str(e)}")
-            raise RepositoryError(f"Failed to retrieve document: {str(e)}")
+            raise RepositoryError(f"Failed to retrieve document: {str(e)}") from e
 
     async def update(self, entity: Document) -> Document:
         """
@@ -137,10 +137,10 @@ class DocumentRepository(SearchableRepository[Document]):
         except Exception as e:
             error_msg = str(e)
             if "not found" in error_msg.lower():
-                raise EntityNotFoundError(f"Document not found: {entity.id}")
+                raise EntityNotFoundError(f"Document not found: {entity.id}") from e
             else:
                 logger.error(f"Failed to update document {entity.id}: {error_msg}")
-                raise RepositoryError(f"Failed to update document: {error_msg}")
+                raise RepositoryError(f"Failed to update document: {error_msg}") from e
 
     async def delete(self, entity_id: UUID | str) -> bool:
         """
@@ -171,7 +171,7 @@ class DocumentRepository(SearchableRepository[Document]):
 
         except Exception as e:
             logger.error(f"Failed to delete document {entity_id}: {str(e)}")
-            raise RepositoryError(f"Failed to delete document: {str(e)}")
+            raise RepositoryError(f"Failed to delete document: {str(e)}") from e
 
     async def list_all(
         self,
@@ -222,7 +222,7 @@ class DocumentRepository(SearchableRepository[Document]):
 
         except Exception as e:
             logger.error(f"Failed to list documents: {str(e)}")
-            raise RepositoryError(f"Failed to list documents: {str(e)}")
+            raise RepositoryError(f"Failed to list documents: {str(e)}") from e
 
     async def count(self, filters: dict[str, Any] | None = None) -> int:
         """
@@ -262,7 +262,7 @@ class DocumentRepository(SearchableRepository[Document]):
 
         except Exception as e:
             logger.error(f"Failed to count documents: {str(e)}")
-            raise RepositoryError(f"Failed to count documents: {str(e)}")
+            raise RepositoryError(f"Failed to count documents: {str(e)}") from e
 
     async def exists(self, entity_id: UUID | str) -> bool:
         """
@@ -291,7 +291,7 @@ class DocumentRepository(SearchableRepository[Document]):
 
         except Exception as e:
             logger.error(f"Failed to check document existence {entity_id}: {str(e)}")
-            raise RepositoryError(f"Failed to check document existence: {str(e)}")
+            raise RepositoryError(f"Failed to check document existence: {str(e)}") from e
 
     async def search_by_text(
         self, query: str, limit: int = 10, similarity_threshold: float = 0.7
@@ -322,7 +322,7 @@ class DocumentRepository(SearchableRepository[Document]):
 
         except Exception as e:
             logger.error(f"Failed to search documents by text: {str(e)}")
-            raise RepositoryError(f"Failed to search by text: {str(e)}")
+            raise RepositoryError(f"Failed to search by text: {str(e)}") from e
 
     async def search_by_embedding(
         self, embedding: list[float], limit: int = 10, similarity_threshold: float = 0.7
@@ -353,7 +353,7 @@ class DocumentRepository(SearchableRepository[Document]):
 
         except Exception as e:
             logger.error(f"Failed to search documents by embedding: {str(e)}")
-            raise RepositoryError(f"Failed to search by embedding: {str(e)}")
+            raise RepositoryError(f"Failed to search by embedding: {str(e)}") from e
 
     # Document-specific methods
 
@@ -383,7 +383,7 @@ class DocumentRepository(SearchableRepository[Document]):
 
         except Exception as e:
             logger.error(f"Failed to search documents by title: {str(e)}")
-            raise RepositoryError(f"Failed to search by title: {str(e)}")
+            raise RepositoryError(f"Failed to search by title: {str(e)}") from e
 
     async def get_by_author(self, author: str) -> list[Document]:
         """
@@ -411,7 +411,7 @@ class DocumentRepository(SearchableRepository[Document]):
 
         except Exception as e:
             logger.error(f"Failed to search documents by author: {str(e)}")
-            raise RepositoryError(f"Failed to search by author: {str(e)}")
+            raise RepositoryError(f"Failed to search by author: {str(e)}") from e
 
     async def search_content(
         self, query: str, limit: int = 10, hybrid_weight: float = 0.7
@@ -470,4 +470,4 @@ class DocumentRepository(SearchableRepository[Document]):
 
         except Exception as e:
             logger.error(f"Failed to perform hybrid search: {str(e)}")
-            raise RepositoryError(f"Failed to perform hybrid search: {str(e)}")
+            raise RepositoryError(f"Failed to perform hybrid search: {str(e)}") from e

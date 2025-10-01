@@ -12,8 +12,6 @@ Provides comprehensive duplicate detection capabilities including:
 
 Designed specifically for philosophical texts with domain-aware similarity measures.
 """
-
-import difflib
 import hashlib
 import logging
 import statistics
@@ -256,8 +254,8 @@ class DuplicateDetectionService:
                 content = getattr(item, field)
                 if content:
                     content_groups[content].append(item)
-            except AttributeError:
-                raise ValueError(f"Field '{field}' not found in item")
+            except AttributeError as e:
+                raise ValueError(f"Field '{field}' not found in item") from e
 
         # Find groups with multiple items (duplicates)
         duplicate_results = []

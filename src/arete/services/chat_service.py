@@ -5,6 +5,7 @@ Provides session management, message handling, and conversation flow
 for the Arete Graph-RAG philosophical tutoring system.
 """
 
+import time
 import uuid
 from datetime import datetime, timedelta
 from typing import Any
@@ -120,7 +121,6 @@ class ChatService:
             session.context = context
 
         # Update timestamp with small delay to ensure different timestamps
-        import time
 
         time.sleep(0.001)
         session.updated_at = datetime.now()

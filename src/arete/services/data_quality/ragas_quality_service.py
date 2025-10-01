@@ -708,7 +708,7 @@ class RAGASQualityService:
         self, monitoring_config: dict[str, Any]
     ) -> "QualityMonitor":
         """Set up continuous quality monitoring."""
-        from .quality_monitor import QualityMonitor
+        from .quality_monitor import QualityMonitor  # noqa: PLC0415 - Lazy loading to avoid circular imports
 
         monitor = QualityMonitor(quality_service=self, config=monitoring_config)
 

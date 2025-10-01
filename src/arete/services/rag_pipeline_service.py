@@ -344,7 +344,7 @@ class RAGPipelineService:
         Returns:
             List of pipeline results
         """
-        import asyncio
+        import asyncio  # noqa: PLC0415
 
         tasks = [
             self.execute_pipeline(query, config, user_context) for query in queries
@@ -491,7 +491,7 @@ class RAGPipelineService:
             raise RAGPipelineError("Context composition service not available")
 
         try:
-            from arete.services.context_composition_service import (
+            from arete.services.context_composition_service import (  # noqa: PLC0415
                 CompositionStrategy,
                 ContextCompositionConfig,
             )
@@ -527,7 +527,7 @@ class RAGPipelineService:
             raise RAGPipelineError("Response generation service not available")
 
         try:
-            from arete.services.response_generation_service import (
+            from arete.services.response_generation_service import (  # noqa: PLC0415
                 ResponseGenerationConfig,
             )
 
@@ -585,7 +585,7 @@ class RAGPipelineService:
         warnings: list[str] | None = None,
     ) -> RAGPipelineResult:
         """Create empty result for error cases."""
-        from arete.services.response_generation_service import (
+        from arete.services.response_generation_service import (  # noqa: PLC0415
             ResponseResult,
             ResponseValidation,
         )
@@ -619,7 +619,7 @@ class RAGPipelineService:
         user_context: dict[str, Any] | None,
     ) -> str:
         """Generate cache key for pipeline request."""
-        import hashlib
+        import hashlib  # noqa: PLC0415
 
         key_components = [
             query,
@@ -720,9 +720,9 @@ def create_rag_pipeline_service(
     Returns:
         Configured RAGPipelineService instance
     """
-    from arete.repositories.retrieval import RetrievalRepository
-    from arete.services.dense_retrieval_service import DenseRetrievalService
-    from arete.services.sparse_retrieval_service import SparseRetrievalService
+    from arete.repositories.retrieval import RetrievalRepository  # noqa: PLC0415
+    from arete.services.dense_retrieval_service import DenseRetrievalService  # noqa: PLC0415
+    from arete.services.sparse_retrieval_service import SparseRetrievalService  # noqa: PLC0415
 
     # Initialize settings
     if settings is None:
