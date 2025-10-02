@@ -1,7 +1,7 @@
 ---
-title: "Book i 351a\u2014352d Socrates, Thrasymachus"
-author: Polemarchus
-translator: null
+title: The Republic
+author: Plato
+translator: Tom Griffith
 editor: null
 original_language: Ancient Greek
 translation_language: English
@@ -9,26 +9,26 @@ publication_year: null
 publisher: null
 isbn: null
 philosophical_period: ancient
-text_type: treatise
-philosophical_school: null
+text_type: dialogue
+philosophical_school: ''
 major_themes: []
 key_concepts: []
 related_works: []
 cross_references: []
 citation_style: classical
 standard_abbreviations: {}
-processing_date: '2025-10-01T21:41:39.294812'
+processing_date: '2025-10-02T10:35:37.345100'
 source_quality: high
 ocr_confidence: null
 human_reviewed: false
 ---
 
 
-# Book i 351a—352d Socrates, Thrasymachus
+# The Republic
 
-**Author:** Polemarchus
+**Author:** Plato
 **Period:** Ancient
-**Processing Date:** 2025-10-01T21:41:39.294812
+**Processing Date:** 2025-10-02T10:35:37.345100
 
 ---
 

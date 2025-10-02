@@ -10,6 +10,18 @@ optimized for classical philosophical texts with:
 5. Human-in-the-loop quality enhancement
 """
 
+import warnings
+
+# Suppress third-party deprecation warnings from dependencies
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="spacy")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="weasel")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="click")
+warnings.filterwarnings(
+    "ignore",
+    message="builtin type.*has no __module__ attribute",
+    category=DeprecationWarning
+)
+
 import re
 from dataclasses import asdict, dataclass
 from datetime import datetime
