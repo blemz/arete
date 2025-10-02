@@ -21,6 +21,11 @@ import yaml
 
 from arete.config import get_settings
 from arete.models.chunk import Chunk
+from arete.services.philosophical_text_restructurer import (
+    PhilosophicalTextRestructurer,
+    PhilosophicalContext,
+    ProcessingMode
+)
 
 
 class PhilosophicalPeriod(Enum):
@@ -159,7 +164,8 @@ class PhilosophicalConverter:
         self,
         pdf_path: str,
         output_dir: str = "enhanced_texts",
-        metadata: PhilosophicalMetadata | None = None
+        metadata: PhilosophicalMetadata | None = None,
+        extract_images: bool = False
     ) -> tuple[str, PhilosophicalMetadata]:
         """
         Convert PDF to enhanced markdown with YAML front-matter and structural analysis.
@@ -184,13 +190,13 @@ class PhilosophicalConverter:
             markdown_text = pymupdf4llm.to_markdown(
                 pdf_path,
                 page_chunks=False,      # Get full document as single markdown
-                write_images=True,      # Extract images for diagrams
+                write_images=extract_images,  # Control image extraction via parameter
                 # Additional parameters for philosophical texts
                 margins=0,              # Don't ignore margins (footnotes, marginalia)
                 dpi=300,               # High resolution for Greek text/symbols
                 extract_words=False,   # We'll do our own tokenization
                 ignore_code=False,     # Preserve formatting for citations
-                table_strategy="advanced"  # Better table detection for structured arguments
+                table_strategy="lines"  # Better table detection for structured arguments
             )
 
             print(f"✅ Converted to markdown: {len(markdown_text):,} characters")
@@ -628,7 +634,9 @@ Use structural elements as chunk boundaries:
 async def convert_philosophical_text(
     pdf_path: str,
     output_dir: str = "enhanced_texts",
-    metadata: PhilosophicalMetadata | None = None
+    metadata: PhilosophicalMetadata | None = None,
+    extract_images: bool = False,
+    ai_restructure: bool = False
 ) -> tuple[str, PhilosophicalMetadata, list[StructuralElement]]:
     """
     Convenience function to convert a philosophical PDF to enhanced markdown.
@@ -639,40 +647,161 @@ async def convert_philosophical_text(
 
     converter = PhilosophicalConverter()
     markdown_file, final_metadata = await converter.convert_pdf_to_enhanced_markdown(
-        pdf_path, output_dir, metadata
+        pdf_path, output_dir, metadata, extract_images
     )
 
     structural_elements = converter.get_structural_elements()
+
+    # Optional AI restructuring step
+    if ai_restructure:
+        print("\n=== Stage 5: AI Restructuring with LLM Analysis ===")
+
+        # Create philosophical context for restructuring
+        context = PhilosophicalContext(
+            author=final_metadata.author,
+            work_title=final_metadata.title,
+            philosophical_period=final_metadata.philosophical_period.value if final_metadata.philosophical_period else "ancient",
+            text_type=final_metadata.text_type.value if final_metadata.text_type else "dialogue",
+            key_concepts=final_metadata.key_concepts,
+            major_themes=final_metadata.major_themes
+        )
+
+        # Initialize AI restructurer
+        restructurer = PhilosophicalTextRestructurer()
+
+        # Generate AI-restructured file
+        enhanced_path = Path(markdown_file)
+        ai_restructured_path = enhanced_path.parent / enhanced_path.name.replace('_enhanced.md', '_ai_restructured.md')
+
+        print(f"🤖 Applying AI restructuring...")
+        print(f"   Provider: {restructurer.kg_provider}")
+        print(f"   Model: {restructurer.kg_model}")
+
+        try:
+            await restructurer.restructure_file(
+                input_file=enhanced_path,
+                output_file=ai_restructured_path,
+                mode=ProcessingMode.FULL_RESTRUCTURE,
+                context=context
+            )
+
+            print(f"✅ AI restructuring completed!")
+            print(f"📄 AI-restructured file: {ai_restructured_path}")
+
+            # Return the AI-restructured file path instead
+            return str(ai_restructured_path), final_metadata, structural_elements
+
+        except Exception as e:
+            print(f"⚠️  AI restructuring failed: {e}")
+            print(f"📄 Falling back to enhanced file: {markdown_file}")
 
     return markdown_file, final_metadata, structural_elements
 
 
 # Example usage and testing
 if __name__ == "__main__":
+    import argparse
+    import asyncio
+    import sys
 
-    async def test_conversion():
-        # Example with Republic
-        PhilosophicalMetadata(
-            title="The Republic",
-            author="Plato",
-            translator="Benjamin Jowett",
-            philosophical_period=PhilosophicalPeriod.ANCIENT,
-            text_type=TextType.DIALOGUE,
-            philosophical_school="Platonism",
-            major_themes=["justice", "ideal state", "philosopher king", "forms"],
-            key_concepts=["justice", "virtue", "soul", "form", "good"],
-            related_works=["Laws", "Phaedo", "Phaedrus"],
+    parser = argparse.ArgumentParser(
+        description="Convert philosophical texts to enhanced markdown format"
+    )
+    parser.add_argument(
+        "--input",
+        type=str,
+        required=True,
+        help="Path to the input PDF file"
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        required=True,
+        help="Directory for output files"
+    )
+    parser.add_argument(
+        "--title",
+        type=str,
+        help="Title of the philosophical work"
+    )
+    parser.add_argument(
+        "--author",
+        type=str,
+        default="Unknown",
+        help="Author of the work"
+    )
+    parser.add_argument(
+        "--translator",
+        type=str,
+        help="Translator of the work (if applicable)"
+    )
+    parser.add_argument(
+        "--extract-images",
+        action="store_true",
+        help="Extract images and diagrams from PDF (creates .png files)"
+    )
+    parser.add_argument(
+        "--ai-restructure",
+        action="store_true",
+        help="Apply AI restructuring to create *_ai_restructured.md file"
+    )
+
+    # Show ready message before parsing args
+    print("✅ Philosophical Converter module ready")
+    print("   Features: PyMuPDF4LLM, YAML front-matter, structural analysis, GraphRAG prep")
+
+    # Parse arguments
+    args = parser.parse_args()
+
+    # Create output directory if it doesn't exist
+    import os
+    os.makedirs(args.output, exist_ok=True)
+
+    # Create metadata if title is provided
+    metadata = None
+    if args.title:
+        metadata = PhilosophicalMetadata(
+            title=args.title,
+            author=args.author,
+            translator=args.translator,
+            philosophical_period=PhilosophicalPeriod.ANCIENT,  # Default for now
+            text_type=TextType.DIALOGUE,  # Default for now
+            philosophical_school="",
+            major_themes=[],
+            key_concepts=[],
+            related_works=[],
             citation_style="classical"
         )
 
-        # This would be the actual conversion call
-        print("🧪 Testing Philosophical Converter")
-        print("Note: Replace with actual PDF path for testing")
-        # markdown_file, metadata, elements = await convert_philosophical_text(
-        #     "path/to/republic.pdf",
-        #     metadata=metadata
-        # )
+    async def run_conversion():
+        """Run the actual conversion."""
+        try:
+            print(f"\n📖 Processing: {args.input}")
+            print(f"📂 Output directory: {args.output}")
 
-    # asyncio.run(test_conversion())
-    print("✅ Philosophical Converter module ready")
-    print("   Features: PyMuPDF4LLM, YAML front-matter, structural analysis, GraphRAG prep")
+            markdown_file, extracted_metadata, elements = await convert_philosophical_text(
+                args.input,
+                output_dir=args.output,
+                metadata=metadata,
+                extract_images=args.extract_images,
+                ai_restructure=args.ai_restructure
+            )
+
+            print(f"\n✅ Conversion complete!")
+            print(f"📄 Output file: {markdown_file}")
+            if extracted_metadata:
+                print(f"📊 Extracted {len(elements)} structural elements")
+
+            return 0
+        except FileNotFoundError as e:
+            print(f"\n❌ Error: Input file not found: {args.input}", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"\n❌ Error during conversion: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
+            return 1
+
+    # Run the conversion
+    exit_code = asyncio.run(run_conversion())
+    sys.exit(exit_code)

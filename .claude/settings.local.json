@@ -9,7 +9,9 @@
       "mcp__serena__find_symbol",
       "mcp__serena__search_for_pattern",
       "mcp__serena__find_file",
-      "Bash(docker-compose:*)"
+      "Bash(docker-compose:*)",
+      "mcp__serena__get_symbols_overview",
+      "mcp__smithery-ai-server-sequential-thinking__sequentialthinking"
     ],
     "deny": [],
     "ask": []

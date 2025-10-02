@@ -123,10 +123,17 @@ docker-compose ps
 
 5. **Ingest philosophical texts:**
 ```bash
-# Ingest AI-restructured classical texts
-python ingest_restructured_text.py "data/processed/Socratis Dialogues_First_2_books_ai_restructured.md"
+# Convert PDFs to enhanced markdown
+python -m src.arete.processing.philosophical_converter --input "data/raw/*.pdf" --output "data/processed"
 
-# The script will:
+# Ingest AI-restructured classical texts
+python ingest_restructured_text.py "data/processed/*ai_restructured.md"
+
+# The two script will:
+# - Create YAML front-matter metadata
+# - Structural analysis for GraphRAG
+# - Entity tags for knowledge graph
+# - Heading-aware organization
 # - Start databases automatically if not running
 # - Extract enhanced entities and relationships
 # - Generate embeddings with your configured provider
