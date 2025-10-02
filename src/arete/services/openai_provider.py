@@ -108,9 +108,10 @@ class OpenAIProvider(LLMProvider):
         headers = self.get_headers()
 
         # Use longer timeout to accommodate reasoning models like GPT-5-mini
+        # Text restructuring can take 5-10 minutes for large philosophical texts
         extended_timeout = max(
-            self.timeout, 120
-        )  # At least 2 minutes for reasoning models
+            self.timeout, 600
+        )  # At least 10 minutes for reasoning models processing large texts
 
         self.client = httpx.AsyncClient(
             base_url=self.base_url, headers=headers, timeout=extended_timeout

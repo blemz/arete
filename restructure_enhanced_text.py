@@ -120,12 +120,23 @@ async def restructure_enhanced_file(input_path: str) -> str:
     # Initialize restructurer
     print(f"\n=== Step 2: Initializing AI Restructurer ===")
     restructurer = PhilosophicalTextRestructurer()
-    print(f"✅ Provider: {restructurer.kg_provider}")
-    print(f"✅ Model: {restructurer.kg_model}")
+    print(f"✅ Provider: {restructurer.llm_provider}")
+    print(f"✅ Model: {restructurer.llm_model}")
 
     # Perform restructuring
     print(f"\n=== Step 3: AI Restructuring Process ===")
+
+    # Read file to show size info
+    with open(input_file, 'r', encoding='utf-8') as f:
+        file_content = f.read()
+        file_size = len(file_content)
+
+    estimated_chunks = (file_size // 4000) + 1
+    print(f"📊 File size: {file_size:,} characters")
+    print(f"📦 Estimated chunks: ~{estimated_chunks} (4000 chars each)")
+    print(f"⏱️  Estimated time: ~{estimated_chunks * 0.5:.0f}-{estimated_chunks * 1:.0f} minutes")
     print(f"🔄 Processing with LLM-enhanced philosophical analysis...")
+    print(f"💡 Tip: Watch logs/ingestion_*.log for detailed progress\n")
 
     try:
         result_path = await restructurer.restructure_file(

@@ -2,8 +2,8 @@
 Philosophical Text Restructuring Service for RAG Optimization
 
 This service uses LLM-powered processing to transform unstructured philosophical texts
-into semantically organized, RAG-friendly formats using KG_LLM_PROVIDER and KG_LLM_MODEL
-configuration from environment variables.
+into semantically organized, RAG-friendly formats using SELECTED_LLM_PROVIDER and
+SELECTED_LLM_MODEL configuration from environment variables.
 
 Features:
 - Multi-pass LLM processing for different transformation tasks
@@ -68,8 +68,8 @@ class PhilosophicalTextRestructurer:
     """
     LLM-powered service for restructuring philosophical texts for optimal RAG processing.
 
-    Uses KG_LLM_PROVIDER and KG_LLM_MODEL environment variables for consistent
-    knowledge graph extraction quality.
+    Uses SELECTED_LLM_PROVIDER and SELECTED_LLM_MODEL environment variables for
+    general text processing tasks (separate from KG extraction which uses KG_LLM_*).
     """
 
     def __init__(self, settings=None):
@@ -82,12 +82,12 @@ class PhilosophicalTextRestructurer:
         self.settings = settings or get_settings()
         self.llm_service = SimpleLLMService(self.settings)
 
-        # Get KG-specific LLM configuration
-        self.kg_provider = os.getenv("KG_LLM_PROVIDER", "openrouter")
-        self.kg_model = os.getenv("KG_LLM_MODEL", "deepseek/deepseek-chat-v3.1:free")
+        # Get general LLM configuration for text restructuring
+        self.llm_provider = os.getenv("SELECTED_LLM_PROVIDER", "openrouter")
+        self.llm_model = os.getenv("SELECTED_LLM_MODEL", "x-ai/grok-4-fast:free")
 
         logger.info(
-            f"Initialized PhilosophicalTextRestructurer with {self.kg_provider}:{self.kg_model}"
+            f"Initialized PhilosophicalTextRestructurer with {self.llm_provider}:{self.llm_model}"
         )
 
         # Processing prompts
@@ -255,12 +255,25 @@ OUTPUT: Comprehensive restructured text with all optimizations applied.
             chunks = self._chunk_text(text, chunk_size)
             processed_chunks = []
 
+            logger.info(f"⚙️  Processing {len(chunks)} chunks (chunk_size={chunk_size})")
+            print(f"⚙️  Processing {len(chunks)} chunks...")
+
             for i, chunk in enumerate(chunks):
-                logger.info(f"Processing chunk {i+1}/{len(chunks)}")
+                logger.info(f"📝 Processing chunk {i+1}/{len(chunks)} ({len(chunk)} chars)")
+                print(f"  [{i+1}/{len(chunks)}] Processing chunk ({len(chunk)} chars)...", flush=True)
+
                 processed_chunk = await self._process_chunk(chunk, mode, context)
                 processed_chunks.append(processed_chunk)
 
+                # Log progress every 10 chunks
+                if (i + 1) % 10 == 0:
+                    progress_pct = ((i + 1) / len(chunks)) * 100
+                    logger.info(f"✅ Progress: {i+1}/{len(chunks)} ({progress_pct:.1f}%)")
+                    print(f"  ✅ Progress: {i+1}/{len(chunks)} ({progress_pct:.1f}%)")
+
             # Combine processed chunks
+            logger.info("🔗 Combining processed chunks...")
+            print("🔗 Combining processed chunks...")
             restructured_text = self._combine_chunks(processed_chunks, mode)
         else:
             restructured_text = await self._process_chunk(text, mode, context)
@@ -270,8 +283,8 @@ OUTPUT: Comprehensive restructured text with all optimizations applied.
             "original_length": len(text),
             "restructured_length": len(restructured_text),
             "mode": mode.value,
-            "provider": self.kg_provider,
-            "model": self.kg_model,
+            "provider": self.llm_provider,
+            "model": self.llm_model,
             "chunks_processed": len(chunks) if len(text) > chunk_size else 1,
         }
 
@@ -313,11 +326,11 @@ Major Themes: {', '.join(context.major_themes) if context.major_themes else 'Non
         messages = [LLMMessage(role=MessageRole.USER, content=prompt)]
 
         try:
-            # Generate response using KG-specific provider and model
+            # Generate response using selected LLM provider and model
             response = await self.llm_service.generate_response(
                 messages=messages,
-                provider=self.kg_provider,
-                model=self.kg_model,
+                provider=self.llm_provider,
+                model=self.llm_model,
                 temperature=0.3,  # Lower temperature for more consistent formatting
                 max_tokens=6000,  # Ensure enough tokens for restructured output
             )
@@ -325,7 +338,7 @@ Major Themes: {', '.join(context.major_themes) if context.major_themes else 'Non
             return response.content.strip()
 
         except Exception as e:
-            logger.error(f"Error processing chunk with {self.kg_provider}: {e}")
+            logger.error(f"Error processing chunk with {self.llm_provider}: {e}")
             # Return original chunk if processing fails
             return chunk
 
@@ -430,8 +443,8 @@ Major Themes: {', '.join(context.major_themes) if context.major_themes else 'Non
             f.write("# Restructured Philosophical Text\n\n")
             f.write(f"**Original:** {input_file.name}\n")
             f.write(f"**Processing Mode:** {mode.value}\n")
-            f.write(f"**Provider:** {self.kg_provider}\n")
-            f.write(f"**Model:** {self.kg_model}\n")
+            f.write(f"**Provider:** {self.llm_provider}\n")
+            f.write(f"**Model:** {self.llm_model}\n")
             if context.author:
                 f.write(f"**Author:** {context.author}\n")
             if context.work_title:
