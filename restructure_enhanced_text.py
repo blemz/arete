@@ -131,12 +131,14 @@ async def restructure_enhanced_file(input_path: str) -> str:
         file_content = f.read()
         file_size = len(file_content)
 
-    estimated_chunks = (file_size // 4000) + 1
+    # Using 100,000 character chunks for long-context models (Grok-4-Fast: 2M tokens)
+    chunk_size = 100000
+    estimated_chunks = (file_size // chunk_size) + 1
     print(f"📊 File size: {file_size:,} characters")
-    print(f"📦 Estimated chunks: ~{estimated_chunks} (4000 chars each)")
-    print(f"⏱️  Estimated time: ~{estimated_chunks * 0.5:.0f}-{estimated_chunks * 1:.0f} minutes")
+    print(f"📦 Estimated chunks: ~{estimated_chunks} ({chunk_size:,} chars each)")
+    print(f"⏱️  Estimated time: ~{estimated_chunks * 0.5:.0f}-{estimated_chunks * 2:.0f} minutes (with long-context model)")
     print(f"🔄 Processing with LLM-enhanced philosophical analysis...")
-    print(f"💡 Tip: Watch logs/ingestion_*.log for detailed progress\n")
+    print(f"💡 Using large chunks to optimize long-context models (Grok-4-Fast: 2M tokens)\n")
 
     try:
         result_path = await restructurer.restructure_file(

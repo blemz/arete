@@ -232,7 +232,7 @@ OUTPUT: Comprehensive restructured text with all optimizations applied.
         text: str,
         mode: ProcessingMode = ProcessingMode.FULL_RESTRUCTURE,
         context: PhilosophicalContext | None = None,
-        chunk_size: int = 4000,
+        chunk_size: int = 100000,
     ) -> RestructuringResult:
         """
         Restructure philosophical text using specified processing mode.
@@ -241,7 +241,8 @@ OUTPUT: Comprehensive restructured text with all optimizations applied.
             text: Original philosophical text to restructure
             mode: Processing mode to use
             context: Optional context information about the text
-            chunk_size: Maximum size of text chunks for processing
+            chunk_size: Maximum size of text chunks for processing (default: 100,000 chars
+                for long-context models like Grok-4-Fast with 2M token window)
 
         Returns:
             RestructuringResult with restructured text and metadata
