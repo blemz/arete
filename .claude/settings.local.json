@@ -17,7 +17,8 @@
       "Bash(dir:*)",
       "Bash(wc:*)",
       "mcp__serena__list_memories",
-      "mcp__serena__read_memory"
+      "mcp__serena__read_memory",
+      "WebFetch(domain:reflex.dev)"
     ],
     "deny": [],
     "ask": []
