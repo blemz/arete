@@ -232,7 +232,7 @@ OUTPUT: Comprehensive restructured text with all optimizations applied.
         text: str,
         mode: ProcessingMode = ProcessingMode.FULL_RESTRUCTURE,
         context: PhilosophicalContext | None = None,
-        chunk_size: int = 100000,
+        chunk_size: int = 15000,
     ) -> RestructuringResult:
         """
         Restructure philosophical text using specified processing mode.
@@ -241,8 +241,8 @@ OUTPUT: Comprehensive restructured text with all optimizations applied.
             text: Original philosophical text to restructure
             mode: Processing mode to use
             context: Optional context information about the text
-            chunk_size: Maximum size of text chunks for processing (default: 100,000 chars
-                for long-context models like Grok-4-Fast with 2M token window)
+            chunk_size: Maximum size of text chunks for processing (default: 15,000 chars
+                for optimal LLM processing while preserving philosophical argument coherence)
 
         Returns:
             RestructuringResult with restructured text and metadata
@@ -333,7 +333,8 @@ Major Themes: {', '.join(context.major_themes) if context.major_themes else 'Non
                 provider=self.llm_provider,
                 model=self.llm_model,
                 temperature=0.3,  # Lower temperature for more consistent formatting
-                max_tokens=6000,  # Ensure enough tokens for restructured output
+                max_tokens=20000,  # Increased for comprehensive restructuring (15k input + overhead)
+                stream=False,  # Disable streaming to avoid JSON parsing errors
             )
 
             return response.content.strip()

@@ -201,7 +201,7 @@ class Settings(BaseSettings):
     llm_timeout: int = Field(
         default=30,
         ge=5,
-        le=300,
+        le=1200,
         description="Timeout for LLM requests in seconds"
     )
     llm_retry_attempts: int = Field(

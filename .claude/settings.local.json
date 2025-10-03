@@ -15,7 +15,9 @@
       "mcp__sequential-thinking__sequentialthinking",
       "mcp__serena__list_dir",
       "Bash(dir:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "mcp__serena__list_memories",
+      "mcp__serena__read_memory"
     ],
     "deny": [],
     "ask": []
