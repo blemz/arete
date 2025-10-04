@@ -857,9 +857,9 @@ class RestructuredTextParser:
             text=text,
             chunk_type=ChunkType.SEMANTIC,
             document_id=document_id,
-            sequence_number=chunk_index,  # Sequential position in document
-            start_position=start_char,  # Starting character position
-            end_position=end_char,  # Ending character position
+            position=chunk_index,  # Sequential position in document
+            start_char=start_char,  # Starting character position
+            end_char=end_char,  # Ending character position
             word_count=len(text.split())
         )
 
@@ -1511,7 +1511,7 @@ def main() -> None:
         print(f"  SUCCESS: Optimized for superior RAG performance")
         
         print(f"\n>> Ready to Test Superior RAG:")
-        print(f"  1. Start Arete chat: streamlit run src/arete/ui/streamlit_app.py")
+        print(f"  1. Start Arete chat: cd src/arete/ui/reflex_app && reflex run")
         print(f"  2. Ask about: '{result['document'].title}'")
         print(f"  3. Get enhanced responses with AI-structured citations")
         

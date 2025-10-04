@@ -20,7 +20,10 @@
       "mcp__serena__read_memory",
       "WebFetch(domain:reflex.dev)",
       "mcp__serena__activate_project",
-      "WebFetch(domain:www.youtube.com)"
+      "WebFetch(domain:www.youtube.com)",
+      "Bash(cat:*)",
+      "Bash(set PYTHONPATH=C:UsersblemoCodingarete)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
