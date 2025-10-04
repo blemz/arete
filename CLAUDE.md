@@ -325,10 +325,34 @@
 
 ---
 
-**Last Updated**: 2025-10-03
-**Current Phase**: 8.4 In Progress - Organizational Milestone Complete + Code Quality Improvements
+**Last Updated**: 2025-10-04
+**Current Phase**: 8.5 In Progress - UI Redesign: Classical Aesthetic + Knowledge Chat Template
+**Active Task**: Reflex UI redesign with classical color palette and enhanced chat architecture
 **Next Phase**: Republic Ingestion + Code Quality Fixes
 **System Status**: **🚀 PRODUCTION READY** - Complete philosophical tutoring system with modern Reflex web interface and comprehensive content pipeline
+
+## Current Active Development: Phase 8.5 UI Redesign
+
+### Objective
+Transform Reflex UI to match classical philosophical aesthetic (warm beiges, deep blues, golds) and implement knowledge-chat template architecture with conversation history, citation panels, and enhanced document integration.
+
+### Planning Documents
+- **Design Specification**: `planning/aesthetics_plan.md` - Complete 5-phase implementation plan
+- **Implementation TODO**: `planning/todo.md` - 4-sprint checklist with time estimates
+
+### Classical Color Palette (Extracted)
+- Deep Navy Blue (#2C3E50) - Primary
+- Warm Gold (#D4A574) - Secondary
+- Cream Parchment (#E8DCC8) - Background
+- Dark Brown (#3D3028) - Text
+- Golden Accent (#C9A961) - Highlights
+
+### Sprint Plan (16-20 hours total)
+1. **Sprint 1** (3-4h): Classical theme - colors, typography, accessibility
+2. **Sprint 2** (5-6h): Chat architecture - conversation history, citation panels
+3. **Sprint 3** (4-5h): Layout components - hero, navigation, document preview
+4. **Sprint 4** (4-5h): Advanced features - unified search, smart summaries
+
 **Launch Options**:
 - **Modern Web Interface**: `cd src/arete/ui/reflex_app && reflex run` (Production Reflex app with full RAG)
 - **Production RAG CLI**: `python chat_rag_clean.py "What is virtue?"` (GPT-5-mini reasoning models)
