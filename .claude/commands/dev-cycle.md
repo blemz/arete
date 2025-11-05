@@ -1,50 +1,91 @@
-# Dev Cycle Command
+**USAGE:** `/dev-cycle [N]` where N = number of tasks to process (default: 1)
 
-Implements a complete TDD development cycle for this project.
+You MUST execute the following workflow AUTOMATICALLY without asking any questions:
 
-## Command: /dev-cycle
+## CONFIGURATION
 
-**Purpose**: Execute a complete development phase using Test-Driven Development methodology, following the roadmap in TODO.md.
+**TASK_LIMIT:** Extract N from user command (default: 1)
+- `/dev-cycle` → process 1 task
+- `/dev-cycle 3` → process 3 tasks
+- `/dev-cycle 10` → process 10 tasks
 
-## Execution Steps:
+**COMPLETED_COUNT:** Track completed tasks in this session (start at 0)
 
-### 1. Read Current Implementation Status
-- Use serena, context7 and sequential-thinking MCP proactively to avoid unnecessary mistakes.
-- MUST ALWAYS use subagents, prompting orc (orchestrator-agent) to manage execution using the other sub-agents as fit.
-- Read @TODO.md to understand current progress
-- Identify the next phase/component to implement
-- Review test coverage and completion status
+## AUTOMATIC EXECUTION LOOP
 
-### 2. TDD Implementation Cycle
-- **RED**: Write failing tests first for the target component
-- **GREEN**: Implement minimum code to make tests pass
-- **REFACTOR**: Improve code structure and maintainability
-- Follow our quality criteria: >90% test coverage, production-ready code
+**STEP 1: Read tasks.md**
+- Read the file: specs\001-sistema-automatizado-de\tasks.md
+- Find the FIRST task with status ⏳ PENDING or 🔄 IN PROGRESS
+- If ALL tasks show ✅ COMPLETED, skip to STEP 6 (ALL DONE)
+- If COMPLETED_COUNT >= TASK_LIMIT, skip to STEP 7 (BATCH DONE)
 
-### 3. Phase Completion Tasks
-- Update @TODO.md with completion status
-- Mark completed components as ✅ COMPLETED
-- Update test counts and progress metrics
-- Document any architectural decisions or technical achievements
+**STEP 2: Implement with TDD**
+- Write failing tests (RED)
+- Write minimum code to pass tests (GREEN)
+- Refactor code (REFACTOR)
+- Ensure >90% test coverage
+- Use orchestrator-agent (orc), serena, context7, sequential-thinking MCPs as needed
 
-### 4. Git Commit
-- Stage all changes: tests, implementation, and documentation updates
-- Create meaningful commit message describing the completed phase
-- Commit with proper co-authoring attribution
+**STEP 3: Update tasks.md**
+- Mark the completed task as ✅ COMPLETED
+- Update test counts and metrics
+- Increment COMPLETED_COUNT by 1
 
-### 5. Cycle Reset
-- Execute /clear command to reset chat context
-- Ready to continue with next phase implementation
+**STEP 4: Git Commit**
+- Stage all changes (tests, code, documentation)
+- Commit with descriptive message and co-author attribution
 
-## Quality Criteria:
-- ✅ All tests must pass (100% pass rate)
-- ✅ Follow Clean Architecture patterns
-- ✅ Maintain TDD discipline (Red-Green-Refactor)
-- ✅ Production-ready code quality
-- ✅ Comprehensive error handling
-- ✅ Type safety with Pydantic models
+**STEP 5: Show Checkpoint**
+- Display:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ CICLO COMPLETADO - [task name]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 Status: [X] completadas, [Y] pendentes
+🔄 Progresso do batch: [COMPLETED_COUNT]/[TASK_LIMIT]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+- IMMEDIATELY return to STEP 1 (do NOT ask, do NOT wait)
 
-## Continuation Protocol:
-- After /clear, the next cycle begins automatically by reading the updated TODO.md and implementing the next identified phase.
+**STEP 6: ALL DONE (only when all tasks completed)**
+- Display:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎉 TODOS OS CICLOS COMPLETADOS!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 Status Final: [X] tarefas completadas
+✅ Projeto concluído com sucesso!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+- STOP execution
 
-This ensures continuous progress toward completing all remaining components in this project roadmap.
+**STEP 7: BATCH DONE (when COMPLETED_COUNT >= TASK_LIMIT)**
+- Display:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏁 BATCH COMPLETADO - [COMPLETED_COUNT] tarefas processadas
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 Status: [X] completadas, [Y] pendentes
+🔄 Para continuar:
+   1. Execute: /clear
+   2. Execute: /dev-cycle [N]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+- STOP execution
+
+## CRITICAL RULES
+
+DO NOT:
+- ❌ Ask what to do
+- ❌ Explain the command
+- ❌ Wait for confirmation
+- ❌ Ask if I want to continue
+- ❌ Stop between tasks (unless BATCH DONE)
+
+DO:
+- ✅ Execute immediately
+- ✅ Loop automatically until TASK_LIMIT reached
+- ✅ Follow TDD strictly (Red-Green-Refactor)
+- ✅ Stop cleanly at TASK_LIMIT for /clear
+
+START EXECUTION NOW - Begin with STEP 1.
