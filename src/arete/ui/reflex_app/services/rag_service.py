@@ -13,13 +13,13 @@ from pathlib import Path
 # Add the arete source to path for imports
 sys.path.append(str(Path(__file__).parent.parent.parent.parent.parent))
 
-from src.arete.core.config.settings import Settings
-from src.arete.core.graph.neo4j_client import Neo4jClient
-from src.arete.core.vector.weaviate_client import WeaviateClient
-from src.arete.data.models import CitationWithScore
-from src.arete.embeddings.embedding_service import EmbeddingServiceFactory
-from src.arete.llm.llm_service import LLMServiceFactory
-from src.arete.retrieval.hybrid_retriever import HybridRetriever
+from src.arete.config import Settings
+from src.arete.database.client import Neo4jClient
+from src.arete.database.weaviate_client import WeaviateClient
+from src.arete.models import CitationWithScore
+from src.arete.services.embedding import EmbeddingServiceFactory
+from src.arete.services.llm_service import LLMServiceFactory
+from src.arete.rag.hybrid_retriever import HybridRetriever
 
 logger = logging.getLogger(__name__)
 

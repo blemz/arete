@@ -10,7 +10,7 @@ from datetime import datetime
 
 import reflex as rx
 
-from src.arete.data.models import ChatMessage, CitationWithScore
+from src.arete.models import ChatMessage, CitationWithScore
 from src.arete.ui.reflex_app.services.rag_service import get_rag_service
 
 logger = logging.getLogger(__name__)
