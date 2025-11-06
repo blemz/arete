@@ -307,9 +307,22 @@
 - Verified WCAG AA compliance (all contrasts exceed 4.5:1)
 - Added performance optimizations (LRU caching, pre-compiled regex patterns)
 
-**Next Action**: Sprint 2 Phase 2.1 - Conversation History Sidebar
+**Next Action**: Fix broken imports in rag_service.py, then proceed with Sprint 2 implementation
 
-**Blockers**: None
+**Blockers**:
+- ❌ Broken imports in src/arete/ui/reflex_app/services/rag_service.py
+  - Outdated module paths (src.arete.core.* should be src.arete.*)
+  - Need to verify correct imports for: LLMServiceFactory, HybridRetriever
+  - Blocking test execution for new conversation sidebar components
+
+**Sprint 2 Progress**:
+- ✅ TDD RED Phase Complete (2025-11-05)
+  - Created test_conversation_sidebar.py with 20+ failing tests
+  - Created test_conversation_state.py with 30+ failing tests
+  - Added missing CitationWithScore model to citation.py
+  - Fixed import paths in chat_state.py and models/__init__.py
+- ⏳ TDD GREEN Phase Pending (blocked by import fixes)
+- ⏳ TDD REFACTOR Phase Pending
 
 **Dependencies**:
 - Reflex framework (current version compatible)

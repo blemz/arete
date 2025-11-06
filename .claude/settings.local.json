@@ -23,7 +23,14 @@
       "WebFetch(domain:www.youtube.com)",
       "Bash(cat:*)",
       "Bash(set PYTHONPATH=C:UsersblemoCodingarete)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "mcp__serena__initial_instructions",
+      "Bash(pytest:*)",
+      "Bash(NUL)",
+      "Bash(nul)",
+      "mcp__serena__insert_after_symbol",
+      "Bash(git commit:*)",
+      "mcp__serena__check_onboarding_performed"
     ],
     "deny": [],
     "ask": []
