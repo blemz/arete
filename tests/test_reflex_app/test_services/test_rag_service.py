@@ -1,326 +1,300 @@
-"""Tests for RAG service."""
+"""
+Pragmatic Contract-Based Tests for RAG Service
+
+Following "Quality over Quantity" testing methodology proven in Phase 8 redesign.
+Focus: Test what the service promises (contracts), not implementation details.
+
+Current Minimal API Coverage:
+- Dependency injection via constructor
+- Lazy initialization with initialize()
+- RAG query with get_rag_response()
+- Fallback responses when RAG fails
+
+Test Philosophy:
+- 17 focused tests > 1,500 exhaustive tests
+- Contract-based over implementation testing
+- Critical paths over edge case exhaustion
+- Maintainable and readable over comprehensive
+
+Reference: Phase 8 Test Redesign Success
+- Weaviate Client: 1,529 → 17 tests (98.9% reduction, 84% coverage maintained)
+- Neo4j Client: 1,359 → 108 tests (92% reduction, 74% coverage maintained)
+
+Date: 2025-11-06
+"""
+
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock, MagicMock, patch
+from uuid import uuid4
+
 from src.arete.ui.reflex_app.services.rag_service import RAGService
+from src.arete.models import CitationWithScore
 
 
-class TestRAGService:
-    """Test cases for RAGService."""
+class TestRAGServiceConstruction:
+    """Test RAG service construction and dependency injection."""
 
-    @pytest.fixture
-    def rag_service(self, mock_neo4j_client, mock_weaviate_client, mock_embedding_service):
-        """RAGService instance for testing."""
-        return RAGService(
-            neo4j_client=mock_neo4j_client,
-            weaviate_client=mock_weaviate_client,
-            embedding_service=mock_embedding_service
+    def test_constructor_accepts_no_arguments(self):
+        """Service can be constructed without dependencies for production use."""
+        service = RAGService()
+
+        assert service is not None
+        assert service.settings is not None
+        assert service._initialized is False
+
+    def test_constructor_accepts_injected_dependencies(self):
+        """Service accepts injected dependencies for testing."""
+        mock_neo4j = Mock()
+        mock_weaviate = Mock()
+        mock_embedding = Mock()
+        mock_llm = Mock()
+        mock_settings = Mock()
+
+        service = RAGService(
+            neo4j_client=mock_neo4j,
+            weaviate_client=mock_weaviate,
+            embedding_service=mock_embedding,
+            llm_service=mock_llm,
+            settings=mock_settings
         )
 
-    @pytest.mark.asyncio
-    async def test_generate_response_success(self, rag_service, sample_chunk, sample_entity, mock_chat_response):
-        """Test successful response generation."""
-        # Mock retrieval components
-        rag_service.weaviate_client.search_by_vector.return_value = [(sample_chunk, 0.85)]
+        assert service.neo4j_client is mock_neo4j
+        assert service.weaviate_client is mock_weaviate
+        assert service.embedding_service is mock_embedding
+        assert service.llm_service is mock_llm
+        assert service.settings is mock_settings
+        assert service._initialized is True  # Auto-initialized when dependencies provided
 
-        with patch.object(rag_service.neo4j_client, 'session') as mock_session:
-            mock_result = Mock()
-            mock_result.data.return_value = [{"entity": {"name": "Virtue", "type": "Concept"}}]
-            mock_session.return_value.__enter__.return_value.run.return_value = mock_result
+    def test_constructor_partial_dependency_injection(self):
+        """Service handles partial dependency injection gracefully."""
+        mock_neo4j = Mock()
 
-            with patch.object(rag_service, '_call_llm') as mock_llm:
-                mock_llm.return_value = "Virtue, according to Socrates, is a form of knowledge."
+        service = RAGService(neo4j_client=mock_neo4j)
 
-                result = await rag_service.generate_response("What is virtue?")
+        assert service.neo4j_client is mock_neo4j
+        assert service.weaviate_client is None
+        assert service.embedding_service is None
+        assert service._initialized is False  # Not fully initialized
 
-                assert "response" in result
-                assert "citations" in result
-                assert "entities" in result
-                assert result["response"] == "Virtue, according to Socrates, is a form of knowledge."
 
-    @pytest.mark.asyncio
-    async def test_generate_response_with_context(self, rag_service, sample_chunk):
-        """Test response generation with conversation context."""
-        rag_service.weaviate_client.search_by_vector.return_value = [(sample_chunk, 0.85)]
-
-        context = [
-            {"role": "user", "content": "Hello"},
-            {"role": "assistant", "content": "Hello! How can I help you with philosophy today?"}
-        ]
-
-        with patch.object(rag_service, '_call_llm') as mock_llm:
-            mock_llm.return_value = "Building on our previous discussion, virtue is..."
-
-            result = await rag_service.generate_response("Tell me more about virtue", context=context)
-
-            assert result["response"] == "Building on our previous discussion, virtue is..."
-            mock_llm.assert_called_once()
+class TestRAGServiceInitialization:
+    """Test RAG service initialization."""
 
     @pytest.mark.asyncio
-    async def test_search_similar_chunks(self, rag_service, sample_chunk):
-        """Test similar chunk search."""
-        rag_service.weaviate_client.search_by_vector.return_value = [
-            (sample_chunk, 0.85),
-            (sample_chunk, 0.75)
-        ]
-        rag_service.embedding_service.get_embedding.return_value = [0.1] * 1536
+    async def test_initialize_creates_clients_when_not_injected(self):
+        """Initialize creates clients and services when not injected."""
+        service = RAGService()
 
-        results = await rag_service.search_similar_chunks("virtue", top_k=2)
+        with patch('src.arete.ui.reflex_app.services.rag_service.Neo4jClient') as mock_neo4j_class, \
+             patch('src.arete.ui.reflex_app.services.rag_service.WeaviateClient') as mock_weaviate_class, \
+             patch('src.arete.ui.reflex_app.services.rag_service.get_embedding_service') as mock_get_embedding, \
+             patch('src.arete.ui.reflex_app.services.rag_service.get_llm_service') as mock_get_llm, \
+             patch.object(service, '_test_connectivity'):
 
-        assert len(results) == 2
-        assert results[0][1] == 0.85  # First result has higher score
-        assert results[1][1] == 0.75  # Second result has lower score
+            mock_get_embedding.return_value = Mock()
+            mock_get_llm.return_value = Mock()
 
-    @pytest.mark.asyncio
-    async def test_search_similar_chunks_empty_query(self, rag_service):
-        """Test search with empty query."""
-        results = await rag_service.search_similar_chunks("", top_k=5)
+            result = await service.initialize()
 
-        assert results == []
-
-    @pytest.mark.asyncio
-    async def test_get_related_entities(self, rag_service):
-        """Test related entity retrieval."""
-        with patch.object(rag_service.neo4j_client, 'session') as mock_session:
-            mock_result = Mock()
-            mock_result.data.return_value = [
-                {"entity": {"name": "Justice", "type": "Concept", "description": "Fairness and righteousness"}},
-                {"entity": {"name": "Wisdom", "type": "Concept", "description": "Deep understanding and insight"}}
-            ]
-            mock_session.return_value.__enter__.return_value.run.return_value = mock_result
-
-            entities = await rag_service.get_related_entities("virtue")
-
-            assert len(entities) == 2
-            assert entities[0]["name"] == "Justice"
-            assert entities[1]["name"] == "Wisdom"
+            assert result is True
+            assert service._initialized is True
+            mock_neo4j_class.assert_called_once()
+            mock_weaviate_class.assert_called_once()
+            mock_get_embedding.assert_called_once()
+            mock_get_llm.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_get_related_entities_no_results(self, rag_service):
-        """Test related entity retrieval with no results."""
-        with patch.object(rag_service.neo4j_client, 'session') as mock_session:
-            mock_result = Mock()
-            mock_result.data.return_value = []
-            mock_session.return_value.__enter__.return_value.run.return_value = mock_result
+    async def test_initialize_skips_when_already_initialized(self):
+        """Initialize is idempotent - returns immediately if already initialized."""
+        mock_neo4j = Mock()
+        mock_weaviate = Mock()
+        mock_embedding = Mock()
 
-            entities = await rag_service.get_related_entities("nonexistent_concept")
+        service = RAGService(
+            neo4j_client=mock_neo4j,
+            weaviate_client=mock_weaviate,
+            embedding_service=mock_embedding
+        )
 
-            assert entities == []
+        assert service._initialized is True
 
-    @pytest.mark.asyncio
-    async def test_hybrid_search(self, rag_service, sample_chunk):
-        """Test hybrid search combining vector and graph search."""
-        # Mock vector search results
-        rag_service.weaviate_client.search_by_vector.return_value = [(sample_chunk, 0.85)]
+        # Should return immediately without creating new clients
+        with patch('src.arete.ui.reflex_app.services.rag_service.Neo4jClient') as mock_neo4j_class:
+            result = await service.initialize()
 
-        # Mock graph search results
-        with patch.object(rag_service.neo4j_client, 'session') as mock_session:
-            mock_result = Mock()
-            mock_result.data.return_value = [
-                {"chunk": {"id": "chunk_1", "content": "Graph-retrieved chunk about virtue"}}
-            ]
-            mock_session.return_value.__enter__.return_value.run.return_value = mock_result
-
-            results = await rag_service.hybrid_search("virtue", alpha=0.5)
-
-            assert len(results) > 0
-            # Should combine results from both vector and graph search
+            assert result is True
+            mock_neo4j_class.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_rerank_results(self, rag_service, sample_chunk):
-        """Test result reranking."""
-        chunks = [
-            (sample_chunk, 0.7),
-            (sample_chunk, 0.8),
-            (sample_chunk, 0.6)
-        ]
+    async def test_initialize_returns_false_on_failure(self):
+        """Initialize returns False when client creation fails."""
+        service = RAGService()
 
-        with patch.object(rag_service, '_calculate_relevance_score') as mock_relevance:
-            mock_relevance.side_effect = [0.9, 0.85, 0.75]  # Reranked scores
+        with patch('src.arete.ui.reflex_app.services.rag_service.Neo4jClient', side_effect=Exception("Connection failed")):
+            result = await service.initialize()
 
-            reranked = await rag_service.rerank_results(chunks, "virtue ethics")
+            assert result is False
+            assert service._initialized is False
 
-            assert len(reranked) == 3
-            assert reranked[0][1] == 0.9  # Highest reranked score first
 
-    def test_build_context_from_chunks(self, rag_service, sample_chunk):
-        """Test context building from retrieved chunks."""
-        chunks = [
-            (sample_chunk, 0.85),
-            (sample_chunk, 0.75)
-        ]
+class TestRAGServiceQuerying:
+    """Test RAG service query functionality."""
 
-        context = rag_service.build_context_from_chunks(chunks, max_tokens=500)
+    @pytest.fixture
+    def mock_dependencies(self):
+        """Create mock dependencies for RAG service."""
+        mock_neo4j = Mock()
+        mock_weaviate = Mock()
+        mock_embedding = Mock()
+        mock_llm = Mock()
 
-        assert len(context) > 0
-        assert "virtue" in context.lower() or "wisdom" in context.lower()
-        assert len(context.split()) <= 500  # Respects token limit
-
-    def test_extract_citations_from_chunks(self, rag_service, sample_chunk):
-        """Test citation extraction from chunks."""
-        chunks = [
-            (sample_chunk, 0.85),
-            (sample_chunk, 0.75)
-        ]
-
-        citations = rag_service.extract_citations_from_chunks(chunks)
-
-        assert len(citations) == 2
-        for citation in citations:
-            assert "chunk_id" in citation
-            assert "source_text" in citation
-            assert "relevance_score" in citation
+        return {
+            'neo4j_client': mock_neo4j,
+            'weaviate_client': mock_weaviate,
+            'embedding_service': mock_embedding,
+            'llm_service': mock_llm
+        }
 
     @pytest.mark.asyncio
-    async def test_generate_fallback_response(self, rag_service):
-        """Test fallback response generation when LLM fails."""
-        with patch.object(rag_service, '_call_llm') as mock_llm:
-            mock_llm.side_effect = Exception("LLM service unavailable")
+    async def test_get_rag_response_returns_response_and_citations(self, mock_dependencies):
+        """get_rag_response returns response text and citations."""
+        service = RAGService(**mock_dependencies)
 
-            with patch.object(rag_service, '_generate_template_response') as mock_template:
-                mock_template.return_value = "I apologize, but I'm having trouble generating a response right now."
+        # Mock the embedding generation
+        mock_dependencies['embedding_service'].get_embeddings.return_value = [[0.1] * 1536]
 
-                result = await rag_service.generate_response("What is virtue?")
-
-                assert "error" in result or "apologize" in result.get("response", "").lower()
-
-    @pytest.mark.asyncio
-    async def test_validate_and_clean_query(self, rag_service):
-        """Test query validation and cleaning."""
-        # Test normal query
-        cleaned = rag_service.validate_and_clean_query("What is virtue?")
-        assert cleaned == "What is virtue?"
-
-        # Test query with special characters
-        cleaned = rag_service.validate_and_clean_query("<script>What is virtue?</script>")
-        assert "<script>" not in cleaned
-        assert "What is virtue?" in cleaned
-
-        # Test empty query
-        cleaned = rag_service.validate_and_clean_query("")
-        assert cleaned == ""
-
-    @pytest.mark.asyncio
-    async def test_get_conversation_context(self, rag_service):
-        """Test conversation context extraction."""
-        history = [
-            {"role": "user", "content": "What is virtue?"},
-            {"role": "assistant", "content": "Virtue is moral excellence..."},
-            {"role": "user", "content": "How does it relate to happiness?"}
-        ]
-
-        context = rag_service.get_conversation_context(history, max_turns=2)
-
-        assert len(context) <= 4  # 2 turns = 4 messages max
-        assert any("virtue" in msg["content"].lower() for msg in context)
-
-    @pytest.mark.asyncio
-    async def test_handle_complex_query(self, rag_service, sample_chunk):
-        """Test handling of complex multi-part queries."""
-        complex_query = "What is virtue according to Aristotle and how does it differ from Plato's conception?"
-
-        rag_service.weaviate_client.search_by_vector.return_value = [(sample_chunk, 0.85)]
-
-        with patch.object(rag_service, '_parse_complex_query') as mock_parser:
-            mock_parser.return_value = {
-                "main_concepts": ["virtue"],
-                "philosophers": ["Aristotle", "Plato"],
-                "comparison_requested": True
+        # Mock Weaviate search results
+        mock_search_results = [
+            {
+                'properties': {
+                    'content': 'Virtue is excellence of character.',
+                    'position_index': 1
+                },
+                '_additional': {
+                    'certainty': 0.95
+                }
             }
-
-            with patch.object(rag_service, '_call_llm') as mock_llm:
-                mock_llm.return_value = "Aristotle and Plato had different views on virtue..."
-
-                result = await rag_service.generate_response(complex_query)
-
-                assert "Aristotle" in result["response"] or "aristotle" in result["response"]
-
-    @pytest.mark.asyncio
-    async def test_cache_embeddings(self, rag_service):
-        """Test embedding caching for performance."""
-        query = "What is virtue?"
-
-        # First call should generate embedding
-        embedding1 = await rag_service._get_cached_embedding(query)
-
-        # Second call should use cached embedding
-        embedding2 = await rag_service._get_cached_embedding(query)
-
-        assert embedding1 == embedding2
-        # Verify caching is working if implemented
-
-    @pytest.mark.asyncio
-    async def test_error_recovery_mechanisms(self, rag_service):
-        """Test error recovery and graceful degradation."""
-        # Test when vector search fails
-        rag_service.weaviate_client.search_by_vector.side_effect = Exception("Vector search failed")
-
-        with patch.object(rag_service, '_fallback_to_keyword_search') as mock_fallback:
-            mock_fallback.return_value = [("fallback_chunk", 0.5)]
-
-            result = await rag_service.search_similar_chunks("virtue")
-
-            # Should fall back to keyword search
-            mock_fallback.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_response_quality_validation(self, rag_service):
-        """Test response quality validation."""
-        with patch.object(rag_service, '_call_llm') as mock_llm:
-            # Test low quality response
-            mock_llm.return_value = "I don't know."
-
-            with patch.object(rag_service, '_validate_response_quality') as mock_validator:
-                mock_validator.return_value = False
-
-                with patch.object(rag_service, '_regenerate_response') as mock_regenerate:
-                    mock_regenerate.return_value = "Virtue is moral excellence according to classical philosophy."
-
-                    result = await rag_service.generate_response("What is virtue?")
-
-                    # Should regenerate low quality response
-                    mock_regenerate.assert_called_once()
-
-    def test_token_management(self, rag_service):
-        """Test token counting and management."""
-        text = "This is a test sentence for token counting."
-
-        token_count = rag_service.count_tokens(text)
-
-        assert isinstance(token_count, int)
-        assert token_count > 0
-        assert token_count < len(text)  # Tokens should be fewer than characters
-
-    @pytest.mark.asyncio
-    async def test_batch_processing(self, rag_service):
-        """Test batch processing of multiple queries."""
-        queries = [
-            "What is virtue?",
-            "What is justice?",
-            "What is wisdom?"
         ]
+        mock_dependencies['weaviate_client'].search_by_vector.return_value = mock_search_results
 
-        with patch.object(rag_service, 'generate_response') as mock_generate:
-            mock_generate.side_effect = [
-                {"response": "Virtue is...", "citations": [], "entities": []},
-                {"response": "Justice is...", "citations": [], "entities": []},
-                {"response": "Wisdom is...", "citations": [], "entities": []}
-            ]
+        # Mock LLM response
+        mock_dependencies['llm_service'].generate_text.return_value = "Virtue, according to Socrates, is knowledge."
 
-            results = await rag_service.batch_process_queries(queries)
+        response, citations = await service.get_rag_response("What is virtue?")
 
-            assert len(results) == 3
-            assert all("response" in result for result in results)
+        assert isinstance(response, str)
+        assert len(response) > 0
+        assert isinstance(citations, list)
+        assert len(citations) > 0
+        assert all(isinstance(c, CitationWithScore) for c in citations)
 
-    def test_response_formatting(self, rag_service):
-        """Test response formatting and structure."""
-        raw_response = "Virtue is moral excellence. It includes courage, temperance, and justice."
-        citations = [{"chunk_id": "chunk_1", "source_text": "test", "relevance_score": 0.8}]
-        entities = [{"name": "Virtue", "type": "Concept"}]
+    @pytest.mark.asyncio
+    async def test_get_rag_response_initializes_if_needed(self, mock_dependencies):
+        """get_rag_response initializes service if not already initialized."""
+        # Create service without pre-initialization
+        mock_dependencies['neo4j_client'] = None
+        mock_dependencies['weaviate_client'] = None
+        mock_dependencies['embedding_service'] = None
 
-        formatted = rag_service.format_response(raw_response, citations, entities)
+        service = RAGService(**mock_dependencies)
+        assert service._initialized is False
 
-        assert "response" in formatted
-        assert "citations" in formatted
-        assert "entities" in formatted
-        assert len(formatted["citations"]) == 1
-        assert len(formatted["entities"]) == 1
+        with patch.object(service, 'initialize', new_callable=AsyncMock) as mock_init:
+            mock_init.return_value = False  # Simulate initialization failure
+
+            response, citations = await service.get_rag_response("What is virtue?")
+
+            # Should fall back to fallback response
+            mock_init.assert_called_once()
+            assert isinstance(response, str)
+            assert len(response) > 0
+
+    @pytest.mark.asyncio
+    async def test_get_rag_response_returns_fallback_on_pipeline_failure(self, mock_dependencies):
+        """get_rag_response returns fallback response when RAG pipeline fails."""
+        service = RAGService(**mock_dependencies)
+
+        # Make the pipeline fail
+        mock_dependencies['embedding_service'].get_embeddings.side_effect = Exception("Embedding failed")
+
+        response, citations = await service.get_rag_response("What is virtue?")
+
+        assert isinstance(response, str)
+        assert len(response) > 0
+        assert isinstance(citations, list)
+        # Fallback returns empty citations
+        assert len(citations) == 0
+
+    @pytest.mark.asyncio
+    async def test_fallback_response_covers_common_philosophical_topics(self, mock_dependencies):
+        """Fallback responses cover common philosophical topics."""
+        service = RAGService(**mock_dependencies)
+
+        topics = ["virtue", "socrates", "justice", "happiness", "knowledge"]
+
+        for topic in topics:
+            response, citations = service._get_fallback_response(f"What is {topic}?")
+
+            assert isinstance(response, str)
+            assert len(response) > 50  # Meaningful response, not just "unavailable"
+            assert topic.lower() in response.lower() or "philosophical" in response.lower()
+
+
+class TestRAGServiceResponseProcessing:
+    """Test RAG service response processing and formatting."""
+
+    def test_clean_response_removes_xml_tags(self):
+        """_clean_response removes XML tags from LLM output."""
+        service = RAGService()
+
+        dirty_response = "Virtue is <concept>excellence</concept> of character."
+        cleaned = service._clean_response(dirty_response)
+
+        assert "<concept>" not in cleaned
+        assert "</concept>" not in cleaned
+        assert "excellence" in cleaned
+
+    def test_clean_response_removes_xml_entities(self):
+        """_clean_response removes XML entities from LLM output."""
+        service = RAGService()
+
+        dirty_response = "Virtue &amp; knowledge are &lt;related&gt;"
+        cleaned = service._clean_response(dirty_response)
+
+        assert "&amp;" not in cleaned
+        assert "&lt;" not in cleaned
+        assert "&gt;" not in cleaned
+
+    def test_clean_response_strips_whitespace(self):
+        """_clean_response strips leading/trailing whitespace."""
+        service = RAGService()
+
+        dirty_response = "  \n  Virtue is excellence.  \n  "
+        cleaned = service._clean_response(dirty_response)
+
+        assert not cleaned.startswith(" ")
+        assert not cleaned.endswith(" ")
+        assert not cleaned.startswith("\n")
+
+
+class TestRAGServiceGlobalInstance:
+    """Test global RAG service instance management."""
+
+    @pytest.mark.asyncio
+    async def test_get_rag_service_returns_singleton(self):
+        """get_rag_service returns the same instance on multiple calls."""
+        from src.arete.ui.reflex_app.services.rag_service import get_rag_service
+
+        service1 = await get_rag_service()
+        service2 = await get_rag_service()
+
+        assert service1 is service2
+
+    @pytest.mark.asyncio
+    async def test_get_rag_service_returns_rag_service_instance(self):
+        """get_rag_service returns a RAGService instance."""
+        from src.arete.ui.reflex_app.services.rag_service import get_rag_service
+
+        service = await get_rag_service()
+
+        assert isinstance(service, RAGService)

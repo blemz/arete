@@ -231,6 +231,3 @@ class ChatState(rx.State):
             lines.append("")
 
         return "\n".join(lines)
-
-# Initialize global chat state
-chat_state = ChatState()

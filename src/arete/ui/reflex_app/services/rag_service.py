@@ -17,9 +17,8 @@ from src.arete.config import Settings
 from src.arete.database.client import Neo4jClient
 from src.arete.database.weaviate_client import WeaviateClient
 from src.arete.models import CitationWithScore
-from src.arete.services.embedding import EmbeddingServiceFactory
-from src.arete.services.llm_service import LLMServiceFactory
-from src.arete.rag.hybrid_retriever import HybridRetriever
+from src.arete.services.embedding_factory import get_embedding_service
+from src.arete.services.simple_llm_service import get_llm_service
 
 logger = logging.getLogger(__name__)
 
@@ -29,47 +28,62 @@ class RAGService:
     Provides async methods suitable for Reflex integration.
     """
 
-    def __init__(self):
-        self.settings = Settings()
-        self.neo4j_client = None
-        self.weaviate_client = None
-        self.hybrid_retriever = None
-        self.llm_service = None
-        self.embedding_service = None
-        self._initialized = False
+    def __init__(
+        self,
+        neo4j_client=None,
+        weaviate_client=None,
+        embedding_service=None,
+        llm_service=None,
+        settings=None
+    ):
+        """
+        Initialize RAG Service with optional dependency injection.
+
+        Args:
+            neo4j_client: Neo4j client instance (optional, for testing)
+            weaviate_client: Weaviate client instance (optional, for testing)
+            embedding_service: Embedding service instance (optional, for testing)
+            llm_service: LLM service instance (optional, for testing)
+            settings: Settings instance (optional, for testing)
+        """
+        self.settings = settings or Settings()
+        self.neo4j_client = neo4j_client
+        self.weaviate_client = weaviate_client
+        self.embedding_service = embedding_service
+        self.llm_service = llm_service
+        self._initialized = bool(neo4j_client and weaviate_client and embedding_service)
 
     async def initialize(self) -> bool:
         """
         Initialize all RAG components asynchronously.
         Returns True if successful, False if fallback needed.
+
+        If dependencies were injected via constructor, this is a no-op.
+        Otherwise, creates clients and services.
         """
         if self._initialized:
             return True
 
         try:
-            # Initialize clients
-            self.neo4j_client = Neo4jClient(self.settings)
-            self.weaviate_client = WeaviateClient(self.settings)
+            # Initialize clients only if not injected
+            if not self.neo4j_client:
+                self.neo4j_client = Neo4jClient(self.settings)
 
-            # Initialize services
-            self.embedding_service = EmbeddingServiceFactory.get_embedding_service(
-                provider=self.settings.embedding_provider
-            )
-            self.llm_service = LLMServiceFactory.get_llm_service(
-                provider=self.settings.kg_llm_provider
-            )
+            if not self.weaviate_client:
+                self.weaviate_client = WeaviateClient(self.settings)
 
-            # Initialize retriever
-            self.hybrid_retriever = HybridRetriever(
-                neo4j_client=self.neo4j_client,
-                weaviate_client=self.weaviate_client,
-                embedding_service=self.embedding_service
-            )
+            # Initialize services using factory functions only if not injected
+            if not self.embedding_service:
+                self.embedding_service = get_embedding_service()
 
-            # Test connectivity
-            await asyncio.get_event_loop().run_in_executor(
-                None, self._test_connectivity
-            )
+            if not self.llm_service:
+                self.llm_service = get_llm_service()
+
+            # Test connectivity only for non-injected dependencies
+            if not self._initialized:
+                await asyncio.get_event_loop().run_in_executor(
+                    None, self._test_connectivity
+                )
 
             self._initialized = True
             logger.info("RAG Service initialized successfully")
@@ -117,33 +131,42 @@ class RAGService:
 
     def _execute_rag_pipeline(self, question: str) -> tuple[str, list[CitationWithScore]]:
         """Execute the RAG pipeline synchronously."""
-        # Retrieve relevant context
-        results = self.hybrid_retriever.retrieve(
-            query=question,
+        # Step 1: Generate query embedding
+        query_embeddings = self.embedding_service.get_embeddings([question])
+        query_vector = query_embeddings[0]
+
+        # Step 2: Vector similarity search in Weaviate
+        search_results = self.weaviate_client.search_by_vector(
+            'Chunk',
+            query_vector,
             limit=5,
-            vector_weight=0.7,
-            sparse_weight=0.3
+            min_certainty=0.7
         )
 
-        # Prepare context for LLM
+        # Step 3: Build context and citations from results
         context_parts = []
         citations = []
 
-        for result in results:
-            context_parts.append(f"Source: {result.source_title}\n{result.content}")
-            citations.append(CitationWithScore(
-                source_title=result.source_title,
-                content=result.content[:5000],  # Extended preview as in chat_rag_clean.py
-                position=getattr(result, "position", 0),
-                relevance_score=result.score,
-                chunk_id=getattr(result, "chunk_id", "")
-            ))
+        for result in search_results[:3]:  # Top 3 results
+            content = result.get('properties', {}).get('content', '')
+            position = result.get('properties', {}).get('position_index', 'unknown')
+            certainty = result.get('_additional', {}).get('certainty', 0.0)
+
+            if content:
+                context_parts.append(content)
+                citations.append(CitationWithScore(
+                    source_title="Plato",  # TODO: Extract from result
+                    content=content[:5000],  # Extended preview as in chat_rag_clean.py
+                    position=str(position),
+                    relevance_score=certainty,
+                    chunk_id=""  # TODO: Extract chunk_id if available
+                ))
 
         context = "\n\n".join(context_parts)
 
-        # Generate response using LLM
+        # Step 4: Generate response using LLM
         prompt = self._create_prompt(question, context)
-        response = self.llm_service.generate_response(
+        response = self.llm_service.generate_text(
             prompt=prompt,
             max_tokens=4000,
             temperature=0.1
